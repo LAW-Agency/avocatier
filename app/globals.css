@@ -4,6 +4,7 @@
   
   --color-primary-dark: #007f5f;
   --color-primary-light: #ffffff;
+  --color-primary-accent: #780000;
 
   --color-background: #f9f4f5;
 
@@ -29,7 +30,14 @@ body {
 }
 
 body {
-  min-height: 100%;
+  background-color: var(--color-background);
+  color: var(--color-text-dark);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+main {
+  flex: 1;
 }
 
 /* STYLES DE BASE DU SITE */

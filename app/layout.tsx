@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Lato } from "next/font/google";
 import "./globals.css";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const playfair = Playfair_Display({
   variable: "--font-heading-custom",
@@ -30,11 +32,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body
-        className={`${playfair.variable} ${lato.variable} antialiased`}
-      >
-        {children}
+
+      <head>
+                
+        {/* -- Icon --*/}
+        <link rel="icon" href="/icon.jpeg" />
+
+      </head>
+
+      <body className={`${playfair.variable} ${lato.variable} antialiased flex flex-col min-h-dvh`}>
+        <Header/>
+        <main className="flex-1">{children}</main>
+        <Footer/>
       </body>
+      
     </html>
   );
 }
