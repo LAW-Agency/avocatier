@@ -16,19 +16,19 @@ export default function Hero (){
                 alt=""
                 fill
                 priority
-                sizes="100vw"
+                sizes="(max-width: 1024px) 100vw, 1024px"
                 className="object-cover -z-20"
             />
 
             {/* Voile sur toute la hauteur, qui disparaît vers la droite */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent pointer-events-none z-10" />
+            <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/80 via-black/40 md:via-black/10 to-transparent md:to-transparent pointer-events-none z-10" />
 
             {/* Contenu */}
             <div className="relative z-20 h-full w-full max-w-7xl mx-auto px-4 flex items-center">
 
                 <div className="relative z-20 max-w-xl space-y-4 drop-shadow-lg">
                     <span className="text-primary-light text-sm">
-                        VOHILAVA · <span>Î</span><span className="text-primary-dark font-bold">LE SAINTE-MARIE · MADAGASCAR</span>
+                        VOHILAVA · <span className="text-primary-dark font-bold">ÎLE SAINTE-MARIE · MADAGASCAR</span>
                     </span>
 
                     <AnimateOnScroll animation="fade-up">

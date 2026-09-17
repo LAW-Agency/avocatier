@@ -1,7 +1,7 @@
 'use client'
 import Link from "next/link"
 import Image from "next/image"
-import { ChevronDown, Menu, X } from "lucide-react"
+import { ChevronDown, Menu, X, User } from "lucide-react"
 import { useState } from "react"
 import { navLinks } from "@/data/navLinks"
 
@@ -73,6 +73,15 @@ export default function Header() {
             className="hidden sm:inline-flex items-center justify-center bg-primary-dark text-text-light px-5 py-2.5 rounded-button text-sm font-medium hover:bg-primary-dark/90 transition-colors"
           >
             Réserver
+          </Link>
+
+          {/* ICONE COMPTE */}
+          <Link
+            href="/"
+            aria-label="Mon compte"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-accent/80 text-primary-light hover:text-primary-dark hover:bg-primary-dark/20 transition-colors shrink-0"
+          >
+            <User className="w-5 h-5" />
           </Link>
 
           {/* BOUTON MENU mobile */}

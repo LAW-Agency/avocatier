@@ -61,6 +61,7 @@ export const navLinks: NavLink[] = [
       { label: "Île Sainte-Marie", href: "/" },
     ],
   },
+  /*
   {
     label: "Infos pratiques",
     href: "/",
@@ -71,5 +72,5 @@ export const navLinks: NavLink[] = [
       { label: "Navette aéroport", href: "/" },
       { label: "FAQ", href: "/" },
     ],
-  },
+  },*/
 ]
