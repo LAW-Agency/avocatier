@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import RevealObserver from "@/components/RevealObserver";
 
 // Titres : Transcend (Paulo Goode) — serif en petites capitales, une seule graisse (Bold), pas d'italique
 const transcend = localFont({
@@ -34,7 +35,8 @@ export default function RootLayout({
 }>) {
   return (
     // Variables de police sur <html> : les variables du @theme Tailwind sont déclarées sur :root
-    <html lang="fr" className={`${transcend.variable} ${outfit.variable}`}>
+    // data-scroll-behavior : Next garde les changements de page instantanés malgré le défilement doux
+    <html lang="fr" data-scroll-behavior="smooth" className={`${transcend.variable} ${outfit.variable}`}>
 
       <head>
                 
@@ -47,6 +49,7 @@ export default function RootLayout({
         <Header/>
         <main className="flex-1">{children}</main>
         <Footer/>
+        <RevealObserver/>
       </body>
       
     </html>

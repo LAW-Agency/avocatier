@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  
+
   --color-primary-dark: #007f5f;
   --color-primary-light: #ffffff;
   --color-primary-accent: #780000;
@@ -11,6 +11,12 @@
   --color-text-light: #FFFFFF;
   --color-text-dark: #007f5f;
 
+  /* Voiles sur photo et sections sombres (vert de la marque, très sombre), sable du cahier des charges */
+  --color-forest: #0d2b21;
+  --color-sand: #dcc9a5;
+  /* Fond alterné des sections claires (vert très pâle) — assez clair pour garder le texte vert à 4,5:1 */
+  --color-mist: #f1f4ef;
+
   --radius-input: 4px;
   --radius-button: 4px;
   --radius-card: 4px;
@@ -18,11 +24,83 @@
   --font-heading: var(--font-heading-custom), serif;
   --font-sans: var(--font-sans-custom), sans-serif;
 
+  /* Échelle typographique : titres de section fluides (32 → 52 px), texte courant */
+  --text-section: clamp(2rem, 1.35rem + 2.4vw, 3.25rem);
+  --text-section--line-height: 1.1;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.7;
+
+  /* Espacement vertical des sections (py-section), fluide entre mobile (56 px) et desktop (~88 px) */
+  --spacing-section: clamp(3.5rem, 2.5rem + 3.5vw, 5.5rem);
+
   /* Animations lentes et douces (consigne DA) — "both" garde l'état initial pendant le délai */
-  --animate-fade-down: fade-down 1s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-up: fade-up 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-fade-left: fade-left 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-fade-right: fade-right 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Ouverture du hero : le logo sort du flou */
+  --animate-reveal: reveal 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* RÉVÉLATIONS À L'ENTRÉE À L'ÉCRAN — fonctionnent dans tous les navigateurs
+   components/RevealObserver.tsx ajoute data-visible ; ici, les états avant/après.
+   data-reveal        : bloc de texte qui monte et apparaît
+   data-reveal="image": photo qui se « développe » (zoom arrière, couleurs qui reviennent)
+   --reveal-delay     : décalage pour une cascade entre éléments voisins
+   Masqué seulement quand l'observateur tourne (html[data-reveal-ready]) et que le mouvement est autorisé :
+   sans JavaScript, script en échec ou mouvement réduit, le contenu est affiché tel quel. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Transition uniquement à l'apparition : le masquage initial est instantané (pas de fondu sortant au chargement) */
+  [data-reveal][data-visible] {
+    transition:
+      opacity 1.1s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 1.1s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+  [data-reveal="image"][data-visible] {
+    transition-duration: 1.8s;
+  }
+  html[data-reveal-ready] [data-reveal]:not([data-visible]) {
+    opacity: 0;
+    transform: translateY(2.5rem);
+  }
+  html[data-reveal-ready] [data-reveal="image"]:not([data-visible]) {
+    opacity: 0;
+    transform: scale(1.08);
+    filter: saturate(0.4);
+  }
+}
+
+/* ANIMATIONS LIÉES AU DÉFILEMENT (CSS pur, animation-timeline) — bonus des navigateurs qui les gèrent,
+   ignorées ailleurs ou si le mouvement réduit est demandé. */
+
+/* Profondeur : la photo glisse plus lentement que la page (cadre en overflow-hidden) */
+@utility animate-parallax {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      animation: parallax linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+  }
+}
+
+/* Hero : la photo zoome doucement et le contenu s'efface en remontant pendant le premier écran défilé */
+@utility animate-hero-zoom {
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      animation: hero-zoom linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 100vh;
+    }
+  }
+}
+@utility animate-hero-exit {
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      animation: hero-exit linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 80vh;
+    }
+  }
 }
 
 html,
@@ -51,17 +129,46 @@ main {
   p {
     font-size: 1.1rem;
   }
+
+  /* Ancres de la page : arrivée sous le header fixe, défilement doux si les animations sont permises */
+  html {
+    scroll-padding-top: 4rem;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Barre de défilement : rail transparent, curseur fin et discret */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-primary-dark) 45%, transparent) transparent;
+  }
+
+  /* Safari (ne gère pas scrollbar-color) — ignoré par Chrome/Firefox qui utilisent les règles ci-dessus */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-primary-dark) 45%, transparent);
+    border-radius: 9999px;
+  }
 }
 
 /* ANIMATION */
-@keyframes fade-down {
+@keyframes reveal {
   from {
     opacity: 0;
-    transform: translateY(-20px);
+    transform: translateY(24px) scale(0.98);
+    filter: blur(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
+    filter: blur(0);
   }
 }
 
@@ -76,24 +183,31 @@ main {
   }
 }
 
-@keyframes fade-left {
+@keyframes parallax {
   from {
-    opacity: 0;
-    transform: translateX(-40px);
+    transform: translateY(-7%) scale(1.15);
   }
   to {
-    opacity: 1;
-    transform: translateX(0);
+    transform: translateY(7%) scale(1.15);
   }
 }
 
-@keyframes fade-right {
+@keyframes hero-zoom {
   from {
-    opacity: 0;
-    transform: translateX(40px);
+    transform: scale(1);
   }
   to {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes hero-exit {
+  from {
     opacity: 1;
-    transform: translateX(0);
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-3rem);
   }
 }

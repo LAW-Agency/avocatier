@@ -1,18 +1,16 @@
 interface SectionTitleProps {
-  eyebrow: string
   title: string
   center?: boolean
+  light?: boolean   // sur fond sombre (vert nuit, photo)
 }
 
-export default function SectionTitle({ eyebrow, title, center = false }: SectionTitleProps) {
+// Titre de section : pas de sur-titre, le titre porte seul la section
+export default function SectionTitle({ title, center = false, light = false }: SectionTitleProps) {
   return (
-    <div className={`space-y-3 ${center ? "text-center" : ""}`}>
-      <span className="block text-xs md:text-sm uppercase tracking-[0.25em] text-primary-accent">
-        {eyebrow}
-      </span>
-      <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl leading-tight text-balance text-text-dark">
-        {title}
-      </h2>
-    </div>
+    <h2
+      className={`font-heading text-section text-balance ${light ? "text-primary-light" : "text-text-dark"} ${center ? "text-center" : ""}`}
+    >
+      {title}
+    </h2>
   )
 }

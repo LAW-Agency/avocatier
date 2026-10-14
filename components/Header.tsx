@@ -123,13 +123,14 @@ export default function Header() {
                   >
                     {link.label}
                     {link.submenu && (
-                      <ChevronDown className="w-3.5 h-3.5 transition-transform duration-300 group-hover:rotate-180 group-focus-within:rotate-180" aria-hidden="true" />
+                      <ChevronDown className="w-3.5 h-3.5 transition-transform duration-300 group-hover:rotate-180 group-has-[:focus-visible]:rotate-180" aria-hidden="true" />
                     )}
                   </Link>
 
-                  {/* SOUS-MENU — au survol et au clavier */}
+                  {/* SOUS-MENU — au survol, et au clavier via :focus-visible
+                      (pas focus-within : un clic laisserait le menu ouvert pendant qu'on survole le suivant) */}
                   {link.submenu && (
-                    <div className="absolute left-1/2 top-full -translate-x-1/2 pt-4 opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 transition-all duration-300">
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 pt-4 opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 group-has-[:focus-visible]:opacity-100 group-has-[:focus-visible]:visible group-has-[:focus-visible]:translate-y-0 transition-all duration-300">
                       <ul className="min-w-[230px] rounded-card bg-primary-light py-3 shadow-[0_12px_40px_rgba(0,0,0,0.12)] ring-1 ring-primary-dark/10">
                         {link.submenu.map((sub) => (
                           <li key={sub.label}>

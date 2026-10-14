@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     "Bungalows, piscine et accès direct à la plage à Vohilava, sur l'île Sainte-Marie (Madagascar). Une adresse intimiste tenue par Joëlle & Stéphane, à 3 km de l'aéroport.",
 };
 
+// Rythme des fonds : clair → mist → photo → mist → clair → vert nuit → clair → mist → photo
 export default function Home() {
   return (
     <div>
@@ -24,9 +25,8 @@ export default function Home() {
       <Amenities/>
       <SplitSection
         id="experience"
-        eyebrow="L’expérience"
         title="Bienvenue chez vous, au bord de l’océan"
-        text="Chez L’Avocatier, Joëlle et Stéphane vous accueillent dans une adresse intimiste de Vohilava, entre jardin tropical et océan Indien. Ici, on vient pour ralentir, respirer et profiter pleinement de Sainte-Marie."
+        text="Tongasoa, comme on dit ici pour souhaiter la bienvenue. Joëlle et Stéphane vous accueillent à Vohilava, dans une adresse intimiste entre jardin tropical et océan Indien : on y vient pour ralentir, respirer et profiter pleinement de Sainte-Marie."
         cta={{ label: "Découvrir Chez L’Avocatier", href: "/hotel" }}
         image={{
           src: "/images/hotel/jardin-bungalows.jpeg",
@@ -37,17 +37,16 @@ export default function Home() {
       {/* 3. Les hébergements */}
       <SplitSection
         id="hebergements"
-        eyebrow="Hébergements"
         title="Dormir au rythme de l’océan"
         text="Installez-vous dans un bungalow pensé pour profiter pleinement de la douceur de Sainte-Marie, entouré de végétation tropicale et ouvert sur l’océan."
         cta={{ label: "Découvrir nos hébergements", href: "/hebergements" }}
         image={{
           src: "/images/rooms/chambre-verte.jpeg",
           alt: "Chambre d'un bungalow avec lit à baldaquin et moustiquaire",
-          frame: "aspect-[4/3] md:aspect-[4/5]",
+          frame: "aspect-[4/3] md:aspect-auto md:h-[32rem]",
         }}
         imageSide="right"
-        tinted
+        tone="mist"
       />
 
       {/* 4. La plage privée */}
@@ -59,21 +58,19 @@ export default function Home() {
       {/* 6. Restaurant & bar */}
       <SplitSection
         id="restaurant"
-        eyebrow="Restaurant & bar"
         title="Les saveurs de l’île"
         text="Petit-déjeuner continental pour bien commencer la journée, restaurant sur place et bar : une cuisine généreuse, aux saveurs de l’île."
         cta={{ label: "Découvrir la table", href: "/restaurant" }}
         image={{
           src: "/images/restaurant/petit-dejeuner.jpeg",
           alt: "Plateau du petit-déjeuner : fruits, viennoiseries, confitures et jus de fruits",
-          frame: "aspect-[4/3] md:aspect-[4/5]",
+          frame: "aspect-[4/3] md:aspect-auto md:h-[32rem]",
         }}
       />
 
       {/* 7. Sainte-Marie — section importante pour le référencement */}
       <SplitSection
         id="sainte-marie"
-        eyebrow="L’île"
         title="Sainte-Marie, l’île autrement"
         text="Au large de la côte est de Madagascar, Sainte-Marie — Nosy Boraha en malgache — déroule une soixantaine de kilomètres de cocotiers, de lagons et de villages de pêcheurs. De juillet à septembre, les baleines à bosse viennent s’y reproduire ; toute l’année, on part à la découverte de l’île aux Nattes, du cimetière des pirates ou des fonds marins."
         cta={{ label: "Explorer Sainte-Marie", href: "/experiences" }}
@@ -82,7 +79,7 @@ export default function Home() {
           alt: "Pirogues sur le lagon de Sainte-Marie au coucher du soleil",
         }}
         imageSide="right"
-        tinted
+        tone="forest"
       />
 
       {/* 8. Avis clients */}

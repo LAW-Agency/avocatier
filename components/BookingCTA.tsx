@@ -1,5 +1,4 @@
 import Image from "next/image"
-import AnimateOnScroll from "@/components/AnimateOnScroll"
 import ButtonLink from "@/components/ButtonLink"
 
 interface BookingCTAProps {
@@ -16,18 +15,16 @@ export default function BookingCTA({
 }: BookingCTAProps) {
   return (
     <section className="relative isolate overflow-hidden">
-      <Image src={image} alt="" fill sizes="100vw" className="object-cover -z-20" />
-      <div className="absolute inset-0 -z-10 bg-black/45" />
+      {/* Parallaxe : la photo glisse plus lentement que la page */}
+      <Image src={image} alt="" fill sizes="100vw" className="object-cover -z-20 animate-parallax" />
+      {/* Même voile vert nuit que le hero : la page se referme comme elle s'ouvre */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-forest/55" />
 
-      <div className="max-w-3xl mx-auto px-4 py-28 md:py-40 text-center space-y-8">
-        <AnimateOnScroll animation="fade-up">
-          <h2 className="font-heading text-3xl md:text-5xl leading-tight text-primary-light drop-shadow-lg">
-            {title}
-          </h2>
-        </AnimateOnScroll>
-        <AnimateOnScroll animation="fade-up" delay={250}>
-          <ButtonLink href="/reserver">{label}</ButtonLink>
-        </AnimateOnScroll>
+      <div data-reveal className="max-w-3xl mx-auto px-4 py-20 md:py-28 text-center space-y-7">
+        <h2 className="font-heading text-section text-balance text-primary-light">
+          {title}
+        </h2>
+        <ButtonLink href="/reserver">{label}</ButtonLink>
       </div>
     </section>
   )

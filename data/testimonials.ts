@@ -12,3 +12,6 @@ export const testimonials: Testimonial[] = [
 
 // Note présentée comme élément secondaire (peu d'avis pour l'instant)
 export const rating = { score: "10/10", label: "Excellent emplacement" }
+
+// Note de la fiche Google « Chez L'Avocatier » (5,0 sur 5 avis, relevée le 14/10/2026) — à mettre à jour
+export const googleRating = { score: "5,0", outOf: 5, source: "Google" }
