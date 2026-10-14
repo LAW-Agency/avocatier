@@ -4,6 +4,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 
 type Animation = "fade-up" | "fade-down" | "fade-left" | "fade-right"
 
+// Classes écrites en entier : Tailwind ne génère pas les classes construites dynamiquement
+const animationClasses: Record<Animation, string> = {
+  "fade-up": "animate-fade-up",
+  "fade-down": "animate-fade-down",
+  "fade-left": "animate-fade-left",
+  "fade-right": "animate-fade-right",
+}
+
 interface AnimateOnScrollProps {
   children: ReactNode
   animation?: Animation
@@ -43,7 +51,7 @@ export default function AnimateOnScroll({
   return (
     <div
       ref={ref}
-      className={`${isVisible ? `animate-${animation}` : "opacity-0"} ${className}`}
+      className={`${isVisible ? `${animationClasses[animation]} motion-reduce:animate-none` : "opacity-0 motion-reduce:opacity-100"} ${className}`}
       style={{ animationDelay: isVisible ? `${delay}ms` : undefined }}
     >
       {children}

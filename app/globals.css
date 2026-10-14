@@ -15,13 +15,14 @@
   --radius-button: 4px;
   --radius-card: 4px;
 
-  --font-heading: var(--font-heading-custom), sans-serif;
+  --font-heading: var(--font-heading-custom), serif;
   --font-sans: var(--font-sans-custom), sans-serif;
 
-  --animate-fade-down: fade-down 0.6s ease-out forwards;
-  --animate-fade-up: fade-up 0.8s ease-out forwards;
-  --animate-fade-left: fade-left 0.8s ease-out forwards;
-  --animate-fade-right: fade-right 0.8s ease-out forwards;
+  /* Animations lentes et douces (consigne DA) — "both" garde l'état initial pendant le délai */
+  --animate-fade-down: fade-down 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-left: fade-left 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-right: fade-right 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 html,
@@ -29,32 +30,27 @@ body {
   overflow-x: hidden;
 }
 
-body {
-  background-color: var(--color-background);
-  color: var(--color-text-dark);
-  font-family: var(--font-sans);
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
 main {
   flex: 1;
 }
 
-/* STYLES DE BASE DU SITE */
-body {
-  background-color: var(--color-background);
-  color: var(--color-text-dark);
-  font-family: var(--font-sans);
-  transition: background-color 0.3s ease, color 0.3s ease;
-  overflow-x: hidden;
-}
+/* STYLES DE BASE DU SITE
+   Dans @layer base pour que les classes Tailwind (text-sm, font-sans…) restent prioritaires */
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-dark);
+    font-family: var(--font-sans);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 
-h1, h2, h3, .font-heading {
-  font-family: var(--font-heading);
-}
+  h1, h2, h3, .font-heading {
+    font-family: var(--font-heading);
+  }
 
-p{
-  font-size: 1.1rem;
+  p {
+    font-size: 1.1rem;
+  }
 }
 
 /* ANIMATION */
