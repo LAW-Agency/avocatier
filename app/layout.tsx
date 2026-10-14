@@ -1,22 +1,25 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Lato } from "next/font/google";
+import { Outfit } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import RevealObserver from "@/components/RevealObserver";
 
-const playfair = Playfair_Display({
+// Titres : Transcend (Paulo Goode) — serif en petites capitales, une seule graisse (Bold), pas d'italique
+const transcend = localFont({
+  src: "./fonts/Transcend.ttf",
   variable: "--font-heading-custom",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
+  weight: "700",
+  style: "normal",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
-const lato = Lato({
+// Texte : Outfit, police variable (graisses 100 à 900)
+const outfit = Outfit({
   variable: "--font-sans-custom",
   subsets: ["latin", "latin-ext"],
-  weight: ["300", "400", "700"],
-  style: ["normal", "italic"],
   display: "swap",
 });
 
@@ -31,7 +34,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    // Variables de police sur <html> : les variables du @theme Tailwind sont déclarées sur :root
+    // data-scroll-behavior : Next garde les changements de page instantanés malgré le défilement doux
+    <html lang="fr" data-scroll-behavior="smooth" className={`${transcend.variable} ${outfit.variable}`}>
 
       <head>
                 
@@ -40,10 +45,11 @@ export default function RootLayout({
 
       </head>
 
-      <body className={`${playfair.variable} ${lato.variable} antialiased flex flex-col min-h-dvh`}>
+      <body className="antialiased flex flex-col min-h-dvh">
         <Header/>
         <main className="flex-1">{children}</main>
         <Footer/>
+        <RevealObserver/>
       </body>
       
     </html>
