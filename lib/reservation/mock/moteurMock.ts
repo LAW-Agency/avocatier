@@ -3,7 +3,7 @@ import { aujourdhuiISO, chevauche, estDateISO } from "../dates"
 import type { DepotComptes, MoteurReservation } from "../moteur"
 import { calculerDevis, estLibre, verifierDates } from "../regles"
 import type { Client, ClientPublic, PeriodeOccupee, Reservation, StatutReservation } from "../types"
-import { creerBaseMock, creerCompteHote, type BaseMock } from "./donnees"
+import { creerBaseMock, creerCompteHote, hebergements, type BaseMock } from "./donnees"
 
 // Implémentation en mémoire : les données repartent de zéro au redémarrage du serveur.
 // Rangée sur globalThis pour survivre aux rechargements à chaud du serveur de développement.
@@ -22,6 +22,16 @@ function migrer(b: BaseMock) {
   for (const c of b.clients) c.role ??= "client"
   if (!b.clients.some((c) => c.role === "hote")) b.clients.unshift(creerCompteHote())
   b.blocages.forEach((bl, i) => (bl.id ??= `b-ancien-${i}`))
+  // Hébergements ajoutés depuis, et contenu des fiches toujours repris de la source (les hôtes ne le modifient pas)
+  for (const source of hebergements) {
+    const existant = b.hebergements.find((h) => h.id === source.id)
+    if (!existant) {
+      b.hebergements.push(structuredClone(source))
+      continue
+    }
+    const { image, description, presentation, galerie, salleDeBains, equipements } = structuredClone(source)
+    Object.assign(existant, { image, description, presentation, galerie, salleDeBains, equipements })
+  }
 }
 
 const DUREE_OPTION_MS = 48 * 3_600_000

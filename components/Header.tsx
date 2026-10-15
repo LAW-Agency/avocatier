@@ -7,7 +7,7 @@ import { useEffect, useState, useSyncExternalStore } from "react"
 import { navLinks } from "@/data/navLinks"
 
 // Pages avec un hero plein écran : le header y reste transparent tant qu'on n'a pas défilé
-const HERO_PAGES = ["/", "/compte"]
+const HERO_PAGES = ["/", "/compte", "/hotel", "/hebergements", "/experiences", "/restaurant", "/galerie"]
 const SCROLL_THRESHOLD = 24 // px
 const DESKTOP_MIN_WIDTH = 1024 // breakpoint lg
 
@@ -73,8 +73,9 @@ export default function Header() {
 
   return (
     <>
-      {/* Pas de filter/transform sur <header> : ils casseraient le positionnement fixe du menu mobile */}
-      <header className="fixed inset-x-0 top-0 z-50">
+      {/* Pas de filter/transform sur <header> : ils casseraient le positionnement fixe du menu mobile.
+          viewTransitionName : le header reste immobile pendant la transition entre pages (globals.css) */}
+      <header className="fixed inset-x-0 top-0 z-50" style={{ viewTransitionName: "site-header" }}>
         <div className={`relative ${fade} ${solid ? "h-16 lg:h-20" : "h-20 lg:h-24"}`}>
 
           {/* Fonds : dégradé sombre sur le hero, blanc après défilement — fondu entre les deux */}
@@ -170,9 +171,10 @@ export default function Header() {
               {/* ICONE COMPTE */}
               <Link
                 href="/compte"
+                onClick={closeMenu}
                 aria-label="Mon compte"
                 aria-current={surCompte ? "page" : undefined}
-                className={`hidden sm:flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${fade} ${
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${fade} ${
                   surCompte
                     ? solid
                       ? "ring-2 ring-primary-accent ring-offset-2 ring-offset-primary-light "
@@ -259,7 +261,7 @@ export default function Header() {
                         </div>
                       </>
                     ) : (
-                      // Lien simple (ex. Accueil) : navigue et ferme le menu
+                      // Lien simple (ex. Galerie) : navigue et ferme le menu
                       <Link
                         href={link.href}
                         onClick={closeMenu}
@@ -274,35 +276,16 @@ export default function Header() {
             </ul>
           </nav>
 
-          {/* Pied du menu : réservation, compte, adresse */}
-          <div
+          {/* Pied du menu : l'adresse (Réserver et le compte restent dans la barre au-dessus) */}
+          <p
             style={{ transitionDelay: mobileOpen ? `${120 + navLinks.length * 50}ms` : "0ms" }}
-            className={`border-t border-primary-dark/10 px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4 transition-all duration-500 ease-out ${
+            className={`flex items-start gap-2 border-t border-primary-dark/10 px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-sm text-text-dark transition-all duration-500 ease-out ${
               mobileOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
             }`}
           >
-            <div className="flex gap-3">
-              <Link
-                href="/reserver"
-                onClick={closeMenu}
-                className="flex-1 inline-flex items-center justify-center rounded-button bg-primary-dark px-6 py-3 text-sm font-medium tracking-wide text-text-light"
-              >
-                Réserver votre séjour
-              </Link>
-              <Link
-                href="/compte"
-                onClick={closeMenu}
-                aria-label="Mon compte"
-                className="flex items-center justify-center w-12 rounded-button bg-primary-accent/80 text-primary-light"
-              >
-                <User className="w-5 h-5" />
-              </Link>
-            </div>
-            <p className="flex items-start gap-2 text-sm text-text-dark/80">
-              <MapPin className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
-              Vohilava, Île Sainte-Marie, Madagascar
-            </p>
-          </div>
+            <MapPin className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+            Vohilava, Île Sainte-Marie, Madagascar
+          </p>
         </div>
       </header>
 

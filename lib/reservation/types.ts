@@ -4,17 +4,25 @@ export type DateISO = string // « AAAA-MM-JJ », sans fuseau
 
 export type TypeHebergement = "bungalow" | "chambre"
 
+// Équipements de la fiche d'un hébergement (libellés et icônes : components/hebergements/equipements.ts)
+export type Equipement = "wifi" | "coffre-fort" | "bureau" | "moustiquaire" | "television" | "linge"
+
 export type Hebergement = {
   id: string
   slug: string
   nom: string
   type: TypeHebergement
-  description: string
+  description: string // phrase courte : cartes et parcours de réservation
   image: string
   capaciteMax: number // adultes + enfants
   literie: string
   vue: string
   prixNuit: number // prix de base, en euros
+  // Fiche /hebergements/[slug]
+  presentation: string
+  galerie: string[] // photos en plus de `image` : chambre, salle de bains
+  salleDeBains: string
+  equipements: Equipement[]
 }
 
 // Période tarifaire : s'applique à tous les hébergements ; `fin` est exclue

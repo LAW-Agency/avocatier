@@ -11,6 +11,8 @@ export const contact = {
     country: "Madagascar",
   },
   airport: "À 3 km de l’aéroport de Sainte-Marie",
+  // Nom complet obligatoire dans la recherche : sinon Google propose la villa voisine
+  mapUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Chez L'Avocatier, Vohilava, Île Sainte-Marie, Madagascar")}`,
 
   // TODO client : téléphone et e-mail absents du cahier des charges — valeurs provisoires à remplacer.
   // Une valeur vide masque la ligne dans le footer.

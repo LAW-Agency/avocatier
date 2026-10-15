@@ -140,7 +140,7 @@ export default function Footer() {
         </div>
 
         {/* BANDEAU BAS : copyright | liens légaux */}
-        <div className="flex flex-col-reverse gap-3 border-t border-primary-light/15 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-sm text-primary-light/65 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col-reverse gap-3 border-t border-primary-light/15 pt-6 pr-16 md:pr-20 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-sm text-primary-light/65 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm">© {new Date().getFullYear()} {contact.name}. Tous droits réservés.</p>
           <ul className="flex items-center divide-x divide-primary-light/30">
             {legalLinks.map((link) => (

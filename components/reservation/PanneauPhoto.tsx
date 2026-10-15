@@ -20,19 +20,22 @@ export default function PanneauPhoto({ images, active, children, className = "" 
         // de la barre d'action flottante (1.25rem du bord) ; jamais plus haut que le contenu voisin
         className={`relative isolate overflow-hidden rounded-panel bg-forest lg:sticky lg:top-28 lg:h-[min(calc(100dvh-8.25rem),100%)] lg:min-h-[28rem] ${className}`}
       >
-        {images.map((src, i) => (
-          <Image
-            key={src}
-            src={src}
-            alt=""
-            fill
-            preload={i === 0}
-            sizes="(min-width: 1024px) 42vw, 100vw"
-            className={`-z-20 object-cover transition-[opacity,transform] duration-[1400ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-              src === active ? "scale-100 opacity-100" : "scale-[1.06] opacity-0"
-            }`}
-          />
-        ))}
+        {/* Conteneur en absolute : next/image (fill) refuse un parent en position sticky */}
+        <div className="absolute inset-0 -z-20 animate-photo-entree motion-reduce:animate-none">
+          {images.map((src, i) => (
+            <Image
+              key={src}
+              src={src}
+              alt=""
+              fill
+              preload={i === 0}
+              sizes="(min-width: 1024px) 42vw, 100vw"
+              className={`object-cover transition-[opacity,transform] duration-[1400ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                src === active ? "scale-100 opacity-100" : "scale-[1.06] opacity-0"
+              }`}
+            />
+          ))}
+        </div>
         {/* Voile vert nuit, plus dense en bas où le texte est posé */}
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-forest/30" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-forest via-forest/60 to-transparent" />

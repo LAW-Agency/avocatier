@@ -33,7 +33,8 @@
   /* Grands éléments de la réservation (photo, cartes, barre flottante) : plus doux que les boutons */
   --radius-panel: 1rem;
 
-  --font-heading: var(--font-heading-custom), serif;
+  /* Titres et texte en Outfit : font-heading ne change que la graisse et l'interlettrage (voir @layer base) */
+  --font-heading: var(--font-sans-custom), sans-serif;
   --font-sans: var(--font-sans-custom), sans-serif;
 
   /* Échelle typographique : titres de section fluides (32 → 52 px), texte courant */
@@ -49,6 +50,9 @@
   --animate-fade-up: fade-up 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
   /* Ouverture du hero : le logo sort du flou */
   --animate-reveal: reveal 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Photo d'un hero à sa première apparition : elle se « développe » (fondu, zoom arrière, flou dissipé).
+     Sur un conteneur de la photo, jamais sur l'image qui porte déjà animate-hero-zoom */
+  --animate-photo-entree: photo-entree 2.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 
   /* Réservation : réponses aux actions du visiteur (toujours avec motion-reduce:animate-none) */
   /* Étape ou mois suivant / précédent : le contenu glisse dans le sens de la navigation */
@@ -152,6 +156,8 @@ main {
 
   h1, h2, h3, .font-heading {
     font-family: var(--font-heading);
+    font-weight: 500;
+    letter-spacing: -0.01em;
   }
 
   p {
@@ -282,6 +288,72 @@ main {
   to {
     opacity: 0;
     transform: translateY(-3rem);
+  }
+}
+
+@keyframes photo-entree {
+  from {
+    opacity: 0;
+    transform: scale(1.1);
+    filter: blur(12px) saturate(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* TRANSITIONS ENTRE PAGES — React <ViewTransition> autour du contenu (components/ChromeSite.tsx).
+   L'ancienne page reste opaque et s'estompe dans le flou, la nouvelle arrive en fondu par-dessus :
+   le fond clair du site ne transparaît jamais entre les deux. Sans View Transitions : changement direct. */
+::view-transition {
+  pointer-events: none; /* les clics pendant l'animation atteignent la nouvelle page */
+}
+::view-transition-group(.page-sortie) {
+  z-index: 1;
+}
+::view-transition-group(.page-entree) {
+  z-index: 2;
+}
+::view-transition-old(.page-sortie) {
+  animation: page-sortie 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+::view-transition-new(.page-entree) {
+  animation: page-entree 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes page-sortie {
+  to {
+    filter: blur(6px) brightness(0.85);
+  }
+}
+@keyframes page-entree {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+    filter: blur(6px);
+  }
+}
+/* Le header et le bouton de défilement ne bougent pas : seul le contenu change sous eux */
+::view-transition-group(site-header),
+::view-transition-group(bouton-defilement) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header),
+::view-transition-old(bouton-defilement) {
+  display: none;
+}
+::view-transition-new(site-header),
+::view-transition-new(bouton-defilement) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 }
 
