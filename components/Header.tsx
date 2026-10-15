@@ -7,7 +7,7 @@ import { useEffect, useState, useSyncExternalStore } from "react"
 import { navLinks } from "@/data/navLinks"
 
 // Pages avec un hero plein écran : le header y reste transparent tant qu'on n'a pas défilé
-const HERO_PAGES = ["/"]
+const HERO_PAGES = ["/", "/compte"]
 const SCROLL_THRESHOLD = 24 // px
 const DESKTOP_MIN_WIDTH = 1024 // breakpoint lg
 
@@ -26,6 +26,9 @@ function useScrolled() {
 export default function Header() {
   const pathname = usePathname()
   const hasHero = HERO_PAGES.includes(pathname)
+  // Page de réservation ou de compte ouverte : le bouton correspondant le signale
+  const surReservation = pathname.startsWith("/reserver")
+  const surCompte = pathname.startsWith("/compte")
   const scrolled = useScrolled()
 
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -154,16 +157,28 @@ export default function Header() {
               <Link
                 href="/reserver"
                 onClick={closeMenu}
-                className="inline-flex items-center justify-center rounded-button bg-primary-dark px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-medium tracking-wide text-text-light transition-colors hover:bg-primary-dark/90"
+                aria-current={surReservation ? "page" : undefined}
+                className={`inline-flex items-center justify-center rounded-button border border-primary-dark px-4 py-2 sm:px-5 sm:py-2.5 text-sm font-medium tracking-wide transition-colors ${
+                  surReservation
+                    ? "bg-transparent text-text-dark"
+                    : "bg-primary-dark text-text-light hover:bg-primary-dark/90"
+                }`}
               >
                 Réserver
               </Link>
 
               {/* ICONE COMPTE */}
               <Link
-                href="/"
+                href="/compte"
                 aria-label="Mon compte"
+                aria-current={surCompte ? "page" : undefined}
                 className={`hidden sm:flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${fade} ${
+                  surCompte
+                    ? solid
+                      ? "ring-2 ring-primary-accent ring-offset-2 ring-offset-primary-light "
+                      : "ring-2 ring-primary-light ring-offset-2 ring-offset-transparent "
+                    : ""
+                }${
                   solid
                     ? "bg-primary-accent/80 text-primary-light hover:bg-primary-accent"
                     : "bg-primary-light/15 text-primary-light ring-1 ring-primary-light/40 hover:bg-primary-light/25"
@@ -275,7 +290,7 @@ export default function Header() {
                 Réserver votre séjour
               </Link>
               <Link
-                href="/"
+                href="/compte"
                 onClick={closeMenu}
                 aria-label="Mon compte"
                 className="flex items-center justify-center w-12 rounded-button bg-primary-accent/80 text-primary-light"

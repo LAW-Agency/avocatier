@@ -122,14 +122,6 @@ export default function Footer() {
                       </a>
                     </li>
                   )}
-                  {contact.email && (
-                    <li>
-                      <a href={`mailto:${contact.email}`} className={`inline-flex items-center gap-3 break-all ${linkStyle}`}>
-                        <Mail className="w-4 h-4 shrink-0 stroke-[1.5]" aria-hidden="true" />
-                        {contact.email}
-                      </a>
-                    </li>
-                  )}
                 </ul>
               </div>
             )}

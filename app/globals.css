@@ -16,10 +16,15 @@
   --color-sand: #dcc9a5;
   /* Fond alterné des sections claires (vert très pâle) — assez clair pour garder le texte vert à 4,5:1 */
   --color-mist: #f1f4ef;
+  /* Encre neutre (presque noire, à peine teintée de vert) : formulaires et écrans de compte, pour
+     que le vert reste un accent. ink/70 garde 4,5:1 sur background et blanc */
+  --color-ink: #1c2622;
 
   --radius-input: 4px;
   --radius-button: 4px;
   --radius-card: 4px;
+  /* Grands éléments de la réservation (photo, cartes, barre flottante) : plus doux que les boutons */
+  --radius-panel: 1rem;
 
   --font-heading: var(--font-heading-custom), serif;
   --font-sans: var(--font-sans-custom), sans-serif;
@@ -37,6 +42,19 @@
   --animate-fade-up: fade-up 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
   /* Ouverture du hero : le logo sort du flou */
   --animate-reveal: reveal 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  /* Réservation : réponses aux actions du visiteur (toujours avec motion-reduce:animate-none) */
+  /* Étape ou mois suivant / précédent : le contenu glisse dans le sens de la navigation */
+  --animate-glisse-avant: glisse-avant 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-glisse-arriere: glisse-arriere 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Valeur qui change (dates, total, compteurs) : elle sort doucement du flou */
+  --animate-valeur: valeur 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Pastille de date choisie, coche de sélection */
+  --animate-pastille: pastille 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  /* Coche de confirmation tracée au trait (stroke-dasharray sur le chemin SVG) */
+  --animate-trace: trace 1s 0.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+  /* Frise de suivi d'un séjour : se remplit jusqu'à --avancement (0 à 1) */
+  --animate-remplir: remplir 1.4s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* RÉVÉLATIONS À L'ENTRÉE À L'ÉCRAN — fonctionnent dans tous les navigateurs
@@ -103,9 +121,12 @@
   }
 }
 
+/* clip plutôt que hidden : hidden ferait de <body> un conteneur de défilement et casserait
+   position: sticky (panneau photo et barre d'action de la réservation) — hidden reste en repli */
 html,
 body {
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 main {
@@ -198,6 +219,51 @@ main {
   }
   to {
     transform: scale(1.12);
+  }
+}
+
+@keyframes glisse-avant {
+  from {
+    opacity: 0;
+    transform: translateX(2.5rem);
+    filter: blur(4px);
+  }
+}
+
+@keyframes glisse-arriere {
+  from {
+    opacity: 0;
+    transform: translateX(-2.5rem);
+    filter: blur(4px);
+  }
+}
+
+@keyframes valeur {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em);
+    filter: blur(6px);
+  }
+}
+
+@keyframes pastille {
+  from {
+    transform: scale(0.6);
+  }
+}
+
+@keyframes trace {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes remplir {
+  from {
+    transform: scaleX(0);
   }
 }
 
