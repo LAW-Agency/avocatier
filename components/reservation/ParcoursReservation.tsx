@@ -10,7 +10,8 @@ import { classesChamp } from "@/components/Champ"
 import { BlocCompte } from "@/components/compte/FormulairesCompte"
 import Calendrier from "@/components/reservation/Calendrier"
 import PanneauPhoto from "@/components/reservation/PanneauPhoto"
-import { formaterPlage, formaterPrix, nombreNuits, nuitsDuSejour, pluriel } from "@/lib/reservation/dates"
+import { MentionConversion, useDevise } from "@/components/Devise"
+import { formaterPlage, nombreNuits, nuitsDuSejour, pluriel } from "@/lib/reservation/dates"
 import { calculerDevis, estLibre, nuitsCompletes, verifierDates, type Devis } from "@/lib/reservation/regles"
 import { versParametres, type Selection } from "@/lib/reservation/selection"
 import type { ClientPublic, DateISO, Hebergement, PeriodeOccupee, Saison } from "@/lib/reservation/types"
@@ -76,7 +77,8 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
 
   const devis = hebergement && datesOk ? calculerDevis(hebergement, arrivee!, depart!, saisons) : null
   const confirmee = Boolean(etatDemande.reference && hebergement && devis)
-  const prixSejour = devis ? `${formaterPrix(devis.total)} pour ${pluriel(devis.nuits, "nuit")}` : null
+  const { formater } = useDevise()
+  const prixSejour = devis ? `${formater(devis.total)} pour ${pluriel(devis.nuits, "nuit")}` : null
 
   // Ce que la barre d'action rappelle, ou ce qu'il reste à faire, à chaque étape
   const indications = [
@@ -258,6 +260,8 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                         <input type="hidden" name="depart" value={depart ?? ""} />
                         <input type="hidden" name="adultes" value={adultes} />
                         <input type="hidden" name="enfants" value={enfants} />
+                        {/* Retour après « Changer de compte » : React interdit name/value sur un bouton à formAction */}
+                        <input type="hidden" name="suite" value={`/reserver?${versParametres(selection)}`} />
 
                         <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-primary-dark/15 pb-6">
                           <p className="text-text-dark">
@@ -266,7 +270,7 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                             </span>
                             <span className="text-sm">{client.email}</span>
                           </p>
-                          <button type="submit" formAction={deconnexion} formNoValidate name="suite" value={`/reserver?${versParametres(selection)}`} className={boutonRetour}>
+                          <button type="submit" formAction={deconnexion} formNoValidate className={boutonRetour}>
                             Changer de compte
                           </button>
                         </div>
@@ -324,6 +328,7 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
 
 // Le séjour raconté sur la photo : chaque valeur sort du flou quand elle change
 function RecitSejour({ selection, hebergement, devis }: { selection: Selection; hebergement: Hebergement | null; devis: Devis | null }) {
+  const { formater } = useDevise()
   const { arrivee, depart, adultes, enfants } = selection
   const plage = arrivee && depart ? formaterPlage(arrivee, depart) : null
   const voyageurs = `${pluriel(adultes, "adulte")}${enfants ? `, ${pluriel(enfants, "enfant")}` : ""}`
@@ -346,9 +351,10 @@ function RecitSejour({ selection, hebergement, devis }: { selection: Selection; 
           </p>
           <p className="text-right">
             <span key={devis.total} className={`text-2xl font-light tabular-nums sm:text-3xl ${valeur}`}>
-              {formaterPrix(devis.total)}
+              {formater(devis.total)}
             </span>
             <span className="block text-xs text-primary-light/85">prix indicatif</span>
+            <MentionConversion montant={devis.total} className="block text-xs text-primary-light/85" />
           </p>
         </div>
       )}
@@ -513,6 +519,7 @@ interface CarteHebergementProps {
 }
 
 function CarteHebergement({ hebergement: h, libre, assezGrand, choisi: choisiDemande, devis, onChoisir }: CarteHebergementProps) {
+  const { formater } = useDevise()
   const choisissable = libre && assezGrand
   const choisi = choisiDemande && choisissable
   const indisponible = !libre ? "Complet à ces dates" : !assezGrand ? `${h.capaciteMax} personnes au maximum` : null
@@ -548,7 +555,7 @@ function CarteHebergement({ hebergement: h, libre, assezGrand, choisi: choisiDem
           ) : (
             devis && (
               <span className="shrink-0 text-right text-text-dark">
-                <span className="block text-xl font-light tabular-nums">{formaterPrix(devis.total)}</span>
+                <span className="block text-xl font-light tabular-nums">{formater(devis.total)}</span>
                 <span className="block text-xs">pour {pluriel(devis.nuits, "nuit")}</span>
               </span>
             )

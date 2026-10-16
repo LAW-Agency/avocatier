@@ -25,7 +25,21 @@ export type Hebergement = {
   equipements: Equipement[]
 }
 
-// Période tarifaire : s'applique à tous les hébergements ; `fin` est exclue
+// Jour de l'année « MM-JJ », sans année : une saison revient chaque année aux mêmes dates
+export type JourAnnee = string
+
+// Saison telle que les hôtes la définissent (/admin/tarifs) : mêmes dates et mêmes règles chaque année.
+// `fin` est la dernière nuit comprise ; une saison peut passer le 31 décembre (du « 12-20 » au « 01-04 »).
+// Hors de toute saison : prix de base, une nuit minimum (« saison normale »).
+export type RegleSaison = {
+  nom: string
+  debut: JourAnnee
+  fin: JourAnnee
+  coefficient: number // multiplie le prix de base
+  sejourMin: number // nuits minimum pour une arrivée dans la saison
+}
+
+// Occurrence datée d'une saison (deplierSaisons) : s'applique à tous les hébergements ; `fin` est exclue
 export type Saison = {
   nom: string
   debut: DateISO
@@ -117,3 +131,20 @@ export type ResultatDemande =
 export type NouveauClient = Omit<Client, "id" | "creeLe" | "role">
 
 export type ResultatAction = { ok: true } | { ok: false; erreur: string }
+
+// Tarifs modifiés par les hôtes (/admin/tarifs) : prix de base en euros et liste complète des saisons
+export type ModificationTarifs = {
+  prix: Record<string, number> // hebergementId → prix de base par nuit
+  saisons: RegleSaison[] // remplace toutes les saisons
+}
+
+// Devises proposées aux visiteurs (catalogue : lib/reservation/devises.ts). Les tarifs restent en euros,
+// les autres devises ne sont qu'une conversion indicative au taux saisi par les hôtes.
+export type CodeDevise = "EUR" | "USD" | "MGA" | "GBP" | "CHF" | "CAD"
+
+export type ReglagesDevises = {
+  parDefaut: CodeDevise // affichée tant que le visiteur n'a rien choisi
+  actives: CodeDevise[] // proposées dans le pied de page ; l'euro l'est toujours
+  taux: Record<CodeDevise, number> // 1 € = taux × devise
+  misAJourLe: string // date-heure ISO de la dernière modification des taux
+}

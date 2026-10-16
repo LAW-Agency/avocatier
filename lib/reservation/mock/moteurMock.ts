@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto"
-import { aujourdhuiISO, chevauche, estDateISO } from "../dates"
+import { ajouterJours, aujourdhuiISO, chevauche, estDateISO } from "../dates"
 import type { DepotComptes, MoteurReservation } from "../moteur"
-import { calculerDevis, estLibre, verifierDates } from "../regles"
-import type { Client, ClientPublic, PeriodeOccupee, Reservation, StatutReservation } from "../types"
-import { creerBaseMock, creerCompteHote, hebergements, type BaseMock } from "./donnees"
+import { CODES_DEVISES, DEVISE_REFERENCE, reglagesDevisesInitiaux } from "../devises"
+import { calculerDevis, chevauchementSaisons, deplierSaisons, estJourAnnee, estLibre, NUITS_MAX, verifierDates } from "../regles"
+import type { Client, ClientPublic, PeriodeOccupee, RegleSaison, Reservation, Saison, StatutReservation } from "../types"
+import { creerBaseMock, creerCompteHote, hebergements, reglesSaisonsInitiales, type BaseMock } from "./donnees"
 
 // Implémentation en mémoire : les données repartent de zéro au redémarrage du serveur.
 // Rangée sur globalThis pour survivre aux rechargements à chaud du serveur de développement.
@@ -22,6 +23,20 @@ function migrer(b: BaseMock) {
   for (const c of b.clients) c.role ??= "client"
   if (!b.clients.some((c) => c.role === "hote")) b.clients.unshift(creerCompteHote())
   b.blocages.forEach((bl, i) => (bl.id ??= `b-ancien-${i}`))
+  b.devises ??= reglagesDevisesInitiaux()
+  // Saisons autrefois rangées datées (`saisons`) : on n'en garde que les règles, une par nom
+  const ancienne = b as BaseMock & { saisons?: Saison[] }
+  if (!b.reglesSaisons) {
+    const parNom = new Map<string, RegleSaison>()
+    for (const s of ancienne.saisons ?? []) {
+      parNom.set(s.nom, { nom: s.nom, debut: s.debut.slice(5), fin: ajouterJours(s.fin, -1).slice(5), coefficient: s.coefficient, sejourMin: s.sejourMin })
+    }
+    b.reglesSaisons = parNom.size > 0 ? [...parNom.values()] : structuredClone(reglesSaisonsInitiales)
+    delete ancienne.saisons
+  }
+  // Devises ajoutées au catalogue depuis : taux par défaut, non proposées tant que les hôtes ne les activent pas
+  const tauxInitiaux = reglagesDevisesInitiaux().taux
+  for (const code of CODES_DEVISES) b.devises.taux[code] ??= tauxInitiaux[code]
   // Hébergements ajoutés depuis, et contenu des fiches toujours repris de la source (les hôtes ne le modifient pas)
   for (const source of hebergements) {
     const existant = b.hebergements.find((h) => h.id === source.id)
@@ -37,6 +52,15 @@ function migrer(b: BaseMock) {
 const DUREE_OPTION_MS = 48 * 3_600_000
 // Statuts qui bloquent les dates (en PostgreSQL : contrainte d'exclusion sur ces lignes)
 const STATUTS_ACTIFS: StatutReservation[] = ["option", "confirmee"]
+
+// Bornes des tarifs saisis par les hôtes (contrôle serveur : une Server Action est appelable directement)
+const PRIX_MAX = 10_000
+const COEFFICIENT = { min: 0.5, max: 3 }
+const TAUX_MAX = 1_000_000
+const SAISONS_MAX = 12
+const NOM_SAISON_MAX = 40
+
+const estEntre = (n: number, min: number, max: number) => Number.isFinite(n) && n >= min && n <= max
 
 // Changements de statut permis aux hôtes
 const TRANSITIONS: Partial<Record<StatutReservation, StatutReservation[]>> = {
@@ -68,6 +92,12 @@ function occupations(b: BaseMock): PeriodeOccupee[] {
   ]
 }
 
+// Saisons datées de l'an dernier (fêtes à cheval sur janvier) à dans deux ans (réservations à l'avance)
+function saisonsDatees(b: BaseMock): Saison[] {
+  const annee = Number(aujourdhuiISO().slice(0, 4))
+  return deplierSaisons(b.reglesSaisons, [annee - 1, annee, annee + 1, annee + 2])
+}
+
 // Copies : l'appelant ne doit pas pouvoir modifier la base par référence
 const copie = <T>(valeur: T): T => structuredClone(valeur)
 
@@ -82,7 +112,11 @@ export const moteurMock: MoteurReservation = {
   },
 
   async listerSaisons() {
-    return copie(base().saisons)
+    return saisonsDatees(base())
+  },
+
+  async listerReglesSaisons() {
+    return copie(base().reglesSaisons)
   },
 
   async periodesOccupees() {
@@ -96,7 +130,7 @@ export const moteurMock: MoteurReservation = {
 
     const { arrivee, depart, adultes, enfants } = demande
     if (!estDateISO(arrivee) || !estDateISO(depart)) return { ok: false, erreur: "Dates invalides." }
-    const erreurDates = verifierDates(arrivee, depart, aujourdhuiISO(), b.saisons)
+    const erreurDates = verifierDates(arrivee, depart, aujourdhuiISO(), saisonsDatees(b))
     if (erreurDates) return { ok: false, erreur: erreurDates }
 
     if (!Number.isInteger(adultes) || !Number.isInteger(enfants) || adultes < 1 || enfants < 0) {
@@ -125,7 +159,7 @@ export const moteurMock: MoteurReservation = {
       navette: demande.navette,
       telephone: demande.telephone,
       message: demande.message,
-      montantTotal: calculerDevis(hebergement, arrivee, depart, b.saisons).total,
+      montantTotal: calculerDevis(hebergement, arrivee, depart, saisonsDatees(b)).total,
       statut: "option",
       source: "site",
       creeLe: maintenant.toISOString(),
@@ -199,6 +233,59 @@ export const moteurMock: MoteurReservation = {
     const avant = b.blocages.length
     b.blocages = b.blocages.filter((bl) => bl.id !== id)
     return b.blocages.length < avant
+  },
+
+  async modifierTarifs({ prix, saisons }) {
+    const b = base()
+    // Tout vérifier avant d'écrire : pas de modification à moitié appliquée
+    for (const [id, montant] of Object.entries(prix)) {
+      const h = b.hebergements.find((h) => h.id === id)
+      if (!h) return { ok: false, erreur: "Hébergement inconnu." }
+      if (!Number.isInteger(montant) || !estEntre(montant, 1, PRIX_MAX)) {
+        return { ok: false, erreur: `${h.nom} : saisissez un prix entier entre 1 et ${PRIX_MAX.toLocaleString("fr-FR")} €.` }
+      }
+    }
+    if (saisons.length > SAISONS_MAX) return { ok: false, erreur: `${SAISONS_MAX} saisons au maximum.` }
+    const noms = new Set<string>()
+    for (const { nom, debut, fin, coefficient, sejourMin } of saisons) {
+      if (!nom || nom.length > NOM_SAISON_MAX) {
+        return { ok: false, erreur: `Donnez à chaque saison un nom de ${NOM_SAISON_MAX} caractères au plus.` }
+      }
+      if (noms.has(nom.toLowerCase())) return { ok: false, erreur: `Deux saisons s’appellent « ${nom} » : renommez l’une d’elles.` }
+      noms.add(nom.toLowerCase())
+      if (!estJourAnnee(debut) || !estJourAnnee(fin)) return { ok: false, erreur: `${nom} : choisissez un jour et un mois valides pour le début et la fin.` }
+      if (!estEntre(coefficient, COEFFICIENT.min, COEFFICIENT.max)) {
+        return { ok: false, erreur: `${nom} : la majoration doit rester entre -50 % et +200 %.` }
+      }
+      if (!Number.isInteger(sejourMin) || !estEntre(sejourMin, 1, NUITS_MAX)) {
+        return { ok: false, erreur: `${nom} : le séjour minimum doit être compris entre 1 et ${NUITS_MAX} nuits.` }
+      }
+    }
+    const chevauchement = chevauchementSaisons(saisons)
+    if (chevauchement) {
+      return { ok: false, erreur: `« ${chevauchement[0]} » et « ${chevauchement[1]} » se chevauchent : une nuit ne peut appartenir qu’à une seule saison.` }
+    }
+    for (const h of b.hebergements) if (prix[h.id] !== undefined) h.prixNuit = prix[h.id]
+    // Une saison revient chaque année : ses dates et ses règles valent pour toutes les années
+    b.reglesSaisons = copie(saisons).sort((a, c) => a.debut.localeCompare(c.debut))
+    return { ok: true }
+  },
+
+  async reglagesDevises() {
+    return copie(base().devises)
+  },
+
+  async modifierDevises({ parDefaut, actives, taux }) {
+    const b = base()
+    const proposees = CODES_DEVISES.filter((code) => code === DEVISE_REFERENCE || actives.includes(code))
+    if (!proposees.includes(parDefaut)) return { ok: false, erreur: "La devise par défaut doit faire partie des devises proposées." }
+    for (const code of CODES_DEVISES) {
+      if (code !== DEVISE_REFERENCE && !estEntre(taux[code], Number.EPSILON, TAUX_MAX)) {
+        return { ok: false, erreur: `Taux invalide pour ${code} : saisissez un nombre positif.` }
+      }
+    }
+    b.devises = { parDefaut, actives: proposees, taux: { ...taux, [DEVISE_REFERENCE]: 1 }, misAJourLe: new Date().toISOString() }
+    return { ok: true }
   },
 }
 

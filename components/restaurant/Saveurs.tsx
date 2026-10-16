@@ -2,12 +2,13 @@ import Image from "next/image"
 import type { CSSProperties } from "react"
 import SectionTitle from "@/components/home/SectionTitle"
 
-// TODO client : produits à confirmer (cahier des charges : « produits & saveurs locales »)
+// TODO client : produits à confirmer (cahier des charges : « produits & saveurs locales »),
+// ainsi que la mention « bio » reprise sur le site (accueil, hôtel, restaurant)
 const produits = [
-  { nom: "Vanille", detail: "La gousse de Madagascar, dans les glaces et les desserts." },
-  { nom: "Poisson", detail: "Grillé simplement, avec les légumes du jour." },
-  { nom: "Riz", detail: "Le compagnon de chaque repas malgache." },
-  { nom: "Fruits tropicaux", detail: "Papaye, banane, agrumes, au fil des saisons." },
+  { nom: "Vanille", detail: "Vanille bourbon de Madagascar, dans les glaces et les desserts maison." },
+  { nom: "Poisson", detail: "Issu de la pêche locale du jour, grillé avec les légumes de saison." },
+  { nom: "Riz", detail: "Riz de Madagascar, base de la cuisine malgache, présent à chaque repas." },
+  { nom: "Fruits tropicaux", detail: "Papaye, banane, agrumes : cultivés sur l’île, au fil des saisons." },
 ]
 
 // Produits & saveurs locales — section vert nuit : photo à gauche, texte et produits à droite
@@ -35,9 +36,12 @@ export default function Saveurs() {
           <div className="space-y-5">
             <SectionTitle title="Le goût de Sainte-Marie" light />
             <p className="max-w-[60ch] text-body text-primary-light/80">
-              La cuisine puise dans ce que l’île a de meilleur : le poisson, le riz, les légumes et les
-              fruits du jour, la vanille et le coco. Des recettes malgaches côtoient les classiques
-              français, servies dans de belles assiettes posées sur des sets tressés à la main.
+              Nous privilégions les circuits courts et les produits bio : poisson de la pêche locale,
+              légumes et fruits de saison, riz, vanille et coco issus de producteurs de l’île. Une cuisine
+              plus fraîche et plus authentique, qui soutient directement l’économie de Sainte-Marie.
+            </p>
+            <p className="max-w-[60ch] text-body text-primary-light/80">
+              Recettes malgaches et classiques français sont servis avec soin, sur des sets tressés à la main.
             </p>
           </div>
 

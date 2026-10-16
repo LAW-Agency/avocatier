@@ -20,3 +20,21 @@ export async function donneesHotes() {
 }
 
 export type DonneesHotes = Awaited<ReturnType<typeof donneesHotes>>
+
+// Arrivées, départs et hébergements occupés (ou bloqués) la nuit du jour donné :
+// partagé par le tableau du jour et la barre latérale
+export function situationDuJour({ reservations, hebergements, blocages }: DonneesHotes, jour: string) {
+  const confirmees = reservations.filter((r) => r.statut === "confirmee")
+  const occupes = new Set([
+    ...reservations
+      .filter((r) => (r.statut === "option" || r.statut === "confirmee") && r.arrivee <= jour && r.depart > jour)
+      .map((r) => r.hebergementId),
+    ...blocages.filter((b) => b.debut <= jour && b.fin > jour).map((b) => b.hebergementId),
+  ])
+  return {
+    arrivees: confirmees.filter((r) => r.arrivee === jour),
+    departs: confirmees.filter((r) => r.depart === jour),
+    occupes: occupes.size,
+    total: hebergements.length,
+  }
+}

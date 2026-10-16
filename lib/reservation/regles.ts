@@ -1,5 +1,5 @@
-import { chevauche, nombreNuits, nuitsDuSejour } from "./dates"
-import type { DateISO, Hebergement, PeriodeOccupee, Saison } from "./types"
+import { ajouterJours, chevauche, estDateISO, nombreNuits, nuitsDuSejour } from "./dates"
+import type { DateISO, Hebergement, JourAnnee, PeriodeOccupee, RegleSaison, Saison } from "./types"
 
 // Règles métier pures, partagées entre le navigateur (affichage immédiat)
 // et le serveur (vérification définitive au moment de l'envoi).
@@ -24,6 +24,37 @@ export function nuitsCompletes(hebergementIds: string[], periodes: PeriodeOccupe
   const completes = new Set<DateISO>()
   for (const [nuit, ids] of occupants) if (ids.size >= hebergementIds.length) completes.add(nuit)
   return completes
+}
+
+// Vérifié sur une année non bissextile : pas de saison qui commence ou finit un 29 février
+export function estJourAnnee(valeur: unknown): valeur is JourAnnee {
+  return typeof valeur === "string" && /^\d{2}-\d{2}$/.test(valeur) && estDateISO(`2025-${valeur}`)
+}
+
+// Occurrences datées des saisons pour les années demandées ; une saison qui passe le 31 décembre
+// commence l'année indiquée et finit la suivante
+export function deplierSaisons(regles: RegleSaison[], annees: number[]): Saison[] {
+  return annees
+    .flatMap((a) =>
+      regles.map(({ nom, debut, fin, coefficient, sejourMin }) => ({
+        nom,
+        debut: `${a}-${debut}`,
+        fin: ajouterJours(`${fin < debut ? a + 1 : a}-${fin}`, 1),
+        coefficient,
+        sejourMin,
+      })),
+    )
+    .sort((a, b) => a.debut.localeCompare(b.debut))
+}
+
+// Premier couple de saisons qui se partagent une nuit, sinon null : une nuit n'a qu'un seul prix
+export function chevauchementSaisons(regles: RegleSaison[]): [string, string] | null {
+  const occurrences = deplierSaisons(regles, [2025, 2026, 2027])
+  for (const a of occurrences) {
+    const b = occurrences.find((b) => b.nom !== a.nom && chevauche(a.debut, a.fin, b.debut, b.fin))
+    if (b) return [a.nom, b.nom]
+  }
+  return null
 }
 
 export function saisonDeLaNuit(nuit: DateISO, saisons: Saison[]): Saison | undefined {

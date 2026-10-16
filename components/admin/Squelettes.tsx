@@ -8,7 +8,7 @@ export function SqueletteEnTete({ avecActions = false }: { avecActions?: boolean
   return (
     <div className="flex flex-wrap items-end justify-between gap-4" aria-hidden="true">
       <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-7 w-64 max-w-full" />
         <Skeleton className="h-4 w-80 max-w-full" />
       </div>
       {avecActions && <Skeleton className="h-8 w-28" />}
@@ -43,17 +43,13 @@ export function SqueletteTableauDeBord() {
     <>
       <Annonce />
       <SqueletteEnTete avecActions />
-      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4" aria-hidden="true">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 xl:grid-cols-4" aria-hidden="true">
         {Array.from({ length: 4 }, (_, i) => (
-          <Card key={i}>
-            <CardHeader className="gap-3">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-12" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-3 w-32 max-w-full" />
-            </CardContent>
-          </Card>
+          <div key={i} className="flex flex-col gap-2 bg-card p-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-7 w-12" />
+            <Skeleton className="mt-1 h-3 w-32 max-w-full" />
+          </div>
         ))}
       </div>
       <div className="grid items-start gap-4 xl:grid-cols-3" aria-hidden="true">

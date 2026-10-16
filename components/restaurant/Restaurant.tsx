@@ -9,14 +9,15 @@ export default function Restaurant() {
       <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-12 gap-10 lg:gap-14 items-center">
 
         <div data-reveal className="md:col-span-5 space-y-5">
-          <SectionTitle title="Le restaurant, les pieds dans l’herbe" />
+          <SectionTitle title="Le restaurant, entre jardin et océan" />
           <p className="max-w-[60ch] text-body">
-            Au déjeuner comme au dîner, la cuisine suit le marché et la pêche du jour : poisson grillé
-            et légumes croquants, viandes mijotées, riz parfumé, puis un dessert pour finir en douceur.
+            Au déjeuner comme au dîner, la carte suit les arrivages du marché local et la pêche du
+            jour : poisson grillé, légumes de saison, viandes mijotées, riz parfumé et desserts maison
+            à la vanille de Madagascar.
           </p>
           <p className="max-w-[60ch] text-body">
-            Selon le temps et l’envie, la table se dresse à l’intérieur ou dans le jardin, à l’ombre
-            de la paillote, avec l’océan pour seul horizon.
+            Le service est assuré en salle ou dans le jardin, sous la paillote, selon la météo et
+            vos préférences, avec vue sur l’océan.
           </p>
         </div>
 

@@ -8,7 +8,9 @@ const FORMAT_ISO = /^\d{4}-\d{2}-\d{2}$/
 
 export function estDateISO(valeur: unknown): valeur is DateISO {
   if (typeof valeur !== "string" || !FORMAT_ISO.test(valeur)) return false
-  return versISO(versDate(valeur)) === valeur // refuse les dates impossibles (31 février…)
+  const date = versDate(valeur)
+  // Jour 00 ou mois 13 : date invalide (toISOString lèverait une exception) ; 31 février : date décalée
+  return !Number.isNaN(date.getTime()) && versISO(date) === valeur
 }
 
 export function versDate(iso: DateISO): Date {

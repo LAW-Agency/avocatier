@@ -4,8 +4,11 @@ import type {
   ClientPublic,
   DemandeReservation,
   Hebergement,
+  ModificationTarifs,
   NouveauClient,
   PeriodeOccupee,
+  ReglagesDevises,
+  RegleSaison,
   Reservation,
   ResultatAction,
   ResultatDemande,
@@ -19,7 +22,10 @@ import type {
 
 export interface MoteurReservation {
   listerHebergements(): Promise<Hebergement[]>
+  // Occurrences datées des saisons, de l'an dernier à dans deux ans
   listerSaisons(): Promise<Saison[]>
+  // Saisons telles que les hôtes les saisissent (une par nom, sans année)
+  listerReglesSaisons(): Promise<RegleSaison[]>
   // Réservations actives (option, confirmée) + blocages, sans donnée client
   periodesOccupees(): Promise<PeriodeOccupee[]>
   // Revérifie disponibilité, capacité et prix : ne jamais se fier au navigateur
@@ -36,6 +42,12 @@ export interface MoteurReservation {
   // Refusé s'il chevauche une réservation active
   ajouterBlocage(blocage: Omit<Blocage, "id">): Promise<ResultatAction>
   supprimerBlocage(id: string): Promise<boolean>
+  // Nouveaux prix pour les demandes à venir : les réservations existantes gardent leur montant
+  modifierTarifs(modification: ModificationTarifs): Promise<ResultatAction>
+
+  // Devises de la vitrine : lues par tout le site, modifiées par les hôtes
+  reglagesDevises(): Promise<ReglagesDevises>
+  modifierDevises(reglages: Omit<ReglagesDevises, "misAJourLe">): Promise<ResultatAction>
 }
 
 export interface DepotComptes {

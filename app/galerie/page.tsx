@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 // Cahier des charges : « une vraie galerie immersive plutôt qu'une simple grille », catégories
-// TOUT | CHAMBRES | PISCINE | PLAGE | JARDIN | RESTAURANT | SAINTE-MARIE (+ L'hôtel, du menu du cahier),
+// TOUT | CHAMBRES | PISCINE | PLAGE | JARDIN | RESTAURANT (+ L’hôtel, du menu du cahier ; SAINTE-MARIE retirée, voir data/galerie.ts),
 // ouverture en plein écran. Catégorie dans l'adresse (?categorie=plage) : liens directs depuis les autres pages.
 // Bandeau photo (lagon au crépuscule) sous voiles vert nuit en tête : le header transparent passe par-dessus (HERO_PAGES).
 export default async function GaleriePage({ searchParams }: PageProps<"/galerie">) {

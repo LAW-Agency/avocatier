@@ -8,7 +8,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { exigerHote } from "@/lib/auth/dal"
 import { aujourdhuiISO, formaterDate } from "@/lib/reservation/dates"
-import { donneesHotes } from "@/lib/reservation/hotes"
+import { donneesHotes, situationDuJour } from "@/lib/reservation/hotes"
 
 export const metadata: Metadata = {
   title: "Espace hôtes | Chez L'Avocatier",
@@ -34,14 +34,19 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 async function EspaceHotes({ ouverte, children }: { ouverte: boolean; children: ReactNode }) {
   const [hote, donnees] = await Promise.all([exigerHote(), donneesHotes()])
   const aTraiter = donnees.reservations.filter((r) => r.statut === "option").length
+  const { arrivees, departs, occupes, total } = situationDuJour(donnees, aujourdhuiISO())
 
   return (
     <TooltipProvider>
       <SidebarProvider defaultOpen={ouverte} data-espace-hotes className="font-sans text-foreground">
-        <BarreLaterale hote={{ prenom: hote.prenom, nom: hote.nom, email: hote.email }} aTraiter={aTraiter} />
+        <BarreLaterale
+          hote={{ prenom: hote.prenom, nom: hote.nom, email: hote.email }}
+          aTraiter={aTraiter}
+          ceSoir={{ arrivees: arrivees.length, departs: departs.length, occupes, total }}
+        />
         <SidebarInset className="min-w-0">
           <BarreHaut dateDuJour={formaterDate(aujourdhuiISO(), { weekday: "long", month: "long" })} />
-          <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 p-4 md:p-6 lg:p-8">{children}</div>
+          <div className="flex w-full flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

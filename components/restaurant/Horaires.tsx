@@ -30,11 +30,11 @@ export default function Horaires() {
           className="md:col-span-6 lg:col-span-6 lg:col-start-7 rounded-card bg-mist p-6 md:p-10 space-y-5"
         >
           <h3 className="font-heading text-2xl md:text-3xl leading-tight text-balance">
-            Une envie, une question ?
+            Une demande particulière ?
           </h3>
           <p className="max-w-[55ch] text-body">
-            Allergie, régime particulier, anniversaire à fêter ou table pour un groupe : dites-le-nous
-            à l’avance, Joëlle et Stéphane s’organiseront pour vous recevoir.
+            Allergies, régimes alimentaires, célébrations ou repas de groupe : merci de nous prévenir à
+            l’avance afin que Joëlle et Stéphane organisent votre accueil dans les meilleures conditions.
           </p>
 
           {(contact.phone || contact.email) && (
