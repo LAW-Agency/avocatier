@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import Hero from "@/components/home/Hero";
 import Amenities from "@/components/home/Amenities";
 import SplitSection from "@/components/home/SplitSection";
-import Beach from "@/components/home/Beach";
-import PoolGarden from "@/components/home/PoolGarden";
+import BeachPool from "@/components/home/BeachPool";
+import SainteMarie from "@/components/home/SainteMarie";
 import Testimonials from "@/components/home/Testimonials";
-import Location from "@/components/home/Location";
 import BookingCTA from "@/components/BookingCTA";
 
 export const metadata: Metadata = {
@@ -14,7 +13,9 @@ export const metadata: Metadata = {
     "Bungalows, piscine et accès direct à la plage à Vohilava, sur l'île Sainte-Marie (Madagascar). Une adresse intimiste tenue par Joëlle & Stéphane, à 3 km de l'aéroport.",
 };
 
-// Rythme des fonds : clair → mist → photo → mist → clair → vert nuit → clair → mist → photo
+// Les 10 sections du cahier des charges, regroupées quand elles se recoupent
+// (plage + piscine & jardin, Sainte-Marie + localisation).
+// Rythme des fonds : vert nuit → clair → mist → photo/clair → mist → vert nuit → clair → photo
 export default function Home() {
   return (
     <div>
@@ -49,11 +50,8 @@ export default function Home() {
         tone="mist"
       />
 
-      {/* 4. La plage privée */}
-      <Beach/>
-
-      {/* 5. Piscine & jardin */}
-      <PoolGarden/>
+      {/* 4–5. La plage privée, la piscine et le jardin */}
+      <BeachPool/>
 
       {/* 6. Restaurant & bar */}
       <SplitSection
@@ -66,27 +64,14 @@ export default function Home() {
           alt: "Plateau du petit-déjeuner : fruits, viennoiseries, confitures et jus de fruits",
           frame: "aspect-[4/3] md:aspect-auto md:h-[32rem]",
         }}
+        tone="mist"
       />
 
-      {/* 7. Sainte-Marie — section importante pour le référencement */}
-      <SplitSection
-        id="sainte-marie"
-        title="Sainte-Marie, l’île autrement"
-        text="Au large de la côte est de Madagascar, Sainte-Marie — Nosy Boraha en malgache — déroule une soixantaine de kilomètres de cocotiers, de lagons et de villages de pêcheurs. De juillet à septembre, les baleines à bosse viennent s’y reproduire ; toute l’année, on part à la découverte de l’île aux Nattes, du cimetière des pirates ou des fonds marins."
-        cta={{ label: "Explorer Sainte-Marie", href: "/experiences" }}
-        image={{
-          src: "/images/island/lagon-pirogues.jpeg",
-          alt: "Pirogues sur le lagon de Sainte-Marie au coucher du soleil",
-        }}
-        imageSide="right"
-        tone="forest"
-      />
+      {/* 7 + 9. Sainte-Marie (référencement) et localisation */}
+      <SainteMarie/>
 
       {/* 8. Avis clients */}
       <Testimonials/>
-
-      {/* 9. Localisation */}
-      <Location/>
 
       {/* 10. CTA final */}
       <BookingCTA/>

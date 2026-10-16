@@ -1,76 +1,39 @@
 export type NavLink = {
   label: string
   href: string
-  icon?: string
   submenu?: { label: string; href: string }[]
 }
 
+// Menu resserré : sous-menus seulement
+// quand ils apportent quelque chose, sans entrée répétée d'un menu à l'autre
+// (plage et piscine dans L'hôtel, photos dans Galerie)
 export const navLinks: NavLink[] = [
-  { label: "Accueil", href: "/", icon: "" },
+  { label: "Accueil", href: "/" },
   {
     label: "L'hôtel",
-    href: "/",
-    icon: "",
+    href: "/hotel",
     submenu: [
-      { label: "Notre histoire", href: "/" },
-      { label: "Le jardin & la nature", href: "/" },
-      { label: "La plage privée", href: "/" },
-      { label: "Piscine & espaces communs", href: "/" },
+      { label: "Notre histoire", href: "/hotel#histoire" },
+      { label: "Jardin, plage & piscine", href: "/hotel#jardin" },
     ],
   },
   {
     label: "Hébergements",
-    href: "/",
-    icon: "",
+    href: "/hebergements",
     submenu: [
-      { label: "Bungalows", href: "/" },
-      { label: "Chambres", href: "/" },
-      { label: "Galerie des hébergements", href: "/" },
+      { label: "Bungalows", href: "/hebergements#bungalows" },
+      { label: "Chambres", href: "/hebergements#chambres" },
     ],
   },
   {
     label: "Expériences",
-    href: "/",
-    icon: "",
+    href: "/experiences",
     submenu: [
-      { label: "Plage & baignade", href: "/" },
-      { label: "Découverte de l'île", href: "/" },
-      { label: "Activités", href: "/" },
-      { label: "Excursions", href: "/" },
+      { label: "Découverte de l'île", href: "/experiences#sainte-marie" },
+      { label: "Activités & excursions", href: "/experiences#excursions" },
     ],
   },
-  {
-    label: "Restaurant & Bar",
-    href: "/",
-    icon: "",
-    submenu: [
-      { label: "Petit-déjeuner", href: "/" },
-      { label: "Restaurant", href: "/" },
-      { label: "Bar", href: "/" },
-    ],
-  },
-  {
-    label: "Galerie",
-    href: "/",
-    icon: "",
-    submenu: [
-      { label: "L'hôtel", href: "/" },
-      { label: "Chambres", href: "/" },
-      { label: "Piscine", href: "/" },
-      { label: "Plage", href: "/" },
-      { label: "Île Sainte-Marie", href: "/" },
-    ],
-  },
-  /*
-  {
-    label: "Infos pratiques",
-    href: "/",
-    icon: "",
-    submenu: [
-      { label: "Localisation", href: "/" },
-      { label: "Comment venir", href: "/" },
-      { label: "Navette aéroport", href: "/" },
-      { label: "FAQ", href: "/" },
-    ],
-  },*/
+  { label: "Restaurant & Bar", href: "/restaurant" },
+  { label: "Galerie", href: "/galerie" },
+  // Infos pratiques (localisation, comment venir, navette, FAQ) : à ajouter avec sa page
 ]

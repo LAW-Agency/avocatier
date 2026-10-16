@@ -10,16 +10,19 @@ export default function Hero (){
     return(
         // Plein écran : le header fixe et transparent passe par-dessus
         // isolate : la photo, les voiles et le texte restent empilés dans la section
-        <section className="relative isolate flex h-dvh min-h-[38rem] items-center justify-center overflow-hidden">
+        <section className="relative isolate flex h-dvh min-h-[38rem] items-center justify-center overflow-hidden bg-forest">
 
-            <Image
-                src={HERO_IMAGE}
-                alt="Coucher de soleil sur l'océan depuis le jardin de Chez L'Avocatier, entre cocotiers et hamac"
-                fill
-                preload
-                sizes="100vw"
-                className="object-cover -z-20 animate-hero-zoom"
-            />
+            {/* Conteneur séparé : l'apparition de la photo ne remplace pas son zoom au défilement */}
+            <div className="absolute inset-0 -z-20 animate-photo-entree motion-reduce:animate-none">
+                <Image
+                    src={HERO_IMAGE}
+                    alt="Coucher de soleil sur l'océan depuis le jardin de Chez L'Avocatier, entre cocotiers et hamac"
+                    fill
+                    preload
+                    sizes="100vw"
+                    className="object-cover animate-hero-zoom"
+                />
+            </div>
 
             {/* Voiles vert nuit : teinte générale, assombrissement derrière le texte centré, fondu en bas */}
             <div aria-hidden="true" className="absolute inset-0 -z-10 bg-forest/35" />
@@ -37,7 +40,7 @@ export default function Hero (){
                         alt="Chez L'Avocatier"
                         width={1998}
                         height={421}
-                        loading="eager"
+                        preload
                         /* Largeur limitée aussi par la hauteur d'écran (portables peu hauts) */
                         className="mx-auto h-auto w-[min(92vw,68rem,125svh)] [mask-image:linear-gradient(to_bottom,#000_30%,rgb(0_0_0/0.2)_100%)]"
                     />
