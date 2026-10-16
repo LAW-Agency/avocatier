@@ -5,10 +5,10 @@ import type { CSSProperties } from "react"
 // Les 4 éléments visuels de la section « L'expérience » (cahier des charges),
 // chacun relié à sa section de la page d'accueil
 const amenities = [
-  { label: "Jardin tropical", detail: "Cocotiers et massifs fleuris", href: "#experience", icon: TreePalm },
-  { label: "Plage privée", detail: "Accès direct, mer calme", href: "#plage", icon: Umbrella },
-  { label: "Piscine", detail: "Au cœur du jardin", href: "#piscine-jardin", icon: WavesLadder },
-  { label: "Restaurant & bar", detail: "Petit-déjeuner, cuisine et bar", href: "#restaurant", icon: UtensilsCrossed },
+  { label: "Jardin tropical", detail: "Cocotiers, fleurs et coins d’ombre", href: "#experience", icon: TreePalm },
+  { label: "Plage privée", detail: "Accès direct depuis le jardin", href: "#plage", icon: Umbrella },
+  { label: "Piscine", detail: "Transats et bar au bord de l’eau", href: "#piscine-jardin", icon: WavesLadder },
+  { label: "Restaurant & bar", detail: "Saveurs locales, vue sur l’océan", href: "#restaurant", icon: UtensilsCrossed },
 ]
 
 // Bande vert nuit dans laquelle le bas du hero se fond

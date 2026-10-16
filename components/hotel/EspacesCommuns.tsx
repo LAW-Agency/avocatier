@@ -31,12 +31,12 @@ export default function EspacesCommuns() {
       <div className="max-w-7xl mx-auto px-4">
         <div data-reveal className="grid md:grid-cols-12 gap-6 lg:gap-14 items-end mb-8 md:mb-12">
           <div className="md:col-span-5">
-            <SectionTitle title="Des espaces communs conviviaux" />
+            <SectionTitle title="Des espaces communs pleins de caractère" />
           </div>
           <p className="md:col-span-7 max-w-[60ch] text-body">
-            Un salon pour la lecture ou les fins de journée, un décor artisanal de fresques murales et
-            de luminaires tressés&nbsp;: les espaces communs, ouverts sur le jardin, offrent un cadre
-            chaleureux à l’ensemble de nos clients.
+            Fresques murales, luminaires tressés, mobilier en bois&nbsp;: la décoration, artisanale,
+            raconte Madagascar. Ouvert sur le jardin, le salon se prête à la lecture comme aux
+            conversations de fin de journée.
           </p>
         </div>
 

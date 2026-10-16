@@ -22,8 +22,8 @@ export async function generateMetadata({ params }: PageProps<"/hebergements/[slu
   const { hebergement } = await trouver(slug);
   if (!hebergement) return {};
   return {
-    title: `${hebergement.nom} | Chez L'Avocatier`,
-    description: `${hebergement.description} Jusqu'à ${pluriel(hebergement.capaciteMax, "personne")}, ${hebergement.literie.toLowerCase()}, ${hebergement.vue.toLowerCase()}. Vohilava, île Sainte-Marie.`,
+    title: `${hebergement.nom}, ${hebergement.vue.toLowerCase()} à Sainte-Marie | Chez L'Avocatier`,
+    description: `${hebergement.description} Jusqu'à ${pluriel(hebergement.capaciteMax, "personne")}, ${hebergement.literie.toLowerCase()}, ${hebergement.vue.toLowerCase()}. Plage privée et piscine à Vohilava, île Sainte-Marie.`,
   };
 }
 
@@ -117,11 +117,11 @@ export default async function HebergementPage({ params }: PageProps<"/hebergemen
                 </span>
               </p>
               <p className="text-[0.95rem] leading-relaxed">
-                Tarif de base, variable selon la saison : le montant total s’affiche dès la sélection de
-                vos dates. Celles-ci sont ensuite bloquées pendant 48 h, dans l’attente de la confirmation de vos hôtes.
+                Tarif de base, variable selon la saison. Choisissez vos dates pour connaître le prix exact :
+                elles vous sont réservées 48 h, le temps que Joëlle et Stéphane confirment votre séjour.
               </p>
               <ButtonLink href={`/reserver?hebergement=${h.slug}`} className="w-full">
-                Demander une réservation
+                Voir les disponibilités
               </ButtonLink>
               <ButtonLink href="/contact" variant="link">Une question ? Écrivez-nous</ButtonLink>
             </div>

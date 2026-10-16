@@ -23,11 +23,12 @@ export default function Ile() {
           </div>
           <div data-reveal style={{ "--reveal-delay": "150ms" } as CSSProperties} className="md:col-span-5 lg:col-span-4 lg:col-start-9 space-y-4">
             <p className="max-w-[60ch] text-body">
-              Une route côtière relie les villages de pêcheurs, entre cocotiers, lagons et criques.
+              Une route côtière la parcourt de village de pêcheurs en village, entre cocotiers, lagons
+              turquoise et petites criques.
             </p>
             <p className="max-w-[60ch] text-body">
-              Ancien repaire de pirates, l’île conserve de cette époque un cimetière historique face à
-              la baie. Elle offre aujourd’hui un cadre préservé, idéal pour un séjour au calme.
+              Ancien repaire de pirates, l’île en garde un cimetière historique face à la baie.
+              Aujourd’hui, ce sont sa nature préservée et son rythme paisible qui séduisent les voyageurs.
             </p>
           </div>
         </div>

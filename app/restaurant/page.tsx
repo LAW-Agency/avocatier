@@ -10,9 +10,9 @@ import PageHero from "@/components/PageHero";
 import PanoramaSection from "@/components/PanoramaSection";
 
 export const metadata: Metadata = {
-  title: "Restaurant & Bar | Chez L'Avocatier",
+  title: "Restaurant et bar face à l'océan à Sainte-Marie | Chez L'Avocatier",
   description:
-    "Cuisine maison à base de produits locaux et bio, petit-déjeuner continental, restaurant et bar au bord de la piscine, face à l'océan : la table de Chez L'Avocatier, à Vohilava sur l'île Sainte-Marie (Madagascar).",
+    "Petit-déjeuner continental, cuisine maison aux produits locaux et bio, bar au bord de la piscine : la table de Chez L'Avocatier, face à l'océan, à Sainte-Marie.",
 };
 
 // Structure du cahier des charges : hero, notre cuisine, petit-déjeuner, restaurant, produits & saveurs
@@ -23,8 +23,8 @@ export default function RestaurantPage() {
     <div>
       <PageHero
         title="Restaurant & Bar"
-        tagline="Une table face à l’océan"
-        text="Une cuisine maison élaborée à partir de produits locaux et bio, servie du petit-déjeuner au dîner, et un bar au bord de la piscine, face à l’océan."
+        tagline="Une table face à l’océan Indien"
+        text="Produits locaux et bio, assiettes généreuses et vue sur l’océan, du petit-déjeuner au dîner. Le bar, lui, vous attend au bord de la piscine."
         image={{
           src: "/images/restaurant/table-ocean-coucher-soleil.jpeg",
           alt: "Table et paillote dans le jardin, face à l'océan au coucher du soleil",
@@ -43,10 +43,9 @@ export default function RestaurantPage() {
         <div data-reveal className="max-w-3xl mx-auto px-4 text-center space-y-6">
           <SectionTitle title="Une cuisine maison, généreuse et soignée" center />
           <p className="text-body text-balance">
-            Notre cuisine repose sur des produits locaux, frais et bio, sélectionnés auprès des pêcheurs
-            et des producteurs de l’île. Les saveurs de Madagascar y rencontrent les classiques de la
-            cuisine française, dans des assiettes généreuses servies du petit-déjeuner au dîner, entre
-            le jardin et l’océan.
+            Tout commence par le produit : poisson des pêcheurs de l’île, fruits et légumes de saison,
+            ingrédients locaux, frais et bio. Les saveurs de Madagascar y croisent les classiques de la
+            cuisine française, dans des assiettes généreuses servies entre le jardin et l’océan.
           </p>
         </div>
       </section>
@@ -54,7 +53,7 @@ export default function RestaurantPage() {
       <SplitSection
         id="petit-dejeuner"
         title="Bien commencer la journée"
-        text="Fruits tropicaux de saison, jus de fruits frais, confitures, viennoiseries : le petit-déjeuner continental met à l’honneur les fruits de l’île et est servi chaque matin, avant une journée de baignade ou de découverte."
+        text="Fruits tropicaux, jus de fruits frais, confitures et viennoiseries : chaque matin, le petit-déjeuner continental fait la part belle aux fruits de l’île. De quoi prendre des forces avant une journée de baignade ou d’exploration."
         cta={{ label: "Voir les horaires", href: "#horaires" }}
         image={{
           src: "/images/restaurant/petit-dejeuner.jpeg",
@@ -89,8 +88,7 @@ export default function RestaurantPage() {
           piscine et le jardin, le bar vous accueille tout au long de la journée.
         </p>
         <p>
-          En fin de journée, c’est le lieu idéal pour un apéritif face à l’océan, au moment du
-          coucher du soleil.
+          Et quand le soleil décline, c’est ici que l’on se retrouve pour l’apéritif.
         </p>
       </PanoramaSection>
 

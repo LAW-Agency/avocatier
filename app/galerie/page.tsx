@@ -5,9 +5,9 @@ import Galerie, { type Filtre } from "@/components/galerie/Galerie";
 import { categories } from "@/data/galerie";
 
 export const metadata: Metadata = {
-  title: "Galerie photos | Chez L'Avocatier",
+  title: "Galerie photos de l'hôtel à Sainte-Marie | Chez L'Avocatier",
   description:
-    "Bungalows, piscine, plage, jardin tropical, restaurant et île Sainte-Marie : la galerie photos de Chez L'Avocatier, à Vohilava (Madagascar).",
+    "Bungalows, plage privée, piscine, jardin tropical et restaurant : Chez L'Avocatier en photos, à Vohilava sur l'île Sainte-Marie (Madagascar).",
 };
 
 // Cahier des charges : « une vraie galerie immersive plutôt qu'une simple grille », catégories
@@ -41,8 +41,8 @@ export default async function GaleriePage({ searchParams }: PageProps<"/galerie"
             Galerie
           </h1>
           <p className="lg:col-span-5 max-w-md text-base md:text-lg leading-relaxed text-primary-light/85 animate-fade-up [animation-delay:200ms] motion-reduce:animate-none">
-            Le jardin, la plage, les bungalows et la table de Chez L’Avocatier, en images. Touchez une
-            photo pour l’ouvrir en plein écran.
+            Avant de venir, flânez dans le jardin, sur la plage et dans les bungalows de Chez L’Avocatier.
+            Ouvrez une photo pour la voir en plein écran.
           </p>
         </div>
       </section>

@@ -5,9 +5,9 @@ import Ile from "@/components/experiences/Ile";
 import Activites from "@/components/experiences/Activites";
 
 export const metadata: Metadata = {
-  title: "Expériences à Sainte-Marie | Chez L'Avocatier",
+  title: "Que faire à Sainte-Marie, Madagascar ? | Chez L'Avocatier",
   description:
-    "Plage, piscine, baleines à bosse, île aux Nattes, plongée et balades en pirogue : que faire sur l'île Sainte-Marie (Madagascar) depuis Chez L'Avocatier, à Vohilava.",
+    "Baleines à bosse de juillet à septembre, île aux Nattes, plongée, pirogue : que faire à Sainte-Marie depuis Chez L'Avocatier, à Vohilava.",
 };
 
 // Cahier des charges : « vendre ce que l'on ressent, pas uniquement ce que possède l'hôtel ».
@@ -19,7 +19,7 @@ export default function ExperiencesPage() {
       <PageHero
         title="Expériences"
         tagline="Ici, les journées ont un autre rythme"
-        text="Observation des baleines, île aux Nattes, plongée, tour de l’île : vos hôtes vous conseillent et vous orientent vers des prestataires locaux pour organiser vos excursions."
+        text="Un café face à l’océan. Une baignade avant le petit-déjeuner. Une sieste sous les cocotiers. Puis, quand l’envie vous prend : les baleines, l’île aux Nattes ou les fonds marins de Sainte-Marie."
         image={{
           src: "/images/beach/plage-cocotier.jpeg",
           alt: "Cocotier penché au-dessus de la plage et de l'océan",
@@ -43,13 +43,13 @@ export default function ExperiencesPage() {
           </p>
           <div className="md:col-span-5 space-y-4">
             <h2 className="font-heading text-2xl md:text-3xl leading-tight text-balance">
-              La saison des baleines à bosse
+              La saison des baleines à bosse à Sainte-Marie
             </h2>
             <p className="max-w-[60ch] text-body">
-              Chaque hiver austral, les baleines à bosse remontent de l’Antarctique pour mettre bas dans
-              le canal entre Sainte-Marie et la Grande Terre, l’un des sites d’observation les plus
-              réputés de l’océan Indien. Les sorties en mer s’organisent avec des opérateurs locaux ;
-              depuis la plage, leurs souffles sont parfois visibles au large.
+              Chaque hiver austral, les baleines à bosse remontent de l’Antarctique pour donner naissance
+              à leurs petits dans le canal qui sépare Sainte-Marie de la Grande Terre : l’un des sites
+              d’observation les plus réputés de l’océan Indien. Les sorties en mer se font avec des
+              opérateurs locaux ; depuis la plage, on aperçoit parfois leurs souffles au large.
             </p>
           </div>
         </div>

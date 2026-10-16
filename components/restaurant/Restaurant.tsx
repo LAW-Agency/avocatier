@@ -16,8 +16,8 @@ export default function Restaurant() {
             à la vanille de Madagascar.
           </p>
           <p className="max-w-[60ch] text-body">
-            Le service est assuré en salle ou dans le jardin, sous la paillote, selon la météo et
-            vos préférences, avec vue sur l’océan.
+            Selon la météo et vos envies, on vous sert en salle ou dans le jardin, sous la paillote,
+            l’océan en toile de fond.
           </p>
         </div>
 

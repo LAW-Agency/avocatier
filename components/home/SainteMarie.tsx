@@ -34,10 +34,10 @@ export default function SainteMarie() {
         >
           <SectionTitle title="Sainte-Marie, l’île autrement" light />
           <p className="max-w-[60ch] text-body text-primary-light/80">
-            Au large de la côte est de Madagascar, Sainte-Marie — Nosy Boraha en malgache — déroule une
-            soixantaine de kilomètres de cocotiers, de lagons et de villages de pêcheurs. De juillet à
-            septembre, les baleines à bosse viennent s’y reproduire ; toute l’année, on part à la découverte
-            de l’île aux Nattes, du cimetière des pirates ou des fonds marins.
+            Au large de la côte est de Madagascar, l’île Sainte-Marie — Nosy Boraha en malgache — déroule
+            une soixantaine de kilomètres de cocotiers, de lagons turquoise et de villages de pêcheurs. De
+            juillet à septembre, les baleines à bosse viennent y donner naissance à leurs petits ; toute
+            l’année, l’île aux Nattes, le cimetière des pirates et les fonds marins se découvrent à votre rythme.
           </p>
 
           <address id="localisation" className="not-italic space-y-3 border-t border-primary-light/15 pt-5 text-[0.95rem] text-primary-light/80">
@@ -63,7 +63,7 @@ export default function SainteMarie() {
 
           <div className="flex flex-wrap gap-x-8 gap-y-4 pt-1">
             <ButtonLink href="/experiences#sainte-marie" variant="link-light">Explorer Sainte-Marie</ButtonLink>
-            <ButtonLink href="/infos-pratiques#comment-venir" variant="link-light">Comment venir</ButtonLink>
+            <ButtonLink href="/infos-pratiques#comment-venir" variant="link-light">Voir comment venir</ButtonLink>
           </div>
         </div>
       </div>
