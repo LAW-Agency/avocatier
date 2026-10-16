@@ -64,7 +64,8 @@ export default function Footer() {
             </Link>
 
             <p className="max-w-sm text-pretty text-[0.95rem] leading-relaxed text-primary-light/75">
-              Une adresse intimiste face à l’océan, tenue par Joëlle &amp; Stéphane à Vohilava, sur l’île Sainte-Marie.
+              Hôtel et bungalows face à l’océan à Vohilava, sur l’île Sainte-Marie. Une adresse confidentielle
+              tenue par Joëlle &amp; Stéphane.
             </p>
 
             {socials.length > 0 && (

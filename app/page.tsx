@@ -8,9 +8,9 @@ import Testimonials from "@/components/home/Testimonials";
 import BookingCTA from "@/components/BookingCTA";
 
 export const metadata: Metadata = {
-  title: "Chez L'Avocatier — Bungalows face à l'océan à Sainte-Marie, Madagascar",
+  title: "Chez L'Avocatier · Hôtel face à l'océan à Sainte-Marie, Madagascar",
   description:
-    "Bungalows, piscine et accès direct à la plage à Vohilava, sur l'île Sainte-Marie (Madagascar). Une adresse intimiste tenue par Joëlle & Stéphane, à 3 km de l'aéroport.",
+    "Bungalows en bord de mer sur l'île Sainte-Marie : plage privée, piscine, jardin tropical, restaurant et l'accueil de Joëlle et Stéphane, à 3 km de l'aéroport.",
 };
 
 // Les 10 sections du cahier des charges, regroupées quand elles se recoupent
@@ -27,8 +27,8 @@ export default function Home() {
       <SplitSection
         id="experience"
         title="Bienvenue chez vous, au bord de l’océan"
-        text="Tongasoa, comme on dit ici pour souhaiter la bienvenue. Joëlle et Stéphane vous accueillent à Vohilava, dans une adresse intimiste entre jardin tropical et océan Indien : on y vient pour ralentir, respirer et profiter pleinement de Sainte-Marie."
-        cta={{ label: "Découvrir Chez L’Avocatier", href: "/hotel" }}
+        text="Tongasoa : bienvenue, en malgache. À Vohilava, Joëlle et Stéphane vous reçoivent dans une adresse confidentielle, entre jardin tropical et océan Indien. Ici, on vient pour ralentir, se baigner, lire à l’ombre des cocotiers… et se sentir attendu."
+        cta={{ label: "Découvrir l’hôtel et vos hôtes", href: "/hotel" }}
         image={{
           src: "/images/hotel/jardin-bungalows.jpeg",
           alt: "Le jardin tropical et les bungalows de Chez L'Avocatier en fin de journée",
@@ -39,8 +39,8 @@ export default function Home() {
       <SplitSection
         id="hebergements"
         title="Dormir au rythme de l’océan"
-        text="Installez-vous dans un bungalow pensé pour profiter pleinement de la douceur de Sainte-Marie, entouré de végétation tropicale et ouvert sur l’océan."
-        cta={{ label: "Découvrir nos hébergements", href: "/hebergements" }}
+        text="Lits à baldaquin voilés de moustiquaire, murs aux couleurs franches, salles d’eau peintes de fresques : chaque bungalow a sa personnalité. Tous ouvrent sur la végétation tropicale, à quelques pas de la plage."
+        cta={{ label: "Découvrir nos bungalows et chambres", href: "/hebergements" }}
         image={{
           src: "/images/rooms/chambre-verte.jpeg",
           alt: "Chambre d'un bungalow avec lit à baldaquin et moustiquaire",
@@ -57,7 +57,7 @@ export default function Home() {
       <SplitSection
         id="restaurant"
         title="Les saveurs de l’île"
-        text="Petit-déjeuner continental pour bien commencer la journée, restaurant sur place et bar : une cuisine généreuse, élaborée à partir de produits locaux et bio."
+        text="Un petit-déjeuner continental pour bien commencer la journée, puis une cuisine généreuse, à base de produits locaux et bio, servie face à l’océan. Et quand le soleil décline, un verre au bar, au bord de la piscine."
         cta={{ label: "Découvrir la table", href: "/restaurant" }}
         image={{
           src: "/images/restaurant/petit-dejeuner.jpeg",

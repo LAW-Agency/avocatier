@@ -24,9 +24,17 @@ const geist = Geist({
   preload: false,
 });
 
+// Valeurs par défaut des pages sans métadonnées propres ; chaque page de la vitrine a son titre complet
+// (pas de title.template : il doublerait le suffixe des titres de /compte et /admin)
 export const metadata: Metadata = {
-  title: "CHEZ L'AVOCATIER",
-  description: "Bord de mer, bungalows, piscine, nature, tranquillité et accueil de Joëlle & Stéphane.",
+  title: "Chez L'Avocatier · Hôtel face à l'océan à Sainte-Marie, Madagascar",
+  description:
+    "Bungalows en bord de mer à Vohilava, île Sainte-Marie : plage privée, piscine, jardin tropical, restaurant et l'accueil de Joëlle et Stéphane.",
+  openGraph: {
+    siteName: "Chez L'Avocatier",
+    locale: "fr_FR",
+    type: "website",
+  },
 };
 
 export default async function RootLayout({

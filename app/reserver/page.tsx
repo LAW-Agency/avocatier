@@ -6,8 +6,9 @@ import { aujourdhuiISO } from "@/lib/reservation/dates"
 import { lireSelection } from "@/lib/reservation/selection"
 
 export const metadata: Metadata = {
-  title: "Réserver | Chez L'Avocatier",
-  description: "Choisissez vos dates et votre bungalow Chez L'Avocatier, à Vohilava, sur l'Île Sainte-Marie.",
+  title: "Réserver votre séjour à Sainte-Marie | Chez L'Avocatier",
+  description:
+    "Choisissez vos dates et votre bungalow : demande en ligne en quelques minutes, confirmée par Joëlle et Stéphane sous 48 h. Vohilava, île Sainte-Marie.",
 }
 
 // Parcours du cahier des charges : dates → voyageurs → hébergement → coordonnées → demande → confirmation

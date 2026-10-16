@@ -41,7 +41,7 @@ export default function Saveurs() {
               plus fraîche et plus authentique, qui soutient directement l’économie de Sainte-Marie.
             </p>
             <p className="max-w-[60ch] text-body text-primary-light/80">
-              Recettes malgaches et classiques français sont servis avec soin, sur des sets tressés à la main.
+              Recettes malgaches et classiques français arrivent à table avec soin, sur des sets tressés à la main.
             </p>
           </div>
 

@@ -63,7 +63,7 @@ export default function Hero (){
                     </p>
 
                     <p className="max-w-xl text-base md:text-lg leading-relaxed text-balance text-primary-light/85">
-                        Des bungalows entre jardin tropical et océan Indien, et l’accueil chaleureux de Joëlle et Stéphane.
+                        Bungalows dans un jardin tropical, plage privée et piscine sur l’île Sainte-Marie, avec l’accueil chaleureux de Joëlle et Stéphane.
                     </p>
 
                     <div className="flex w-full flex-col sm:w-auto sm:flex-row gap-3 pt-2">

@@ -3,6 +3,7 @@ import ButtonLink from "@/components/ButtonLink"
 
 interface BookingCTAProps {
   title?: string
+  text?: string   // réassurance sous le titre : comment se passe la réservation
   label?: string
   image?: string
 }
@@ -10,6 +11,7 @@ interface BookingCTAProps {
 // Bandeau final « Réserver » sur grande photo — réutilisable en bas de chaque page
 export default function BookingCTA({
   title = "Et si votre prochaine escapade commençait ici ?",
+  text = "Faites votre demande en quelques minutes : Joëlle et Stéphane confirment personnellement votre séjour sous 48 h.",
   label = "Réserver votre séjour",
   image = "/images/hotel/coucher-soleil-piscine.jpeg",
 }: BookingCTAProps) {
@@ -24,6 +26,7 @@ export default function BookingCTA({
         <h2 className="font-heading text-section text-balance text-primary-light">
           {title}
         </h2>
+        <p className="mx-auto max-w-xl text-base md:text-lg leading-relaxed text-balance text-primary-light/85">{text}</p>
         <ButtonLink href="/reserver">{label}</ButtonLink>
       </div>
     </section>

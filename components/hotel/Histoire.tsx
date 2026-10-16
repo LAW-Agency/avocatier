@@ -12,13 +12,13 @@ export default function Histoire() {
         <div data-reveal className="md:col-span-5 space-y-5">
           <SectionTitle title="Une adresse à taille humaine" />
           <p className="max-w-[60ch] text-body">
-            Chez L’Avocatier a fait le choix d’une capacité volontairement limitée : quelques bungalows
-            et chambres, un grand jardin tropical, une piscine et un accès direct à la plage. Ce format
-            garantit à chaque client un séjour au calme et un service attentif.
+            Quelques bungalows et chambres seulement, un grand jardin tropical, une piscine et la plage
+            au bout de la pelouse : Chez L’Avocatier a choisi l’intimité plutôt que le nombre. Un format
+            qui garantit à chacun un séjour au calme et l’attention de ses hôtes.
           </p>
           <p className="max-w-[60ch] text-body">
-            Notre panneau, au bord de la route de Vohilava, résume l’essentiel de notre offre : piscine,
-            accès direct à la plage, environnement calme et coucher de soleil face à l’océan.
+            Le panneau peint au bord de la route de Vohilava résume l’essentiel : piscine, accès direct
+            à la plage, calme et coucher de soleil face à l’océan. Une promesse simple, tenue chaque jour.
           </p>
         </div>
 

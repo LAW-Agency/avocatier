@@ -33,8 +33,8 @@ export default function Horaires() {
             Une demande particulière ?
           </h3>
           <p className="max-w-[55ch] text-body">
-            Allergies, régimes alimentaires, célébrations ou repas de groupe : merci de nous prévenir à
-            l’avance afin que Joëlle et Stéphane organisent votre accueil dans les meilleures conditions.
+            Allergie, régime particulier, anniversaire ou repas en groupe : prévenez-nous à l’avance,
+            Joëlle et Stéphane organiseront votre accueil en conséquence.
           </p>
 
           {(contact.phone || contact.email) && (

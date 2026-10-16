@@ -35,9 +35,10 @@ export default function BeachPool() {
       <div className="max-w-7xl mx-auto px-4 pt-8 md:pt-12 grid md:grid-cols-12 gap-x-4 lg:gap-x-6 gap-y-8">
         <div id="piscine-jardin" className="md:col-span-5 lg:col-span-4 flex flex-col gap-8 md:gap-10">
           <p data-reveal className="max-w-[60ch] text-body">
-            Depuis le jardin, un accès direct à la plage : les cocotiers pour l’ombre, une mer calme
-            pour la baignade et, chaque soir, le soleil qui se couche sur l’océan. Entre deux baignades,
-            la piscine vous attend au cœur du jardin tropical.
+            Quelques pas sur la pelouse, et vous voilà les pieds dans le sable. La plage privée borde le
+            jardin : l’ombre des cocotiers, une eau calme pour la baignade et, chaque soir, le soleil qui
+            plonge dans l’océan. Entre deux baignades, la piscine vous attend au milieu du jardin,
+            transats et bar à portée de main.
           </p>
 
           {/* Le cadre s'étire pour finir à la même hauteur que la photo de la piscine */}
@@ -65,7 +66,7 @@ export default function BeachPool() {
             style={{ "--reveal-delay": "150ms" } as CSSProperties}
             className="object-cover"
           />
-          <figcaption className={caption}>La piscine, entre les bungalows</figcaption>
+          <figcaption className={caption}>La piscine et son bar, face aux bungalows</figcaption>
         </figure>
       </div>
     </section>

@@ -39,14 +39,17 @@ export default function PageHero({ title, tagline, text, image, secondary, rubri
       {/* Contenu — s'efface en remontant quand on fait défiler la page */}
       <div className="w-full max-w-7xl mx-auto px-4 pt-28 pb-8 md:pb-12 text-primary-light animate-hero-exit">
         <div className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-14 animate-fade-up motion-reduce:animate-none">
-          <div className="lg:col-span-7 space-y-4">
-            <h1 className="font-heading text-[clamp(3rem,2rem+4vw,5.5rem)] leading-[0.95] text-balance">
+          {/* Titre et accroche dans le même h1 : l'accroche porte les mots-clés de la page (référencement) */}
+          <h1 className="lg:col-span-7 space-y-4">
+            <span className="block text-[clamp(3rem,2rem+4vw,5.5rem)] leading-[0.95] text-balance">
               {title}
-            </h1>
-            <p className="font-heading text-2xl md:text-3xl leading-tight text-balance text-sand">
+            </span>
+            {/* Espace : sans lui, le texte du titre (lu par les moteurs) colle « L'hôtel » à l'accroche */}
+            {" "}
+            <span className="block text-2xl md:text-3xl leading-tight text-balance text-sand">
               {tagline}
-            </p>
-          </div>
+            </span>
+          </h1>
 
           <div className="lg:col-span-5 space-y-6">
             <p className="max-w-md text-base md:text-lg leading-relaxed text-primary-light/85">{text}</p>

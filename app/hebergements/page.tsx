@@ -8,9 +8,9 @@ import { conditionsSejour } from "@/components/hebergements/sejour";
 import { moteur } from "@/lib/reservation";
 
 export const metadata: Metadata = {
-  title: "Hébergements | Chez L'Avocatier",
+  title: "Bungalows et chambres à Sainte-Marie, Madagascar | Chez L'Avocatier",
   description:
-    "Bungalows et chambres entre jardin tropical et océan Indien, à Vohilava sur l'île Sainte-Marie (Madagascar) : capacité, literie, équipements et tarifs.",
+    "Bungalows et chambres dans un jardin tropical, à deux pas de la plage privée et de la piscine, à Vohilava (île Sainte-Marie) : équipements et tarifs.",
 };
 
 // Cahier des charges : hero « Votre refuge tropical », puis la grille des hébergements
@@ -25,8 +25,8 @@ export default async function HebergementsPage() {
     <div>
       <PageHero
         title="Hébergements"
-        tagline="Votre refuge tropical"
-        text="Bungalows et chambres situés au cœur du jardin, à proximité immédiate de la piscine et de la plage. Chaque hébergement dispose d’une salle d’eau privative, du Wi-Fi et d’un coffre-fort."
+        tagline="Votre refuge tropical à Sainte-Marie"
+        text="Bungalows et chambres au cœur du jardin, à deux pas de la piscine et de la plage. Partout, une salle d’eau privative, le Wi-Fi et un coffre-fort, pour un séjour aussi simple que serein."
         image={{
           src: "/images/rooms/bungalow-ocean-2.jpeg",
           alt: "Un bungalow aux murs vert profond : lit à baldaquin, moustiquaire et suspensions tressées",
@@ -43,12 +43,12 @@ export default async function HebergementsPage() {
         <div className="max-w-7xl mx-auto px-4">
           <div data-reveal className="grid md:grid-cols-12 gap-6 lg:gap-14 items-end mb-10 md:mb-14">
             <div className="md:col-span-5">
-              <SectionTitle title="Les bungalows" />
+              <SectionTitle title="Les bungalows, entre jardin et océan" />
             </div>
             <p className="md:col-span-7 max-w-[60ch] text-body">
-              Chaque bungalow bénéficie de sa propre décoration, d’une salle d’eau privative et d’un
-              accès direct au jardin, à quelques pas de l’océan. Des configurations adaptées aux
-              couples comme aux familles.
+              Chaque bungalow a sa décoration, ses couleurs et sa salle d’eau privative, et ouvre
+              directement sur le jardin, à quelques pas de l’océan. En amoureux ou en famille, il y en
+              a un à votre mesure.
             </p>
           </div>
 
@@ -74,8 +74,8 @@ export default async function HebergementsPage() {
                 <SectionTitle title="Les chambres" />
               </div>
               <p className="md:col-span-7 max-w-[60ch] text-body">
-                Un format plus compact, avec le même niveau de confort et de soin : une solution adaptée
-                aux courts séjours et aux voyageurs en couple.
+                Plus compactes, les chambres offrent le même confort et le même soin que les bungalows.
+                Idéales pour une escale sur l’île ou un séjour à deux.
               </p>
             </div>
 
@@ -99,8 +99,8 @@ export default async function HebergementsPage() {
           <div data-reveal className="md:col-span-5 space-y-5">
             <SectionTitle title="Bon à savoir" light />
             <p className="max-w-[60ch] text-body text-primary-light/80">
-              Les tarifs affichés sont des prix de base par nuit, susceptibles de varier selon la saison.
-              Le montant total de votre séjour est calculé dès la sélection de vos dates.
+              Les prix indiqués sont des tarifs de base par nuit, qui peuvent varier selon la saison.
+              Choisissez vos dates : le montant exact de votre séjour s’affiche aussitôt, sans surprise.
             </p>
           </div>
 

@@ -12,9 +12,9 @@ export default function Activites() {
         <div data-reveal className="lg:col-span-4 space-y-5 lg:sticky lg:top-28 lg:self-start">
           <SectionTitle title="Excursions et activités" />
           <p className="max-w-[60ch] text-body">
-            Sorties en mer, plongée, tour de l’île : faites-nous part de vos souhaits dès votre
-            réservation. Joëlle et Stéphane vous recommandent des prestataires locaux de confiance et
-            vous aident à planifier vos excursions.
+            Baleines, plongée, pirogue ou tour de l’île : dites-nous vos envies dès votre réservation.
+            Joëlle et Stéphane vous recommandent des prestataires locaux de confiance et vous aident à
+            organiser vos journées, pour profiter de l’île sans perdre de temps.
           </p>
           <ButtonLink href="/contact" variant="link">Préparer vos excursions</ButtonLink>
         </div>
