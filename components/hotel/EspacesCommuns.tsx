@@ -31,11 +31,12 @@ export default function EspacesCommuns() {
       <div className="max-w-7xl mx-auto px-4">
         <div data-reveal className="grid md:grid-cols-12 gap-6 lg:gap-14 items-end mb-8 md:mb-12">
           <div className="md:col-span-5">
-            <SectionTitle title="Des espaces à partager" />
+            <SectionTitle title="Des espaces communs conviviaux" />
           </div>
           <p className="md:col-span-7 max-w-[60ch] text-body">
-            Un salon pour lire ou se retrouver le soir, des murs peints de fresques, des lampes tressées&nbsp;:
-            la maison se vit comme une maison de famille, ouverte sur le jardin.
+            Un salon pour la lecture ou les fins de journée, un décor artisanal de fresques murales et
+            de luminaires tressés&nbsp;: les espaces communs, ouverts sur le jardin, offrent un cadre
+            chaleureux à l’ensemble de nos clients.
           </p>
         </div>
 

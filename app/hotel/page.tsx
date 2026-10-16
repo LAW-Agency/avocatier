@@ -23,7 +23,7 @@ export default function HotelPage() {
       <PageHero
         title="L’hôtel"
         tagline="Une maison au bord de l’océan"
-        text="Des bungalows dans un grand jardin tropical, une piscine, la plage au bout de la pelouse et l’accueil chaleureux de Joëlle et Stéphane."
+        text="Bungalows et chambres dans un jardin tropical, piscine, accès direct à la plage et un accueil personnalisé assuré par Joëlle et Stéphane, vos hôtes sur place."
         image={{
           src: "/images/hotel/jardin-ombres.jpeg",
           alt: "La pelouse du jardin et les bungalows au soleil couchant, sous les cocotiers",
@@ -44,7 +44,7 @@ export default function HotelPage() {
       <SplitSection
         id="jardin"
         title="Le jardin tropical"
-        text="Cocotiers, massifs fleuris et grande pelouse : le jardin relie les bungalows à la piscine et à la plage. On y prend le soleil sur un transat, on y lit à l’ombre, et le soir, les ombres des palmiers s’étirent jusqu’à la mer."
+        text="Cocotiers, massifs fleuris et grande pelouse : le jardin relie les hébergements à la piscine et à la plage. Transats et coins d’ombre sont à votre disposition tout au long de la journée, pour la détente comme pour la lecture."
         cta={{ label: "Voir les bungalows", href: "/hebergements" }}
         image={{
           src: "/images/hotel/jardin.jpeg",
@@ -56,7 +56,7 @@ export default function HotelPage() {
 
       <PanoramaSection
         id="plage"
-        title="La plage, au bout du jardin"
+        title="Un accès direct à la plage"
         image={{
           src: "/images/beach/plage-pirogues.jpeg",
           alt: "La plage au petit matin, pirogues sur le lagon sous les palmes",
@@ -69,19 +69,19 @@ export default function HotelPage() {
         }}
       >
         <p>
-          Quelques pas sur la pelouse et l’on a les pieds dans le sable. La mer, calme, se prête
-          à la baignade ; au large, les pirogues des pêcheurs glissent sur l’eau.
+          La plage se rejoint directement depuis le jardin, à quelques pas des hébergements. Les eaux
+          calmes du lagon se prêtent à la baignade ; au large, les pirogues des pêcheurs animent l’horizon.
         </p>
         <p>
-          Les cocotiers donnent l’ombre, les hamacs invitent à la sieste, et chaque soir le soleil
-          se couche face à vous.
+          Cocotiers et hamacs offrent des espaces de repos à l’ombre, et chaque soir le soleil se
+          couche face à la plage.
         </p>
       </PanoramaSection>
 
       <SplitSection
         id="piscine"
         title="La piscine, au cœur du jardin"
-        text="Entre les bungalows et les massifs tropicaux, la piscine bordée de pierres attend les baigneurs du matin au soir. Quelques marches pour entrer dans l’eau, un transat pour sécher au soleil, et l’océan juste derrière."
+        text="Au centre du jardin, la piscine bordée de pierre est accessible du matin au soir. Escalier immergé, transats à disposition et l’océan en toile de fond : un espace de baignade complémentaire à la plage."
         cta={{ label: "Réserver votre séjour", href: "/reserver" }}
         image={{
           src: "/images/pool/piscine-escalier.jpeg",
@@ -97,7 +97,7 @@ export default function HotelPage() {
       <SplitSection
         id="restaurant"
         title="Restaurant & bar"
-        text="Petit-déjeuner au jardin, cuisine généreuse aux saveurs de l’île et verre au bord de la piscine : la table de Chez L’Avocatier se prend face à l’océan."
+        text="Une cuisine maison à base de produits locaux et bio, servie du petit-déjeuner au dîner, et un bar au bord de la piscine : le restaurant de Chez L’Avocatier vous accueille face à l’océan."
         cta={{ label: "Découvrir la table", href: "/restaurant" }}
         image={{
           src: "/images/restaurant/jardin-table-plage.jpeg",

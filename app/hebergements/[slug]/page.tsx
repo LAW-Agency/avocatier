@@ -9,7 +9,8 @@ import SectionTitle from "@/components/home/SectionTitle";
 import CarteHebergement from "@/components/hebergements/CarteHebergement";
 import { conditionsSejour, equipements } from "@/components/hebergements/sejour";
 import { moteur } from "@/lib/reservation";
-import { formaterPrix, pluriel } from "@/lib/reservation/dates";
+import { Prix } from "@/components/Devise";
+import { pluriel } from "@/lib/reservation/dates";
 
 async function trouver(slug: string) {
   const hebergements = await moteur.listerHebergements();
@@ -111,13 +112,13 @@ export default async function HebergementPage({ params }: PageProps<"/hebergemen
               <p className="text-sm">
                 À partir de{" "}
                 <span className="block font-heading text-4xl tabular-nums">
-                  {formaterPrix(h.prixNuit)}
+                  <Prix montant={h.prixNuit} />
                   <span className="text-base font-normal"> / nuit</span>
                 </span>
               </p>
               <p className="text-[0.95rem] leading-relaxed">
-                Prix de base, variable selon la saison : le total exact s’affiche dès que vous choisissez
-                vos dates. Vos dates sont ensuite bloquées 48 h, le temps que Joëlle et Stéphane vous répondent.
+                Tarif de base, variable selon la saison : le montant total s’affiche dès la sélection de
+                vos dates. Celles-ci sont ensuite bloquées pendant 48 h, dans l’attente de la confirmation de vos hôtes.
               </p>
               <ButtonLink href={`/reserver?hebergement=${h.slug}`} className="w-full">
                 Demander une réservation

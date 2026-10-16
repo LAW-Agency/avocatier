@@ -1,6 +1,6 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { ArrowRight, BedDouble, Bus, CalendarCheck2, CalendarDays, Inbox, LogIn, LogOut, MessageSquare, type LucideIcon } from "lucide-react"
+import { Bus, CalendarCheck2, CalendarDays, Inbox, MessageSquare } from "lucide-react"
 import ActionsReservation from "@/components/admin/ActionsReservation"
 import EnTetePage from "@/components/admin/EnTetePage"
 import FicheReservation from "@/components/admin/FicheReservation"
@@ -15,7 +15,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { exigerHote } from "@/lib/auth/dal"
 import { ajouterJours, aujourdhuiISO, formaterDate, formaterPlage, formaterPrix, nombreNuits, pluriel, tempsRestant } from "@/lib/reservation/dates"
-import { donneesHotes, type DonneesHotes } from "@/lib/reservation/hotes"
+import { donneesHotes, situationDuJour, type DonneesHotes } from "@/lib/reservation/hotes"
 import type { ClientPublic, Reservation } from "@/lib/reservation/types"
 
 // Tableau du jour : chiffres clés ; à gauche les demandes à traiter, à droite les mouvements du jour et de la semaine
@@ -23,41 +23,30 @@ export default async function AujourdhuiPage() {
   const hote = await exigerHote()
   const donnees = await donneesHotes()
   const aujourdhui = aujourdhuiISO()
-  const { reservations, hebergements, blocages } = donnees
+  const { reservations } = donnees
+  const { arrivees, departs, occupes, total } = situationDuJour(donnees, aujourdhui)
 
   const aTraiter = reservations
     .filter((r) => r.statut === "option")
     .sort((a, b) => (a.expireLe ?? "").localeCompare(b.expireLe ?? ""))
   const confirmees = reservations.filter((r) => r.statut === "confirmee")
-  const arrivees = confirmees.filter((r) => r.arrivee === aujourdhui)
-  const departs = confirmees.filter((r) => r.depart === aujourdhui)
   const surPlace = confirmees.filter((r) => r.arrivee < aujourdhui && r.depart > aujourdhui)
   const dans7Jours = ajouterJours(aujourdhui, 7)
   const semaine = confirmees
     .filter((r) => r.arrivee > aujourdhui && r.arrivee <= dans7Jours)
     .sort((a, b) => a.arrivee.localeCompare(b.arrivee))
 
-  // Hébergements occupés ou bloqués cette nuit
-  const occupesCeSoir = new Set([
-    ...reservations
-      .filter((r) => (r.statut === "option" || r.statut === "confirmee") && r.arrivee <= aujourdhui && r.depart > aujourdhui)
-      .map((r) => r.hebergementId),
-    ...blocages.filter((b) => b.debut <= aujourdhui && b.fin > aujourdhui).map((b) => b.hebergementId),
-  ])
-  const dateDuJour = formaterDate(aujourdhui, { weekday: "long", month: "long" })
-  const tauxOccupation = hebergements.length ? Math.round((occupesCeSoir.size / hebergements.length) * 100) : 0
+  const tauxOccupation = total ? Math.round((occupes / total) * 100) : 0
 
   return (
     <>
+      {/* La date du jour est déjà dans la barre du haut */}
       <EnTetePage
         titre={`Bonjour ${hote.prenom}`}
         description={
-          <>
-            {dateDuJour.charAt(0).toUpperCase() + dateDuJour.slice(1)} ·{" "}
-            {aTraiter.length > 0
-              ? `${pluriel(aTraiter.length, "demande attend", "demandes attendent")} votre réponse`
-              : "aucune demande en attente"}
-          </>
+          aTraiter.length > 0
+            ? `${pluriel(aTraiter.length, "demande attend", "demandes attendent")} votre réponse.`
+            : "Aucune demande en attente."
         }
         actions={
           <Button variant="outline" asChild>
@@ -69,14 +58,15 @@ export default async function AujourdhuiPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-        <Indicateur libelle="À traiter" valeur={aTraiter.length} icone={Inbox} note="En attente de réponse" />
-        <Indicateur libelle="Arrivées" valeur={arrivees.length} icone={LogIn} note={semaine.length ? `${pluriel(semaine.length, "autre prévue", "autres prévues")} sous 7 jours` : "Aucune autre sous 7 jours"} />
-        <Indicateur libelle="Départs" valeur={departs.length} icone={LogOut} note={surPlace.length ? pluriel(surPlace.length, "séjour en cours", "séjours en cours") : "Aucun séjour en cours"} />
-        <Indicateur libelle="Occupation ce soir" valeur={`${occupesCeSoir.size}/${hebergements.length}`} icone={BedDouble}>
+      {/* Chiffres du jour en un seul bandeau, cases séparées par des filets (gap-px sur fond de bordure) */}
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-foreground/10 xl:grid-cols-4">
+        <Indicateur libelle="À traiter" valeur={aTraiter.length} note="En attente de réponse" />
+        <Indicateur libelle="Arrivées" valeur={arrivees.length} note={semaine.length ? `${pluriel(semaine.length, "autre prévue", "autres prévues")} sous 7 jours` : "Aucune autre sous 7 jours"} />
+        <Indicateur libelle="Départs" valeur={departs.length} note={surPlace.length ? pluriel(surPlace.length, "séjour en cours", "séjours en cours") : "Aucun séjour en cours"} />
+        <Indicateur libelle="Occupation ce soir" valeur={`${occupes} sur ${total}`}>
           <Progress value={tauxOccupation} aria-label={`Taux d'occupation : ${tauxOccupation} %`} />
         </Indicateur>
-      </div>
+      </dl>
 
       <div className="grid items-start gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -85,9 +75,7 @@ export default async function AujourdhuiPage() {
             <CardDescription>Les dates sont bloquées 48 h : confirmez ou refusez avant l&apos;échéance.</CardDescription>
             <CardAction>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/admin/reservations?statut=option">
-                  Tout voir <ArrowRight data-icon="inline-end" />
-                </Link>
+                <Link href="/admin/reservations?statut=option">Toutes les demandes</Link>
               </Button>
             </CardAction>
           </CardHeader>
@@ -115,20 +103,22 @@ export default async function AujourdhuiPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
           <Card>
             <CardHeader>
+              {/* Pas de description : les onglets disent déjà ce que contient la carte */}
               <CardTitle>Aujourd&apos;hui</CardTitle>
-              <CardDescription>Arrivées, départs et clients sur place</CardDescription>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="arrivees">
-                <TabsList variant="line" className="w-full justify-start">
-                  <TabsTrigger value="arrivees" className="flex-none">
-                    Arrivées <Badge variant="secondary">{arrivees.length}</Badge>
+                {/* Onglets sans marge intérieure : le premier libellé s'aligne sur le titre de la carte ;
+                    nombres en simple texte grisé (des pastilles feraient déborder la colonne étroite) */}
+                <TabsList variant="line" className="w-full justify-start gap-4 px-0">
+                  <TabsTrigger value="arrivees" className="flex-none px-0">
+                    Arrivées <span className="text-muted-foreground tabular-nums">{arrivees.length}</span>
                   </TabsTrigger>
-                  <TabsTrigger value="departs" className="flex-none">
-                    Départs <Badge variant="secondary">{departs.length}</Badge>
+                  <TabsTrigger value="departs" className="flex-none px-0">
+                    Départs <span className="text-muted-foreground tabular-nums">{departs.length}</span>
                   </TabsTrigger>
-                  <TabsTrigger value="sur-place" className="flex-none">
-                    Sur place <Badge variant="secondary">{surPlace.length}</Badge>
+                  <TabsTrigger value="sur-place" className="flex-none px-0">
+                    Sur place <span className="text-muted-foreground tabular-nums">{surPlace.length}</span>
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="arrivees" className="pt-2">
@@ -165,26 +155,17 @@ export default async function AujourdhuiPage() {
 interface IndicateurProps {
   libelle: string
   valeur: ReactNode
-  icone: LucideIcon
   note?: string
   children?: ReactNode
 }
 
-function Indicateur({ libelle, valeur, icone: Icone, note, children }: IndicateurProps) {
+function Indicateur({ libelle, valeur, note, children }: IndicateurProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardDescription>{libelle}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums md:text-3xl">{valeur}</CardTitle>
-        {/* Pastille d'icône masquée sur téléphone pour laisser la place au libellé */}
-        <CardAction className="max-sm:hidden">
-          <span className="flex size-8 items-center justify-center rounded-md bg-accent text-accent-foreground">
-            <Icone className="size-4" aria-hidden="true" />
-          </span>
-        </CardAction>
-      </CardHeader>
-      <CardContent>{children ?? <p className="text-xs text-muted-foreground">{note}</p>}</CardContent>
-    </Card>
+    <div className="flex flex-col gap-1 bg-card p-4">
+      <dt className="text-sm text-muted-foreground">{libelle}</dt>
+      <dd className="text-2xl font-semibold tabular-nums">{valeur}</dd>
+      <dd className="mt-1 text-xs text-muted-foreground">{children ?? note}</dd>
+    </div>
   )
 }
 
@@ -218,13 +199,13 @@ function Demande({ reservation: r, donnees }: { reservation: Reservation; donnee
           ) : (
             nomDe(client)
           )}
-          <Badge variant={restant ? "secondary" : "destructive"}>{restant ? `encore ${restant}` : "Option échue"}</Badge>
+          <Badge variant={restant ? "secondary" : "destructive"}>{restant ? `Expire dans ${restant}` : "Option échue"}</Badge>
         </ItemTitle>
         <ItemDescription className="line-clamp-none">
-          {formaterPlage(r.arrivee, r.depart)} · {hebergement}
+          {formaterPlage(r.arrivee, r.depart)}, {hebergement}
           <span className="block text-xs">
-            {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")} · {pluriel(r.adultes + r.enfants, "voyageur")}
-            {client?.pays && ` · ${client.pays}`}
+            {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}, {pluriel(r.adultes + r.enfants, "voyageur")}
+            {client?.pays && `, ${client.pays}`}
           </span>
         </ItemDescription>
       </ItemContent>
@@ -289,9 +270,9 @@ function Sejours({ reservations, donnees, vide, avecDate = false }: SejoursProps
                 <span className="truncate">{nomDe(client)}</span>
               </ItemTitle>
               <ItemDescription className="line-clamp-1 text-xs">
-                {avecDate ? `${formaterDate(r.arrivee, { year: undefined })} · ` : ""}
-                {hebergement} · {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}
-                {r.navette && " · navette"}
+                {avecDate ? `${formaterDate(r.arrivee, { year: undefined })}, ` : ""}
+                {hebergement}, {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}
+                {r.navette && ", navette"}
               </ItemDescription>
             </ItemContent>
             <ItemActions>

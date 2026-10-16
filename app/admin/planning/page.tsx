@@ -38,8 +38,9 @@ export default async function PlanningPage({
   const aujourdhui = aujourdhuiISO()
   const debut = estDateISO(params.debut) ? params.debut : aujourdhui
   const jours = Array.from({ length: JOURS_AFFICHES }, (_, i) => ajouterJours(debut, i))
-  // Colonne des hébergements plus étroite sur téléphone (--col-hebergement, voir le conteneur)
-  const colonnes = `var(--col-hebergement) repeat(${JOURS_AFFICHES}, minmax(2.5rem, 1fr))`
+  // Colonne des hébergements plus étroite sur téléphone (--col-hebergement, voir le conteneur) ;
+  // nuits d'au moins 1,75rem : les 4 semaines tiennent sans défilement dès 960 px de large (barre latérale ouverte, écran de 1280 px)
+  const colonnes = `var(--col-hebergement) repeat(${JOURS_AFFICHES}, minmax(1.75rem, 1fr))`
 
   function barresDe(hebergementId: string): Barre[] {
     const reservations = donnees.reservations
@@ -93,7 +94,8 @@ export default async function PlanningPage({
       {/* isolate : les colonnes collantes (z-20) restent sous la barre du haut au défilement */}
       <Card className="isolate gap-0 py-0">
         <div className="overflow-x-auto">
-          <div className="min-w-[68rem] [--col-hebergement:7.5rem] sm:min-w-[72rem] sm:[--col-hebergement:10rem]">
+          {/* Largeur minimale = colonne des hébergements + 28 nuits × 1,75rem */}
+          <div className="min-w-[56.5rem] [--col-hebergement:7.5rem] sm:min-w-[59rem] sm:[--col-hebergement:10rem]">
             {/* En-tête : une colonne par nuit, week-ends teintés, aujourd'hui marqué */}
             <div className="grid border-b bg-muted/50" style={{ gridTemplateColumns: colonnes }}>
               <div className="sticky left-0 z-20 flex items-end bg-muted px-4 py-2 text-xs font-medium text-muted-foreground">Hébergement</div>
@@ -190,14 +192,15 @@ export default async function PlanningPage({
                 </EmptyHeader>
               </Empty>
             ) : (
+              // Première et dernière colonnes sans marge extérieure : le tableau s'aligne sur le titre de la carte
               <div className="@container">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Hébergement</TableHead>
+                      <TableHead className="pl-0">Hébergement</TableHead>
                       <TableHead>Période</TableHead>
                       <TableHead className="hidden @lg:table-cell">Raison</TableHead>
-                      <TableHead className="text-right">
+                      <TableHead className="pr-0 text-right">
                         <span className="sr-only">Actions</span>
                       </TableHead>
                     </TableRow>
@@ -205,13 +208,13 @@ export default async function PlanningPage({
                   <TableBody>
                     {blocagesAVenir.map((b) => (
                       <TableRow key={b.id}>
-                        <TableCell className="font-medium whitespace-normal">{donnees.hebergements.find((h) => h.id === b.hebergementId)?.nom}</TableCell>
+                        <TableCell className="pl-0 font-medium whitespace-normal">{donnees.hebergements.find((h) => h.id === b.hebergementId)?.nom}</TableCell>
                         <TableCell className="whitespace-normal">
                           {formaterPlage(b.debut, b.fin)}
                           <span className="block text-xs text-muted-foreground">{pluriel(nombreNuits(b.debut, b.fin), "nuit")}</span>
                         </TableCell>
                         <TableCell className="hidden max-w-48 truncate text-muted-foreground @lg:table-cell">{b.raison || "—"}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="pr-0 text-right">
                           <form action={supprimerBlocage}>
                             <input type="hidden" name="blocageId" value={b.id} />
                             <Button type="submit" variant="ghost" size="sm" aria-label="Libérer ces dates">

@@ -140,6 +140,21 @@ body {
   overflow-x: clip;
 }
 
+/* Fenêtre modale ouverte (Radix pose data-scroll-locked sur <body>) : à cause du clip ci-dessus, le verrou sur <body>
+   ne gagne pas le viewport — la page défilait encore derrière, barre visible. Verrouillé ici aussi ; Radix compense
+   déjà la largeur de la barre par une marge sur <body>, rien ne bouge */
+html:has(> body[data-scroll-locked]) {
+  overflow: hidden;
+}
+
+/* …et <body> ne doit pas garder le overflow: hidden !important de Radix : il deviendrait un conteneur de défilement
+   (non défilé) et les éléments sticky s'y colleraient au lieu de l'écran — la barre du haut de l'espace hôtes
+   disparaissait dès qu'un menu ou une fenêtre s'ouvrait. Le verrou sur <html> suffit. */
+html > body[data-scroll-locked] {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
 main {
   flex: 1;
 }

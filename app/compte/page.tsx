@@ -6,11 +6,12 @@ import { BedDouble, CalendarPlus, Clock, LogOut, Mail, MapPin, Navigation, Phone
 import type { ReactNode } from "react"
 import { annulerReservation, deconnexion } from "@/app/compte/actions"
 import ButtonLink from "@/components/ButtonLink"
+import { Prix } from "@/components/Devise"
 import { HORAIRES } from "@/components/hebergements/sejour"
 import { contact } from "@/data/contact"
 import { clientConnecte } from "@/lib/auth/dal"
 import { moteur } from "@/lib/reservation"
-import { ajouterJours, aujourdhuiISO, formaterDate, formaterPlage, formaterPrix, nombreNuits, pluriel } from "@/lib/reservation/dates"
+import { ajouterJours, aujourdhuiISO, formaterDate, formaterPlage, nombreNuits, pluriel } from "@/lib/reservation/dates"
 import { statutAffiche, type StatutAffiche } from "@/lib/reservation/statuts"
 import type { ClientPublic, DateISO, Hebergement, Reservation } from "@/lib/reservation/types"
 
@@ -247,7 +248,7 @@ function CarteSejour({ reservation: r, hebergement: h, aujourdhui }: { reservati
   const details = [
     { terme: "Voyageurs", valeur: `${pluriel(r.adultes, "adulte")}${r.enfants ? `, ${pluriel(r.enfants, "enfant")}` : ""}` },
     { terme: "Navette aéroport", valeur: r.navette ? "Demandée" : "Non demandée" },
-    { terme: r.statut === "option" ? "Montant estimé" : "Montant total", valeur: formaterPrix(r.montantTotal) },
+    { terme: r.statut === "option" ? "Montant estimé" : "Montant total", valeur: <Prix montant={r.montantTotal} /> },
   ]
 
   return (
@@ -462,7 +463,7 @@ function ListeSejours({ titre, reservations, hebergementDe, aujourdhui }: ListeS
               <div className="min-w-0">
                 <p className="font-heading text-lg text-ink sm:text-xl">{formaterPlage(r.arrivee, r.depart)}</p>
                 <p className="mt-0.5 text-sm text-ink/70">
-                  {h?.nom}, {pluriel(r.adultes + r.enfants, "voyageur")}, {formaterPrix(r.montantTotal)}
+                  {h?.nom}, {pluriel(r.adultes + r.enfants, "voyageur")}, <Prix montant={r.montantTotal} />
                 </p>
                 <p className="text-sm text-ink/70">
                   Référence <span className="tabular-nums">{r.reference}</span>

@@ -24,10 +24,12 @@ interface ActionsReservationProps {
   statut: StatutReservation
   reference: string
   taille?: "sm" | "default"
+  // « fin » : pied de fenêtre, boutons à droite et action principale tout au bout ; « debut » : dans une liste
+  alignement?: "debut" | "fin"
 }
 
 // Ce que les hôtes peuvent faire selon le statut : confirmer directement ; refuser ou annuler après confirmation
-export default function ActionsReservation({ reservationId, statut, reference, taille = "default" }: ActionsReservationProps) {
+export default function ActionsReservation({ reservationId, statut, reference, taille = "default", alignement = "debut" }: ActionsReservationProps) {
   const [etat, action, enCours] = useActionState<EtatAction, FormData>(changerStatutReservation, {})
   if (statut !== "option" && statut !== "confirmee") return null
 
@@ -56,10 +58,10 @@ export default function ActionsReservation({ reservationId, statut, reference, t
         }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className={`flex flex-col gap-2 ${alignement === "fin" ? "w-full" : ""}`}>
+      <div className={`flex flex-wrap items-center gap-2 ${alignement === "fin" ? "justify-end" : ""}`}>
         {statut === "option" && (
-          <Button size={taille} disabled={enCours} onClick={() => envoyer("confirmee")}>
+          <Button size={taille} disabled={enCours} onClick={() => envoyer("confirmee")} className={alignement === "fin" ? "order-last" : undefined}>
             {enCours ? <Spinner data-icon="inline-start" /> : <Check data-icon="inline-start" />}
             Confirmer
           </Button>

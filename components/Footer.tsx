@@ -2,6 +2,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Mail, Phone } from "lucide-react"
 import type { CSSProperties, ReactNode } from "react"
+import SelecteurDevise from "@/components/SelecteurDevise"
 import { contact, socials, type SocialNetwork } from "@/data/contact"
 
 // Pages principales (routes du cahier des charges)
@@ -139,16 +140,19 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* BANDEAU BAS : copyright | liens légaux */}
+        {/* BANDEAU BAS : copyright | devise et liens légaux */}
         <div className="flex flex-col-reverse gap-3 border-t border-primary-light/15 pt-6 pr-16 md:pr-20 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-sm text-primary-light/65 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm">© {new Date().getFullYear()} {contact.name}. Tous droits réservés.</p>
-          <ul className="flex items-center divide-x divide-primary-light/30">
-            {legalLinks.map((link) => (
-              <li key={link.href} className="px-3 first:pl-0 last:pr-0">
-                <Link href={link.href} className="transition-colors duration-300 hover:text-sand">{link.label}</Link>
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <SelecteurDevise />
+            <ul className="flex items-center divide-x divide-primary-light/30">
+              {legalLinks.map((link) => (
+                <li key={link.href} className="px-3 first:pl-0 last:pr-0">
+                  <Link href={link.href} className="transition-colors duration-300 hover:text-sand">{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </footer>

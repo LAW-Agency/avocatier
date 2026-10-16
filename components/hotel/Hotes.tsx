@@ -16,9 +16,10 @@ export default function Hotes() {
         <div data-reveal className="md:col-span-5 space-y-5">
           <SectionTitle title="Joëlle & Stéphane, vos hôtes" light />
           <p className="max-w-[60ch] text-body text-primary-light/80">
-            Ici, on est accueilli comme des amis : un conseil pour découvrir l’île, une bonne adresse
-            à partager, une attention au quotidien. C’est ce que les voyageurs retiennent en premier
-            de leur séjour.
+            Présents au quotidien, Joëlle et Stéphane assurent personnellement l’accueil et le suivi
+            de chaque séjour : conseils pour découvrir l’île, recommandations de prestataires locaux,
+            attention portée aux détails. Une qualité de service que nos clients citent en premier
+            dans leurs avis.
           </p>
         </div>
 

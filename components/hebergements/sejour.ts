@@ -25,7 +25,7 @@ export function conditionsSejour(saisons: Saison[]): { label: string; valeur: st
     ...[...minimums].map(([nom, nuits]) => ({ label: nom, valeur: `${nuits} nuits minimum` })),
     {
       label: "Réservation",
-      valeur: "Sur demande : vos dates sont bloquées 48 h, le temps que Joëlle et Stéphane vous répondent",
+      valeur: "Sur demande : vos dates sont bloquées pendant 48 h, dans l’attente de la confirmation de Joëlle et Stéphane",
     },
     { label: "Navette aéroport", valeur: "Sur demande, avec supplément" },
   ]

@@ -1,7 +1,8 @@
 import { hacherMotDePasse } from "@/lib/auth/motDePasse"
 import { ajouterJours, aujourdhuiISO } from "../dates"
-import { calculerDevis } from "../regles"
-import type { Blocage, Client, Hebergement, Reservation, Saison, StatutReservation } from "../types"
+import { reglagesDevisesInitiaux } from "../devises"
+import { calculerDevis, deplierSaisons } from "../regles"
+import type { Blocage, Client, Hebergement, ReglagesDevises, RegleSaison, Reservation, StatutReservation } from "../types"
 
 // DONNÉES MOCK — base en mémoire en attendant PostgreSQL.
 // TODO client : noms, capacités, literie, équipements et prix des hébergements sont fictifs, à remplacer.
@@ -95,13 +96,11 @@ export const hebergements: Hebergement[] = [
   },
 ]
 
-// Saisons recalculées chaque année (l'année passée couvre les fêtes à cheval sur janvier)
-function saisonsAutourDe(annee: number): Saison[] {
-  return [annee - 1, annee, annee + 1].flatMap((a) => [
-    { nom: "Haute saison", debut: `${a}-07-01`, fin: `${a}-09-01`, coefficient: 1.2, sejourMin: 3 },
-    { nom: "Fêtes de fin d'année", debut: `${a}-12-20`, fin: `${a + 1}-01-05`, coefficient: 1.3, sejourMin: 5 },
-  ])
-}
+// Saisons de départ, modifiables ensuite par les hôtes (/admin/tarifs) ; `fin` = dernière nuit comprise
+export const reglesSaisonsInitiales: RegleSaison[] = [
+  { nom: "Haute saison", debut: "07-01", fin: "08-31", coefficient: 1.2, sejourMin: 3 },
+  { nom: "Fêtes de fin d'année", debut: "12-20", fin: "01-04", coefficient: 1.3, sejourMin: 5 },
+]
 
 // Comptes de démonstration (données mock uniquement) : se connecter avec ces identifiants
 export const COMPTE_DEMO = { email: "demo@avocatier.test", motDePasse: "vohilava-demo" }
@@ -124,10 +123,11 @@ export function creerCompteHote(): Client {
 
 export type BaseMock = {
   hebergements: Hebergement[]
-  saisons: Saison[]
+  reglesSaisons: RegleSaison[]
   clients: Client[]
   reservations: Reservation[]
   blocages: Blocage[]
+  devises: ReglagesDevises
   compteur: number // dernier numéro de référence attribué
 }
 
@@ -135,7 +135,8 @@ export function creerBaseMock(): BaseMock {
   const aujourdhui = aujourdhuiISO()
   const jour = (decalage: number) => ajouterJours(aujourdhui, decalage)
   const maintenant = new Date().toISOString()
-  const saisons = saisonsAutourDe(Number(aujourdhui.slice(0, 4)))
+  const annee = Number(aujourdhui.slice(0, 4))
+  const saisons = deplierSaisons(reglesSaisonsInitiales, [annee - 1, annee, annee + 1])
 
   const demo: Client = {
     id: "c1",
@@ -199,7 +200,7 @@ export function creerBaseMock(): BaseMock {
 
   return {
     hebergements,
-    saisons,
+    reglesSaisons: structuredClone(reglesSaisonsInitiales),
     clients: [creerCompteHote(), demo, lucas, aina],
     reservations: [
       reservation("h4", jour(-90), jour(-85), "confirmee", 24 * 130),
@@ -231,6 +232,7 @@ export function creerBaseMock(): BaseMock {
       // Établissement complet : ces nuits apparaissent grisées dans le calendrier
       ...hebergements.map((h) => ({ id: `b-priv-${h.id}`, hebergementId: h.id, debut: jour(20), fin: jour(23), raison: "Privatisation" })),
     ],
+    devises: reglagesDevisesInitiaux(),
     compteur,
   }
 }

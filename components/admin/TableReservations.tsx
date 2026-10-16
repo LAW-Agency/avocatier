@@ -1,6 +1,6 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { ArrowRight, CalendarX2 } from "lucide-react"
+import { CalendarX2 } from "lucide-react"
 import FicheReservation from "@/components/admin/FicheReservation"
 import { BadgeStatut, estTermine } from "@/components/admin/statut"
 import { Button } from "@/components/ui/button"
@@ -38,17 +38,18 @@ export default function TableReservations({ reservations, donnees, vide, avecCli
 
   return (
     <div className="@container overflow-hidden rounded-xl border bg-card">
-      <Table>
+      {/* Largeurs fixes : deux tableaux empilés (fiche client) gardent les mêmes colonnes ; « Séjour » prend le reste */}
+      <Table className="table-fixed">
         {/* Colonnes secondaires selon la largeur du tableau (requêtes de conteneur, la barre latérale réduit la place) :
             leur contenu passe sous les dates quand elles sont masquées */}
         <TableHeader>
           <TableRow className="bg-muted/60 hover:bg-muted/60">
             <TableHead className="pl-4">Séjour</TableHead>
-            {avecClient && <TableHead className="hidden @2xl:table-cell">Client</TableHead>}
-            <TableHead className="hidden @4xl:table-cell">Hébergement</TableHead>
-            <TableHead className="hidden text-right @lg:table-cell">Montant</TableHead>
-            <TableHead className="hidden @lg:table-cell">Statut</TableHead>
-            <TableHead className="pr-4 text-right">
+            {avecClient && <TableHead className="hidden w-40 @2xl:table-cell">Client</TableHead>}
+            <TableHead className="hidden w-40 @4xl:table-cell">Hébergement</TableHead>
+            <TableHead className="hidden w-24 text-right @lg:table-cell">Montant</TableHead>
+            <TableHead className="hidden w-36 @lg:table-cell">Statut</TableHead>
+            <TableHead className="w-28 pr-4 text-right">
               <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
@@ -67,8 +68,9 @@ export default function TableReservations({ reservations, donnees, vide, avecCli
                     <span className="font-medium">{formaterPlage(r.arrivee, r.depart)}</span>
                     {avecClient && <span className="@2xl:hidden">{nomClient}</span>}
                     <span className="text-xs text-muted-foreground">
-                      <span className="@4xl:hidden">{hebergement} · </span>
-                      {r.reference} · {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")} · {pluriel(r.adultes + r.enfants, "voyageur")}
+                      {/* Référence dans la fiche ; ici seulement ce qui sert à reconnaître le séjour */}
+                      <span className="@4xl:hidden">{hebergement}, </span>
+                      {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}, {pluriel(r.adultes + r.enfants, "voyageur")}
                     </span>
                     <span className="mt-1 flex flex-wrap items-center gap-2 @lg:hidden">
                       <BadgeStatut reservation={r} termine={termine} />
@@ -77,7 +79,7 @@ export default function TableReservations({ reservations, donnees, vide, avecCli
                   </div>
                 </TableCell>
                 {avecClient && (
-                  <TableCell className="hidden @2xl:table-cell">
+                  <TableCell className="hidden truncate @2xl:table-cell">
                     {client ? (
                       <Link href={`/admin/clients/${client.id}`} className="font-medium underline-offset-4 hover:underline">
                         {nomClient}
@@ -88,12 +90,12 @@ export default function TableReservations({ reservations, donnees, vide, avecCli
                     {client?.pays && <span className="block text-xs text-muted-foreground">{client.pays}</span>}
                   </TableCell>
                 )}
-                <TableCell className="hidden @4xl:table-cell">{hebergement}</TableCell>
+                <TableCell className="hidden truncate @4xl:table-cell">{hebergement}</TableCell>
                 <TableCell className="hidden text-right tabular-nums @lg:table-cell">{formaterPrix(r.montantTotal)}</TableCell>
                 <TableCell className="hidden @lg:table-cell">
                   <div className="flex flex-col items-start gap-1">
                     <BadgeStatut reservation={r} termine={termine} />
-                    {restant && <span className="text-xs text-destructive">encore {restant}</span>}
+                    {restant && <span className="text-xs text-destructive">Expire dans {restant}</span>}
                   </div>
                 </TableCell>
                 <TableCell className="pr-4 text-right">
@@ -106,9 +108,7 @@ export default function TableReservations({ reservations, donnees, vide, avecCli
                     restant={restant}
                     declencheur={
                       r.statut === "option" ? (
-                        <Button size="sm">
-                          Traiter <ArrowRight data-icon="inline-end" />
-                        </Button>
+                        <Button size="sm">Traiter</Button>
                       ) : undefined
                     }
                   />

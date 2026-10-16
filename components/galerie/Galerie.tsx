@@ -17,7 +17,7 @@ export default function Galerie({ filtreInitial }: { filtreInitial: Filtre }) {
   const departBalayage = useRef<number | null>(null)
   const bandeauRef = useRef<HTMLUListElement>(null)
 
-  const visibles = filtre === "tout" ? photos : photos.filter((p) => p.categories.includes(filtre))
+  const visibles = filtre === "tout" ? photos : photos.filter((p) => p.categorie === filtre)
   const photo = ouverte !== null ? visibles[ouverte] : null
 
   const choisirFiltre = (f: Filtre) => {
@@ -73,7 +73,7 @@ export default function Galerie({ filtreInitial }: { filtreInitial: Filtre }) {
 
   const onglets: { id: Filtre; label: string; nombre: number }[] = [
     { id: "tout", label: "Tout", nombre: photos.length },
-    ...categories.map((c) => ({ ...c, nombre: photos.filter((p) => p.categories.includes(c.id)).length })),
+    ...categories.map((c) => ({ ...c, nombre: photos.filter((p) => p.categorie === c.id).length })),
   ]
 
   return (

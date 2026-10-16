@@ -57,7 +57,7 @@ export default function Home() {
       <SplitSection
         id="restaurant"
         title="Les saveurs de l’île"
-        text="Petit-déjeuner continental pour bien commencer la journée, restaurant sur place et bar : une cuisine généreuse, aux saveurs de l’île."
+        text="Petit-déjeuner continental pour bien commencer la journée, restaurant sur place et bar : une cuisine généreuse, élaborée à partir de produits locaux et bio."
         cta={{ label: "Découvrir la table", href: "/restaurant" }}
         image={{
           src: "/images/restaurant/petit-dejeuner.jpeg",

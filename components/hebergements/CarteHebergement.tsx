@@ -3,7 +3,8 @@ import Link from "next/link"
 import { BedDouble, Eye, Users } from "lucide-react"
 import type { CSSProperties } from "react"
 import ButtonLink from "@/components/ButtonLink"
-import { formaterPrix, pluriel } from "@/lib/reservation/dates"
+import { Prix } from "@/components/Devise"
+import { pluriel } from "@/lib/reservation/dates"
 import type { Hebergement } from "@/lib/reservation/types"
 import { equipements } from "@/components/hebergements/sejour"
 
@@ -30,7 +31,7 @@ export default function CarteHebergement({ hebergement: h, cadre = "aspect-[4/3]
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h3 className="font-heading text-2xl md:text-3xl leading-tight">{h.nom}</h3>
           <p className="shrink-0 text-right text-sm">
-            dès <span className="font-heading text-xl tabular-nums">{formaterPrix(h.prixNuit)}</span> / nuit
+            dès <span className="font-heading text-xl tabular-nums"><Prix montant={h.prixNuit} /></span> / nuit
           </p>
         </div>
 

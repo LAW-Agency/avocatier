@@ -26,7 +26,7 @@ export default async function HebergementsPage() {
       <PageHero
         title="Hébergements"
         tagline="Votre refuge tropical"
-        text="Des bungalows et des chambres au cœur du jardin, à quelques pas de la piscine et de l’océan : lits à baldaquin, salles d’eau peintes de fresques et douceur de vivre."
+        text="Bungalows et chambres situés au cœur du jardin, à proximité immédiate de la piscine et de la plage. Chaque hébergement dispose d’une salle d’eau privative, du Wi-Fi et d’un coffre-fort."
         image={{
           src: "/images/rooms/bungalow-ocean-2.jpeg",
           alt: "Un bungalow aux murs vert profond : lit à baldaquin, moustiquaire et suspensions tressées",
@@ -46,8 +46,9 @@ export default async function HebergementsPage() {
               <SectionTitle title="Les bungalows" />
             </div>
             <p className="md:col-span-7 max-w-[60ch] text-body">
-              Chacun a sa couleur et sa salle d’eau privative. On y entre depuis le jardin, et l’océan
-              n’est jamais loin.
+              Chaque bungalow bénéficie de sa propre décoration, d’une salle d’eau privative et d’un
+              accès direct au jardin, à quelques pas de l’océan. Des configurations adaptées aux
+              couples comme aux familles.
             </p>
           </div>
 
@@ -73,7 +74,8 @@ export default async function HebergementsPage() {
                 <SectionTitle title="Les chambres" />
               </div>
               <p className="md:col-span-7 max-w-[60ch] text-body">
-                Plus simples, tout aussi soignées : l’idéal pour une escale sur l’île ou un séjour à deux.
+                Un format plus compact, avec le même niveau de confort et de soin : une solution adaptée
+                aux courts séjours et aux voyageurs en couple.
               </p>
             </div>
 
@@ -97,8 +99,8 @@ export default async function HebergementsPage() {
           <div data-reveal className="md:col-span-5 space-y-5">
             <SectionTitle title="Bon à savoir" light />
             <p className="max-w-[60ch] text-body text-primary-light/80">
-              Les prix indiqués sont des prix de base par nuit ; ils varient selon la saison. Le total
-              exact s’affiche dès que vous choisissez vos dates.
+              Les tarifs affichés sont des prix de base par nuit, susceptibles de varier selon la saison.
+              Le montant total de votre séjour est calculé dès la sélection de vos dates.
             </p>
           </div>
 

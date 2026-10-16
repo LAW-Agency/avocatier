@@ -31,9 +31,10 @@ export function BadgeStatut({ reservation, termine = false }: { reservation: Res
   )
 }
 
+// Provenance d'une demande, à la suite de « reçue le 16 oct., 03:30 »
 export const SOURCES: Record<Reservation["source"], string> = {
-  site: "Site",
-  booking: "Booking.com",
-  telephone: "Téléphone",
-  whatsapp: "WhatsApp",
+  site: "sur le site",
+  booking: "via Booking.com",
+  telephone: "par téléphone",
+  whatsapp: "par WhatsApp",
 }
