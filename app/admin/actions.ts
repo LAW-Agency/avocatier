@@ -1,7 +1,9 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { exigerHote } from "@/lib/auth/dal"
+import { notifierDecisionDesHotes } from "@/lib/email/notifications"
 import { moteur } from "@/lib/reservation"
 import { CODES_DEVISES, estCodeDevise } from "@/lib/reservation/devises"
 import { recupererTauxDuJour, type TauxDuJour } from "@/lib/reservation/tauxDeChange"
@@ -11,7 +13,9 @@ import type { CodeDevise, ModificationTarifs, StatutReservation } from "@/lib/re
 
 export type EtatAction = { erreur?: string; ok?: boolean }
 
-const STATUTS_HOTE: StatutReservation[] = ["confirmee", "refusee", "annulee"]
+const STATUTS_HOTE = ["confirmee", "refusee", "annulee"] as const
+type StatutHote = (typeof STATUTS_HOTE)[number]
+const estStatutHote = (valeur: string): valeur is StatutHote => (STATUTS_HOTE as readonly string[]).includes(valeur)
 const NOTES: Partial<Record<StatutReservation, string>> = {
   confirmee: "Confirmée par les hôtes",
   refusee: "Déclinée par les hôtes",
@@ -25,11 +29,14 @@ function rafraichir() {
 
 export async function changerStatutReservation(_etat: EtatAction, formData: FormData): Promise<EtatAction> {
   await exigerHote()
-  const statut = String(formData.get("statut") ?? "") as StatutReservation
-  if (!STATUTS_HOTE.includes(statut)) return { erreur: "Action inconnue." }
+  const statut = String(formData.get("statut") ?? "")
+  if (!estStatutHote(statut)) return { erreur: "Action inconnue." }
 
-  const resultat = await moteur.changerStatut(String(formData.get("reservationId") ?? ""), statut, NOTES[statut])
+  const reservationId = String(formData.get("reservationId") ?? "")
+  const resultat = await moteur.changerStatut(reservationId, statut, NOTES[statut])
   if (!resultat.ok) return { erreur: resultat.erreur }
+  // Confirmation, refus ou annulation : le client est prévenu par e-mail, après la réponse
+  after(() => notifierDecisionDesHotes(reservationId, statut))
   rafraichir()
   return { ok: true }
 }

@@ -1,10 +1,11 @@
 import { hacherMotDePasse } from "@/lib/auth/motDePasse"
-import { ajouterJours, aujourdhuiISO } from "../dates"
-import { reglagesDevisesInitiaux } from "../devises"
-import { calculerDevis, deplierSaisons } from "../regles"
-import type { Blocage, Client, Hebergement, ReglagesDevises, RegleSaison, Reservation, StatutReservation } from "../types"
+import { ajouterJours, aujourdhuiISO } from "./dates"
+import { reglagesDevisesInitiaux } from "./devises"
+import { calculerDevis, deplierSaisons } from "./regles"
+import type { Blocage, Client, Hebergement, ReglagesDevises, RegleSaison, Reservation, StatutReservation } from "./types"
 
-// DONNÉES MOCK — base en mémoire en attendant PostgreSQL.
+// Données de départ : contenu des fiches (relu à chaque affichage, voir postgres/moteurPostgres.ts) et jeu de
+// démonstration chargé dans une base neuve par `npm run db:amorcer`.
 // TODO client : noms, capacités, literie, équipements et prix des hébergements sont fictifs, à remplacer.
 // Les photos sont celles du client, mais leur attribution à chaque hébergement est à confirmer.
 
@@ -102,7 +103,7 @@ export const reglesSaisonsInitiales: RegleSaison[] = [
   { nom: "Fêtes de fin d'année", debut: "12-20", fin: "01-04", coefficient: 1.3, sejourMin: 5 },
 ]
 
-// Comptes de démonstration (données mock uniquement) : se connecter avec ces identifiants
+// Comptes de démonstration (chargés par db:amorcer) : mots de passe connus, à supprimer avant l’ouverture au public
 export const COMPTE_DEMO = { email: "demo@avocatier.test", motDePasse: "vohilava-demo" }
 // Compte hôte : ouvre l'espace /admin
 export const COMPTE_HOTE = { email: "hotes@avocatier.test", motDePasse: "avocatier-hotes" }
@@ -121,7 +122,7 @@ export function creerCompteHote(): Client {
   }
 }
 
-export type BaseMock = {
+export type Demonstration = {
   hebergements: Hebergement[]
   reglesSaisons: RegleSaison[]
   clients: Client[]
@@ -131,7 +132,7 @@ export type BaseMock = {
   compteur: number // dernier numéro de référence attribué
 }
 
-export function creerBaseMock(): BaseMock {
+export function creerDemonstration(): Demonstration {
   const aujourdhui = aujourdhuiISO()
   const jour = (decalage: number) => ajouterJours(aujourdhui, decalage)
   const maintenant = new Date().toISOString()

@@ -1,7 +1,7 @@
 import type { DepotComptes, MoteurReservation } from "./moteur"
-import { comptesMock, moteurMock } from "./mock/moteurMock"
+import { comptesPostgres, moteurPostgres } from "./postgres/moteurPostgres"
 
-// Point unique de choix de l'implémentation (code serveur uniquement).
-// Passage à PostgreSQL : écrire lib/reservation/postgres/ et remplacer ces deux lignes.
-export const moteur: MoteurReservation = moteurMock
-export const comptes: DepotComptes = comptesMock
+// Point unique d'accès aux données (code serveur uniquement) : PostgreSQL, adresse dans DATABASE_URL.
+// Un logiciel de réservation externe se brancherait ici, en respectant les contrats de moteur.ts.
+export const moteur: MoteurReservation = moteurPostgres
+export const comptes: DepotComptes = comptesPostgres
