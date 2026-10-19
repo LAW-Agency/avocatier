@@ -108,6 +108,8 @@ export type Client = {
   pays: string
   motDePasseHash: string
   creeLe: string
+  // Mot de passe changé (récupération de compte) : les sessions ouvertes avant sont refusées
+  sessionsValidesDepuis?: string
 }
 
 // Ce qui sort de la couche de données : jamais le mot de passe
@@ -128,7 +130,7 @@ export type ResultatDemande =
   | { ok: true; reservation: Reservation }
   | { ok: false; erreur: string }
 
-export type NouveauClient = Omit<Client, "id" | "creeLe" | "role">
+export type NouveauClient = Omit<Client, "id" | "creeLe" | "role" | "sessionsValidesDepuis">
 
 export type ResultatAction = { ok: true } | { ok: false; erreur: string }
 

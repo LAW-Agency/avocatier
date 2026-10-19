@@ -36,13 +36,17 @@ export async function fermerSession() {
   ;(await cookies()).delete(COOKIE_SESSION)
 }
 
-// Identifiant du client si le cookie est intact et non expiré
-export async function lireSession(): Promise<string | null> {
+// `emiseLe` (ms) : ouverture de la session, déduite de l'expiration. Comparée au dernier changement
+// de mot de passe par clientConnecte (lib/auth/dal.ts) pour refuser les sessions plus anciennes.
+export type Session = { clientId: string; emiseLe: number }
+
+// Session si le cookie est intact et non expiré
+export async function lireSession(): Promise<Session | null> {
   return verifierJeton((await cookies()).get(COOKIE_SESSION)?.value)
 }
 
 // Vérification pure de la valeur du cookie (aussi utilisée par proxy.ts, qui n'a pas accès à cookies())
-export function verifierJeton(valeur: string | undefined): string | null {
+export function verifierJeton(valeur: string | undefined): Session | null {
   if (!valeur) return null
   const [clientId, expiration, signature] = valeur.split(".")
   if (!clientId || !expiration || !signature) return null
@@ -51,5 +55,5 @@ export function verifierJeton(valeur: string | undefined): string | null {
   const recue = Buffer.from(signature)
   if (attendue.length !== recue.length || !timingSafeEqual(attendue, recue)) return null
   if (Number(expiration) < Date.now()) return null
-  return clientId
+  return { clientId, emiseLe: Number(expiration) - DUREE_S * 1000 }
 }

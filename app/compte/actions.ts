@@ -2,15 +2,20 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { after } from "next/server"
 import { cheminInterne, clientConnecte } from "@/lib/auth/dal"
 import { hacherMotDePasse, verifierMotDePasse } from "@/lib/auth/motDePasse"
+import { DUREE_LIEN_MS, empreinteJeton, nouveauJeton } from "@/lib/auth/recuperation"
 import { fermerSession, ouvrirSession } from "@/lib/auth/session"
+import { urlDuSite } from "@/lib/email/modeles"
+import { envoyerLienDeReinitialisation, notifierAnnulationParLeClient, notifierMotDePasseModifie } from "@/lib/email/notifications"
 import { comptes, moteur } from "@/lib/reservation"
 import type { RoleCompte } from "@/lib/reservation/types"
 
 export type EtatFormulaire = {
   erreur?: string
   valeurs?: Record<string, string> // pour réafficher la saisie après une erreur
+  lienExpire?: boolean // lien de récupération déjà utilisé ou expiré
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -77,6 +82,55 @@ export async function annulerReservation(formData: FormData) {
   const client = await clientConnecte()
   if (!client) redirect("/compte/connexion")
 
-  await moteur.annulerDemande(client.id, String(formData.get("reservationId") ?? ""))
+  const reservationId = String(formData.get("reservationId") ?? "")
+  // Les hôtes sont prévenus que les dates se libèrent
+  if (await moteur.annulerDemande(client.id, reservationId)) after(() => notifierAnnulationParLeClient(reservationId))
   revalidatePath("/compte")
+}
+
+// --- Récupération de compte ---
+
+export type EtatRecuperation = {
+  erreur?: string
+  envoye?: string // adresse saisie, reprise dans le message de confirmation
+}
+
+// Même réponse que l'adresse ait un compte ou non : le formulaire ne doit pas révéler qui est inscrit.
+// La recherche du compte et l'envoi ont lieu après la réponse, ce qui égalise aussi son délai.
+export async function demanderReinitialisation(_etat: EtatRecuperation, formData: FormData): Promise<EtatRecuperation> {
+  const email = texte(formData, "email").toLowerCase()
+  if (!EMAIL.test(email)) return { erreur: "Cette adresse e-mail n'est pas valide." }
+  const suite = cheminInterne(formData.get("suite"), "")
+
+  after(async () => {
+    try {
+      const client = await comptes.trouverParEmail(email)
+      if (!client) return
+      const { jeton, empreinte } = nouveauJeton()
+      if (!(await comptes.creerJetonReinitialisation(client.id, empreinte, new Date(Date.now() + DUREE_LIEN_MS)))) return
+      const parametres = new URLSearchParams({ jeton, ...(suite && { suite }) })
+      await envoyerLienDeReinitialisation(client, urlDuSite(`/compte/nouveau-mot-de-passe?${parametres}`))
+    } catch (erreur) {
+      console.error("[compte] lien de récupération :", erreur)
+    }
+  })
+  return { envoye: email }
+}
+
+export async function choisirNouveauMotDePasse(_etat: EtatFormulaire, formData: FormData): Promise<EtatFormulaire> {
+  const motDePasse = String(formData.get("motDePasse") ?? "")
+  if (motDePasse.length < MOT_DE_PASSE_MIN) {
+    return { erreur: `Le mot de passe doit contenir au moins ${MOT_DE_PASSE_MIN} caractères.` }
+  }
+  if (motDePasse !== String(formData.get("confirmation") ?? "")) return { erreur: "Les deux mots de passe ne correspondent pas." }
+
+  const le = new Date()
+  const jeton = String(formData.get("jeton") ?? "")
+  const client = await comptes.reinitialiserMotDePasse(empreinteJeton(jeton), hacherMotDePasse(motDePasse), le)
+  if (!client) return { erreur: "Ce lien n'est plus valable : il a déjà servi ou a expiré.", lienExpire: true }
+
+  // Connecté d'office : cette session est postérieure au changement, les plus anciennes sont refusées
+  await ouvrirSession(client.id)
+  after(() => notifierMotDePasseModifie(client, le))
+  redirect(cheminInterne(formData.get("suite"), client.role === "hote" ? "/admin" : "/compte"))
 }

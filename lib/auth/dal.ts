@@ -6,8 +6,12 @@ import { lireSession } from "./session"
 
 // Client connecté, mémorisé le temps d'un rendu. À appeler dans chaque page et Server Action protégée.
 export const clientConnecte = cache(async (): Promise<ClientPublic | null> => {
-  const clientId = await lireSession()
-  return clientId ? comptes.trouverParId(clientId) : null
+  const session = await lireSession()
+  if (!session) return null
+  const client = await comptes.trouverParId(session.clientId)
+  // Mot de passe changé depuis l'ouverture de cette session (récupération de compte) : elle ne vaut plus
+  if (!client || (client.sessionsValidesDepuis && session.emiseLe < Date.parse(client.sessionsValidesDepuis))) return null
+  return client
 })
 
 // Espace hôtes : à appeler en tête de chaque page et Server Action de /admin

@@ -17,8 +17,8 @@ import type {
 } from "./types"
 
 // Interface prévue par le cahier des charges pour « implanter un logiciel de réservation ».
-// Les pages ne parlent qu'à ces deux contrats : passer des données mock à PostgreSQL
-// (ou à un logiciel externe) revient à fournir une autre implémentation dans lib/reservation/index.ts.
+// Les pages ne parlent qu'à ces deux contrats : passer de PostgreSQL à un logiciel externe
+// revient à fournir une autre implémentation dans lib/reservation/index.ts.
 
 export interface MoteurReservation {
   listerHebergements(): Promise<Hebergement[]>
@@ -33,6 +33,9 @@ export interface MoteurReservation {
   reservationsDuClient(clientId: string): Promise<Reservation[]>
   // Le client ne peut annuler lui-même qu'une demande en option
   annulerDemande(clientId: string, reservationId: string): Promise<boolean>
+
+  // Code serveur uniquement (e-mails) : aucune vérification de propriétaire
+  trouverReservation(id: string): Promise<Reservation | null>
 
   // Espace hôtes : à n'appeler qu'après avoir vérifié le rôle (exigerHote)
   toutesLesReservations(): Promise<Reservation[]>
@@ -56,4 +59,13 @@ export interface DepotComptes {
   // Toujours un compte client : les comptes hôtes ne se créent pas depuis le site
   creer(client: NouveauClient): Promise<ClientPublic>
   listerClients(): Promise<ClientPublic[]>
+
+  // Récupération de compte : le jeton envoyé par e-mail n'est jamais stocké, seulement son empreinte.
+  // false si ce compte a déjà reçu trop de liens récemment (aucun e-mail à envoyer)
+  creerJetonReinitialisation(clientId: string, empreinte: string, expireLe: Date): Promise<boolean>
+  // Titulaire d'un jeton encore valable (ni utilisé, ni expiré), sinon null
+  clientDuJeton(empreinte: string): Promise<ClientPublic | null>
+  // Consomme le jeton et remplace le mot de passe ; les sessions ouvertes avant `le` sont refusées.
+  // null si le jeton n'est plus valable
+  reinitialiserMotDePasse(empreinte: string, motDePasseHash: string, le: Date): Promise<ClientPublic | null>
 }

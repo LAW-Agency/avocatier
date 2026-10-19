@@ -1,7 +1,9 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { clientConnecte } from "@/lib/auth/dal"
+import { notifierNouvelleDemande } from "@/lib/email/notifications"
 import { moteur } from "@/lib/reservation"
 
 export type EtatDemande = {
@@ -31,6 +33,10 @@ export async function envoyerDemande(_etat: EtatDemande, formData: FormData): Pr
     message: texte("message").slice(0, MESSAGE_MAX),
   })
   if (!resultat.ok) return { erreur: resultat.erreur }
+
+  // Accusé de réception au client et alerte aux hôtes, après la réponse
+  const reservationId = resultat.reservation.id
+  after(() => notifierNouvelleDemande(reservationId))
 
   // Les dates prises disparaissent du calendrier, la demande apparaît dans « Mon compte »
   revalidatePath("/reserver")

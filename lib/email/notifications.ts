@@ -1,0 +1,76 @@
+import { comptes, moteur } from "@/lib/reservation"
+import type { ClientPublic } from "@/lib/reservation/types"
+import { envoyerEmail } from "./envoi"
+import {
+  accuseDeReception,
+  alerteNouvelleDemande,
+  annulationParLeClient,
+  decisionDesHotes,
+  lienDeReinitialisation,
+  motDePasseModifie,
+  type Sejour,
+} from "./modeles"
+
+// E-mails déclenchés par les actions, à appeler dans after() (next/server) : ils partent une fois la réponse
+// envoyée, sans ralentir le visiteur. Une erreur est consignée dans les journaux, jamais remontée.
+
+// Boîte des hôtes (EMAIL_HOTES, plusieurs adresses séparées par des virgules) : alertes, et adresse de réponse
+// des e-mails aux clients
+function hotes(): string[] {
+  return (process.env.EMAIL_HOTES ?? "")
+    .split(",")
+    .map((adresse) => adresse.trim())
+    .filter(Boolean)
+}
+
+async function sejour(reservationId: string): Promise<Sejour | null> {
+  const reservation = await moteur.trouverReservation(reservationId)
+  if (!reservation) return null
+  const [client, hebergements] = await Promise.all([comptes.trouverParId(reservation.clientId), moteur.listerHebergements()])
+  const hebergement = hebergements.find((h) => h.id === reservation.hebergementId)
+  return client && hebergement ? { reservation, client, hebergement } : null
+}
+
+async function sansErreur(quoi: string, travail: () => Promise<void>) {
+  try {
+    await travail()
+  } catch (erreur) {
+    console.error(`[e-mail] ${quoi} :`, erreur)
+  }
+}
+
+export function notifierNouvelleDemande(reservationId: string) {
+  return sansErreur("nouvelle demande", async () => {
+    const s = await sejour(reservationId)
+    if (!s) return
+    if (hotes().length === 0) console.warn("[e-mail] EMAIL_HOTES non défini : les hôtes ne sont pas prévenus des nouvelles demandes.")
+    await Promise.all([
+      envoyerEmail({ a: s.client.email, repondreA: hotes()[0], ...accuseDeReception(s) }),
+      envoyerEmail({ a: hotes(), repondreA: s.client.email, ...alerteNouvelleDemande(s) }),
+    ])
+  })
+}
+
+export function notifierDecisionDesHotes(reservationId: string, statut: "confirmee" | "refusee" | "annulee") {
+  return sansErreur("décision des hôtes", async () => {
+    const s = await sejour(reservationId)
+    if (s) await envoyerEmail({ a: s.client.email, repondreA: hotes()[0], ...decisionDesHotes(s, statut) })
+  })
+}
+
+export function notifierAnnulationParLeClient(reservationId: string) {
+  return sansErreur("annulation par le client", async () => {
+    const s = await sejour(reservationId)
+    if (s) await envoyerEmail({ a: hotes(), repondreA: s.client.email, ...annulationParLeClient(s) })
+  })
+}
+
+export function envoyerLienDeReinitialisation(client: ClientPublic, url: string) {
+  return sansErreur("lien de réinitialisation", () => envoyerEmail({ a: client.email, ...lienDeReinitialisation(client, url) }))
+}
+
+export function notifierMotDePasseModifie(client: ClientPublic, le: Date) {
+  return sansErreur("mot de passe modifié", () =>
+    envoyerEmail({ a: client.email, repondreA: hotes()[0], ...motDePasseModifie(client, le) }),
+  )
+}
