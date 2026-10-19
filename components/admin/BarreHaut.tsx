@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Fragment } from "react"
+import { Fragment, type ReactNode } from "react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -30,8 +30,9 @@ function filDAriane(chemin: string): { label: string; href?: string }[] {
   return [{ label: RUBRIQUES[rubrique], href: rubrique }, { label: "Fiche" }]
 }
 
-// Barre du haut, collée au défilement : bouton du menu, fil d'Ariane, date du jour
-export default function BarreHaut({ dateDuJour }: { dateDuJour: string }) {
+// Barre du haut, collée au défilement : bouton du menu, fil d'Ariane, date du jour, puis `children`
+// (suivi en direct et ses notifications, voir SuiviEnDirect)
+export default function BarreHaut({ dateDuJour, children }: { dateDuJour: string; children?: ReactNode }) {
   const chemin = usePathname()
   const fil = filDAriane(chemin)
 
@@ -65,7 +66,10 @@ export default function BarreHaut({ dateDuJour }: { dateDuJour: string }) {
             ))}
           </BreadcrumbList>
         </Breadcrumb>
-        <p className="ml-auto hidden text-sm text-muted-foreground first-letter:uppercase sm:block">{dateDuJour}</p>
+        <div className="ml-auto flex items-center gap-3">
+          <p className="hidden text-sm text-muted-foreground first-letter:uppercase sm:block">{dateDuJour}</p>
+          {children}
+        </div>
       </div>
     </header>
   )

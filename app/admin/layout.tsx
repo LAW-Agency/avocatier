@@ -4,7 +4,9 @@ import { Suspense, type ReactNode } from "react"
 import BarreHaut from "@/components/admin/BarreHaut"
 import BarreLaterale from "@/components/admin/BarreLaterale"
 import SqueletteEspaceHotes from "@/components/admin/SqueletteEspaceHotes"
+import SuiviEnDirect from "@/components/admin/SuiviEnDirect"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { exigerHote } from "@/lib/auth/dal"
 import { aujourdhuiISO, formaterDate } from "@/lib/reservation/dates"
@@ -45,9 +47,13 @@ async function EspaceHotes({ ouverte, children }: { ouverte: boolean; children: 
           ceSoir={{ arrivees: arrivees.length, departs: departs.length, occupes, total }}
         />
         <SidebarInset className="min-w-0">
-          <BarreHaut dateDuJour={formaterDate(aujourdhuiISO(), { weekday: "long", month: "long" })} />
+          <BarreHaut dateDuJour={formaterDate(aujourdhuiISO(), { weekday: "long", month: "long" })}>
+            <SuiviEnDirect aTraiter={aTraiter} />
+          </BarreHaut>
           <div className="flex w-full flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">{children}</div>
         </SidebarInset>
+        {/* Annonces du suivi en direct (nouvelle demande, annulation par le client, option expirée) */}
+        <Toaster position="bottom-right" />
       </SidebarProvider>
     </TooltipProvider>
   )

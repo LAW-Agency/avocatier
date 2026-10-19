@@ -15,6 +15,7 @@ import { hebergements as contenuDesFiches } from "../donnees"
 import type { DepotComptes, MoteurReservation } from "../moteur"
 import { calculerDevis } from "../regles"
 import type {
+  ActiviteReservation,
   Blocage,
   Client,
   ClientPublic,
@@ -213,6 +214,39 @@ export const moteurPostgres: MoteurReservation = {
     const ex = db()
     await expirerOptions(ex)
     return (await lignes<LigneReservation>(ex, `select ${RESERVATION} from reservations order by cree_le`)).map(versReservation)
+  },
+
+  async activiteDepuis(depuis) {
+    const ex = db()
+    // Les options dépassées deviennent des événements « expirée » à annoncer
+    await expirerOptions(ex)
+    const [{ dernier, total }] = await lignes<{ dernier: Date | null; total: number }>(
+      ex,
+      `select max((e->>'le')::timestamptz) as dernier, count(*)::int as total
+       from reservations, jsonb_array_elements(historique) e`,
+    )
+    const curseur = (dernier ?? new Date(0)).toISOString()
+    if (!depuis) return { curseur, total, evenements: [] }
+
+    // Au plus 20 : au-delà (onglet resté longtemps fermé), la page rechargée montre de toute façon tout
+    const evenements = await lignes<Omit<ActiviteReservation, "le"> & { le: Date }>(
+      ex,
+      `select r.id as "reservationId", r.reference, e.statut, e.le, e.note,
+         trim(c.prenom || ' ' || c.nom) as client, h.nom as hebergement, r.arrivee, r.depart
+       from reservations r
+       cross join lateral jsonb_to_recordset(r.historique) as e(statut text, le timestamptz, note text)
+       join clients c on c.id = r.client_id
+       join hebergements h on h.id = r.hebergement_id
+       where e.le > $1::timestamptz and e.le <= $2::timestamptz
+       order by e.le
+       limit 20`,
+      [depuis, curseur],
+    )
+    return {
+      curseur,
+      total,
+      evenements: evenements.map(({ le, note, ...reste }) => ({ ...reste, le: le.toISOString(), ...(note && { note }) })),
+    }
   },
 
   async changerStatut(reservationId, statut, note) {

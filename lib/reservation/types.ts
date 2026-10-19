@@ -79,6 +79,20 @@ export type Reservation = {
   historique: EvenementReservation[]
 }
 
+// Événement de l'historique d'une réservation, avec de quoi l'annoncer aux hôtes (suivi en direct de /admin)
+export type ActiviteReservation = EvenementReservation & {
+  reservationId: string
+  reference: string
+  client: string // prénom et nom
+  hebergement: string
+  arrivee: DateISO
+  depart: DateISO
+}
+
+// curseur : date-heure ISO du dernier événement connu, à renvoyer à l'appel suivant.
+// total : nombre d'événements en base, pour repérer aussi un événement daté avant le curseur mais validé après
+export type FilActivite = { curseur: string; total: number; evenements: ActiviteReservation[] }
+
 // Dates fermées sans réservation du site : import Booking.com, travaux, privatisation…
 export type Blocage = {
   id: string
