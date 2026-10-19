@@ -3,6 +3,7 @@ import type {
   Client,
   ClientPublic,
   DemandeReservation,
+  FilActivite,
   Hebergement,
   ModificationTarifs,
   NouveauClient,
@@ -39,6 +40,8 @@ export interface MoteurReservation {
 
   // Espace hôtes : à n'appeler qu'après avoir vérifié le rôle (exigerHote)
   toutesLesReservations(): Promise<Reservation[]>
+  // Suivi en direct : événements survenus après `depuis` (aucun si null : seulement le curseur de départ)
+  activiteDepuis(depuis: string | null): Promise<FilActivite>
   // Confirmer ou refuser une demande, annuler une réservation confirmée
   changerStatut(reservationId: string, statut: StatutReservation, note?: string): Promise<ResultatAction>
   listerBlocages(): Promise<Blocage[]>
