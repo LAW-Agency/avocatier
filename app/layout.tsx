@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ChromeSite from "@/components/ChromeSite";
 import RevealObserver from "@/components/RevealObserver";
+import ConsentementCookies from "@/components/ConsentementCookies";
 import { FournisseurDevise } from "@/components/Devise";
 import { moteur } from "@/lib/reservation";
 
@@ -62,6 +63,7 @@ export default async function RootLayout({
           <ChromeSite header={<Header/>} footer={<Footer/>}>{children}</ChromeSite>
         </FournisseurDevise>
         <RevealObserver/>
+        <ConsentementCookies />
       </body>
       
     </html>

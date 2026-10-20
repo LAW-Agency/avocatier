@@ -2,11 +2,11 @@
 
 export default function NotFound() {
   return (
-    <main className="relative isolate flex min-h-[70vh] items-center justify-center overflow-hidden bg-[#f8f6f0] px-6 py-20 text-[#23382f]">
+    <div className="relative isolate flex min-h-[70vh] items-center justify-center overflow-hidden bg-[#f8f6f0] px-6 py-20 text-[#23382f]">
       <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-32 h-96 w-96 rounded-full bg-[#dce8d7] opacity-70 blur-3xl" />
       <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-[#efe4d3] opacity-80 blur-3xl" />
 
-      <section className="relative mx-auto w-full max-w-2xl text-center">
+      <div className="relative mx-auto w-full max-w-2xl text-center">
         <p className="mb-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#788c68]">
           Chez L’Avocatier · Sainte-Marie
         </p>
@@ -27,7 +27,7 @@ export default function NotFound() {
         >
           Retour à l’accueil
         </Link>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }
