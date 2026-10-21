@@ -1,0 +1,57 @@
+import { makeStyles, tokens } from "@fluentui/react-components"
+
+export const useConnexionStyles = makeStyles({
+  ecran: { height: "100%", display: "flex", flexDirection: "column" },
+  centre: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    rowGap: tokens.spacingVerticalXXL,
+    padding: `${tokens.spacingVerticalXL} ${tokens.spacingHorizontalXXL} ${tokens.spacingVerticalXXXL}`,
+  },
+  // Deux colonnes : photo de l'hôtel à gauche, formulaire à droite
+  carte: {
+    width: "100%",
+    maxWidth: "960px",
+    minHeight: "540px",
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+    borderRadius: tokens.borderRadiusXLarge,
+    overflow: "hidden",
+    backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow8,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
+  photo: { position: "relative", minHeight: "100%", backgroundSize: "cover", backgroundPosition: "center 60%" },
+  legende: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: "flex",
+    flexDirection: "column",
+    rowGap: tokens.spacingVerticalXXS,
+    padding: `${tokens.spacingVerticalXXXL} ${tokens.spacingHorizontalXXL} ${tokens.spacingVerticalXXL}`,
+    // Dégradé sombre pour lire le texte sur la photo, quel que soit le thème
+    backgroundImage: `linear-gradient(to top, ${tokens.colorBackgroundOverlay}, transparent)`,
+    color: tokens.colorNeutralForegroundOnBrand,
+  },
+  legendeTexte: { color: tokens.colorNeutralForegroundOnBrand },
+  formulaire: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    rowGap: tokens.spacingVerticalL,
+    padding: `${tokens.spacingVerticalXXXL} ${tokens.spacingHorizontalXXXL}`,
+  },
+  entete: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXS, marginBottom: tokens.spacingVerticalS },
+  titre: { margin: 0 },
+  sousTitre: { color: tokens.colorNeutralForeground2 },
+  options: { display: "flex", alignItems: "center", justifyContent: "space-between", columnGap: tokens.spacingHorizontalM, marginLeft: `calc(-1 * ${tokens.spacingHorizontalS})` },
+  envoyer: { width: "100%", marginTop: tokens.spacingVerticalS },
+  pied: { color: tokens.colorNeutralForeground3, textAlign: "center" },
+})

@@ -97,7 +97,7 @@ export const hebergements: Hebergement[] = [
   },
 ]
 
-// Saisons de départ, modifiables ensuite par les hôtes (/admin/tarifs) ; `fin` = dernière nuit comprise
+// Saisons de départ, modifiables ensuite par les hôtes (logiciel, Tarifs) ; `fin` = dernière nuit comprise
 export const reglesSaisonsInitiales: RegleSaison[] = [
   { nom: "Haute saison", debut: "07-01", fin: "08-31", coefficient: 1.2, sejourMin: 3 },
   { nom: "Fêtes de fin d'année", debut: "12-20", fin: "01-04", coefficient: 1.3, sejourMin: 5 },
@@ -105,8 +105,10 @@ export const reglesSaisonsInitiales: RegleSaison[] = [
 
 // Comptes de démonstration (chargés par db:amorcer) : mots de passe connus, à supprimer avant l’ouverture au public
 export const COMPTE_DEMO = { email: "demo@avocatier.test", motDePasse: "vohilava-demo" }
-// Compte hôte : ouvre l'espace /admin
+// Compte hôte : se connecte au logiciel des hôtes (bureau/), jamais au site
 export const COMPTE_HOTE = { email: "hotes@avocatier.test", motDePasse: "avocatier-hotes" }
+// Compte de la réception (rôle « reception ») : créé depuis le logiciel, écran Utilisateurs
+export const COMPTE_RECEPTION = { email: "reception@avocatier.test", motDePasse: "avocatier-reception" }
 
 export function creerCompteHote(): Client {
   return {
@@ -119,6 +121,9 @@ export function creerCompteHote(): Client {
     pays: "Madagascar",
     motDePasseHash: hacherMotDePasse(COMPTE_HOTE.motDePasse),
     creeLe: new Date().toISOString(),
+    actif: true,
+    origine: "site",
+    note: "",
   }
 }
 
@@ -149,6 +154,9 @@ export function creerDemonstration(): Demonstration {
     pays: "France",
     motDePasseHash: hacherMotDePasse(COMPTE_DEMO.motDePasse),
     creeLe: maintenant,
+    actif: true,
+    origine: "site",
+    note: "",
   }
   // Autres clients fictifs, pour que l'espace hôtes ait de quoi afficher (sans mot de passe utilisable)
   const autreClient = (id: string, prenom: string, telephone: string, pays: string): Client => ({
@@ -161,6 +169,9 @@ export function creerDemonstration(): Demonstration {
     pays,
     motDePasseHash: "",
     creeLe: maintenant,
+    actif: true,
+    origine: "site",
+    note: "",
   })
   const lucas = autreClient("c2", "Lucas", "+33 7 00 00 00 00", "France")
   const aina = autreClient("c3", "Aina", "+261 34 00 000 00", "Madagascar")

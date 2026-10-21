@@ -73,7 +73,7 @@ export type Devis = {
   prixParNuit: { nuit: DateISO; prix: number; saison?: string }[]
 }
 
-export function calculerDevis(hebergement: Hebergement, arrivee: DateISO, depart: DateISO, saisons: Saison[]): Devis {
+export function calculerDevis(hebergement: Pick<Hebergement, "prixNuit">, arrivee: DateISO, depart: DateISO, saisons: Saison[]): Devis {
   const prixParNuit = nuitsDuSejour(arrivee, depart).map((nuit) => {
     const saison = saisonDeLaNuit(nuit, saisons)
     return { nuit, prix: Math.round(hebergement.prixNuit * (saison?.coefficient ?? 1)), saison: saison?.nom }

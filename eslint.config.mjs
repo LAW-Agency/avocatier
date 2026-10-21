@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Logiciel des hôtes (Electron) : projet à part, avec sa propre vérification (npm run typecheck dans bureau/)
+    "bureau/**",
   ]),
 ]);
 

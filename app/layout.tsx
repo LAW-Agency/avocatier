@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Outfit } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -16,17 +16,8 @@ const outfit = Outfit({
   display: "swap",
 });
 
-// Espace hôtes (/admin) uniquement : Geist. Variable posée sur <html> pour atteindre aussi les fenêtres
-// shadcn rendues en portail dans <body> ; pas de préchargement, le fichier n'est téléchargé que sur /admin
-const geist = Geist({
-  variable: "--font-geist",
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-  preload: false,
-});
-
 // Valeurs par défaut des pages sans métadonnées propres ; chaque page de la vitrine a son titre complet
-// (pas de title.template : il doublerait le suffixe des titres de /compte et /admin)
+// (pas de title.template : il doublerait le suffixe des titres de /compte)
 export const metadata: Metadata = {
   title: "Chez L'Avocatier · Hôtel face à l'océan à Sainte-Marie, Madagascar",
   description:
@@ -43,13 +34,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Devises de la vitrine (réglées dans /admin/tarifs) : toute modification revalide le layout
+  // Devises de la vitrine (réglées dans le logiciel des hôtes) : toute modification revalide le layout
   const devises = await moteur.reglagesDevises();
 
   return (
     // Variables de police sur <html> : les variables du @theme Tailwind sont déclarées sur :root
     // data-scroll-behavior : Next garde les changements de page instantanés malgré le défilement doux
-    <html lang="fr" data-scroll-behavior="smooth" className={`${outfit.variable} ${geist.variable}`}>
+    <html lang="fr" data-scroll-behavior="smooth" className={outfit.variable}>
 
       <head>
                 

@@ -1,8 +1,13 @@
-import { aujourdhuiISO, estDateISO } from "./dates"
+import { ajouterJours, aujourdhuiISO, estDateISO, nombreNuits } from "./dates"
 import { CODES_DEVISES, DEVISE_REFERENCE } from "./devises"
 import { chevauchementSaisons, deplierSaisons, estJourAnnee, NUITS_MAX, verifierDates } from "./regles"
 import type {
   Blocage,
+  DateISO,
+  EtatChambre,
+  ModePaiement,
+  NouveauClientLocal,
+  ReservationDirecte,
   DemandeReservation,
   Hebergement,
   ModificationTarifs,
@@ -135,4 +140,52 @@ export function normaliserDevises({
   return {
     reglages: { parDefaut, actives: proposees, taux: { ...taux, [DEVISE_REFERENCE]: 1 }, misAJourLe: new Date().toISOString() },
   }
+}
+
+// --- Logiciel des hôtes : réception, encaissements, équipe ---
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export const SOURCES_DIRECTES = ["telephone", "whatsapp", "booking", "sur_place"] as const
+export const MODES_PAIEMENT: ModePaiement[] = ["especes", "carte", "mobile_money", "virement", "autre"]
+export const ETATS_CHAMBRE: EtatChambre[] = ["propre", "a_nettoyer", "maintenance"]
+export const MOT_DE_PASSE_MIN = 8
+const MONTANT_MAX = 100_000
+
+// Réservation saisie par l'équipe : pas de séjour minimum ni d'échéance (décision de la réception),
+// arrivée possible jusqu'à la veille (client arrivé dans la nuit, saisie le lendemain matin)
+export function controlerReservationDirecte(r: ReservationDirecte, hebergement: Hebergement | undefined, aujourdhui: DateISO): string | null {
+  if (!hebergement) return "Choisissez un hébergement."
+  if (!r.clientId) return "Choisissez ou créez le client."
+  if (!estDateISO(r.arrivee) || !estDateISO(r.depart)) return "Dates invalides."
+  if (r.depart <= r.arrivee) return "Le départ doit suivre l'arrivée."
+  if (r.arrivee < ajouterJours(aujourdhui, -1)) return "La date d'arrivée est déjà passée."
+  if (nombreNuits(r.arrivee, r.depart) > 90) return "Séjour de 90 nuits au plus."
+  if (!(SOURCES_DIRECTES as readonly string[]).includes(r.source)) return "Provenance inconnue."
+  if (!Number.isInteger(r.adultes) || !Number.isInteger(r.enfants) || r.adultes < 1 || r.enfants < 0) return "Nombre de voyageurs invalide."
+  if (r.adultes + r.enfants > hebergement.capaciteMax) return `${hebergement.nom} accueille ${hebergement.capaciteMax} personnes au maximum.`
+  if (r.montantTotal !== null && (!Number.isInteger(r.montantTotal) || !estEntre(r.montantTotal, 0, MONTANT_MAX))) {
+    return "Saisissez un montant entier en euros."
+  }
+  return null
+}
+
+export function controlerPaiement(montant: number, mode: string): string | null {
+  if (!Number.isInteger(montant) || montant === 0 || !estEntre(Math.abs(montant), 1, MONTANT_MAX)) {
+    return "Saisissez un montant entier en euros (négatif pour un remboursement)."
+  }
+  if (!(MODES_PAIEMENT as string[]).includes(mode)) return "Choisissez le mode de paiement."
+  return null
+}
+
+export function controlerClientLocal(c: NouveauClientLocal): string | null {
+  if (!c.prenom.trim() && !c.nom.trim()) return "Saisissez au moins le prénom ou le nom du client."
+  if (c.email && !EMAIL.test(c.email)) return "Cette adresse e-mail n'est pas valide."
+  return null
+}
+
+export function controlerMembre({ prenom, email }: { prenom: string; email: string }, motDePasse: string): string | null {
+  if (!prenom.trim()) return "Saisissez le prénom."
+  if (!EMAIL.test(email)) return "Cette adresse e-mail n'est pas valide."
+  if (motDePasse.length < MOT_DE_PASSE_MIN) return `Le mot de passe doit contenir au moins ${MOT_DE_PASSE_MIN} caractères.`
+  return null
 }

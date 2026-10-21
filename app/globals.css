@@ -1,7 +1,4 @@
 @import "tailwindcss";
-/* shadcn/ui (espace hôtes) : animations des menus et variantes data-open, data-checked… */
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @keyframes cookie-dialog-enter {
   from {
@@ -23,10 +20,6 @@
     animation: none;
   }
 }
-
-/* Variante dark: des composants shadcn liée à une classe .dark jamais posée (pas de mode sombre) :
-   sans elle, Tailwind suivrait le thème du système et assombrirait l'admin par morceaux */
-@custom-variant dark (&:is(.dark *));
 
 @theme {
 
@@ -341,8 +334,8 @@ main {
 }
 
 /* TRANSITIONS ENTRE PAGES — React <ViewTransition> autour du contenu (components/ChromeSite.tsx).
-   L'ancienne page reste opaque et s'estompe dans le flou, la nouvelle arrive en fondu par-dessus :
-   le fond clair du site ne transparaît jamais entre les deux. Sans View Transitions : changement direct. */
+   La nouvelle page est visible dès le début ; l'ancienne disparaît brièvement en arrière-plan.
+   Sans View Transitions : changement direct. */
 ::view-transition {
   pointer-events: none; /* les clics pendant l'animation atteignent la nouvelle page */
 }
@@ -353,21 +346,14 @@ main {
   z-index: 2;
 }
 ::view-transition-old(.page-sortie) {
-  animation: page-sortie 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-sortie 0.2s ease-out both;
 }
 ::view-transition-new(.page-entree) {
-  animation: page-entree 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none;
 }
 @keyframes page-sortie {
   to {
-    filter: blur(6px) brightness(0.85);
-  }
-}
-@keyframes page-entree {
-  from {
     opacity: 0;
-    transform: translateY(1.5rem);
-    filter: blur(6px);
   }
 }
 /* Le header et le bouton de défilement ne bougent pas : seul le contenu change sous eux */
@@ -390,106 +376,5 @@ main {
   ::view-transition-group(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
-  }
-}
-
-/* THÈME SHADCN/UI — espace hôtes (/admin) et composants de components/ui
-   Couleurs de la marque : vert #007f5f en action principale, bordeaux #780000 en action destructive,
-   encre ink pour le texte, barre latérale vert nuit (forest). `background` reste celui du site
-   (--color-background du premier @theme). Les rayons sm à 4xl n'étaient pas utilisés par le site. */
-@theme inline {
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-:root {
-  --background: #f9f4f5;
-  --foreground: #1c2622;
-  --card: #ffffff;
-  --card-foreground: #1c2622;
-  --popover: #ffffff;
-  --popover-foreground: #1c2622;
-  --primary: #007f5f;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f4ef;
-  --secondary-foreground: #0d2b21;
-  --muted: #f1f4ef;
-  /* 4,5:1 minimum sur blanc et sur muted */
-  --muted-foreground: #56645d;
-  --accent: #e6efe9;
-  --accent-foreground: #0d2b21;
-  --destructive: #780000;
-  --border: #e4e2df;
-  --input: #d8d6d2;
-  --ring: #007f5f;
-  --chart-1: #007f5f;
-  --chart-2: #dcc9a5;
-  --chart-3: #0d2b21;
-  --chart-4: #6fae95;
-  --chart-5: #780000;
-  --radius: 0.625rem;
-
-  --sidebar: #0d2b21;
-  --sidebar-foreground: #dfe9e3;
-  --sidebar-primary: #dcc9a5;
-  --sidebar-primary-foreground: #0d2b21;
-  --sidebar-accent: #17402f;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1f4637;
-  --sidebar-ring: #6fae95;
-}
-
-/* Bordure par défaut des composants shadcn, limitée à l'espace hôtes et aux fenêtres qu'il ouvre
-   (portails : data-slot) pour ne pas changer la couleur des bordures du site */
-@layer base {
-  /* Geist partout dans l'espace hôtes et ses fenêtres en portail : texte, titres (font-heading, h1-h3) */
-  [data-espace-hotes],
-  [data-slot] {
-    --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-    --font-heading: var(--font-sans);
-    font-family: var(--font-sans);
-    /* Fond neutre de l'admin (le rose pâle du site reste au site) : cartes blanches bien détachées */
-    --color-background: #f6f7f5;
-  }
-  [data-espace-hotes] *,
-  [data-slot],
-  [data-slot] * {
-    @apply border-border outline-ring/50;
   }
 }

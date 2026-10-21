@@ -1,0 +1,65 @@
+import { makeStyles, tokens } from "@fluentui/react-components"
+
+// Une couleur par saison, reprise sur la frise et sur sa carte
+export const COULEURS_SAISONS = [
+  tokens.colorBrandBackground,
+  tokens.colorPaletteCranberryBackground2,
+  tokens.colorPaletteMarigoldBackground3,
+  tokens.colorPaletteLightTealBackground2,
+  tokens.colorPaletteGrapeBackground2,
+]
+
+export const useTarifsStyles = makeStyles({
+  pile: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXXL },
+  pileSerree: { rowGap: tokens.spacingVerticalL },
+  cadreTable: { borderRadius: tokens.borderRadiusLarge, border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`, overflow: "hidden" },
+  enteteTable: { backgroundColor: tokens.colorNeutralBackground3 },
+  premiere: { paddingLeft: tokens.spacingHorizontalL },
+  apercu: { textAlign: "right", color: tokens.colorNeutralForeground3, fontVariantNumeric: "tabular-nums" },
+  champNombre: { width: "140px" },
+  nombre: { textAlign: "right", fontVariantNumeric: "tabular-nums" },
+  frise: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalSNudge },
+  barreFrise: { position: "relative", height: tokens.spacingVerticalXXL, borderRadius: tokens.borderRadiusMedium, backgroundColor: tokens.colorNeutralBackground3, overflow: "hidden" },
+  mois: { display: "grid", gridTemplateColumns: "repeat(12, 1fr)", textAlign: "center", color: tokens.colorNeutralForeground3 },
+  saisons: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 400px), 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
+  saison: {
+    display: "flex",
+    flexDirection: "column",
+    rowGap: tokens.spacingVerticalM,
+    padding: tokens.spacingHorizontalL,
+    borderRadius: tokens.borderRadiusLarge,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+    margin: 0,
+    minWidth: 0,
+  },
+  normale: {
+    display: "flex",
+    flexDirection: "column",
+    rowGap: tokens.spacingVerticalSNudge,
+    padding: tokens.spacingHorizontalL,
+    borderRadius: tokens.borderRadiusLarge,
+    border: `${tokens.strokeWidthThin} dashed ${tokens.colorNeutralStroke1}`,
+  },
+  titreSaison: { display: "flex", alignItems: "flex-end", columnGap: tokens.spacingHorizontalS },
+  pastille: {
+    display: "inline-block",
+    width: tokens.spacingHorizontalMNudge,
+    height: tokens.spacingHorizontalMNudge,
+    borderRadius: tokens.borderRadiusCircular,
+    marginRight: tokens.spacingHorizontalSNudge,
+    flexShrink: 0,
+  },
+  deuxColonnes: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", columnGap: tokens.spacingHorizontalM, rowGap: tokens.spacingVerticalM, alignItems: "start" },
+  // Champs des cartes de saison : sans largeur minimale, ils restent dans leur colonne quand la carte est étroite
+  champ: { minWidth: 0 },
+  jourMois: { display: "flex", columnGap: tokens.spacingHorizontalS },
+  jour: { width: "56px", minWidth: "56px", flexShrink: 0 },
+  moisListe: { minWidth: 0, flex: 1 },
+  secondaire: { color: tokens.colorNeutralForeground3 },
+  titre: { margin: 0 },
+  ajouter: { minHeight: "120px", border: `${tokens.strokeWidthThin} dashed ${tokens.colorNeutralStroke1}`, color: tokens.colorNeutralForeground3 },
+  actions: { display: "flex", flexWrap: "wrap", columnGap: tokens.spacingHorizontalS },
+  defaut: { maxWidth: "360px" },
+  invisible: { position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)" },
+})

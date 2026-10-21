@@ -37,7 +37,7 @@ export default function ConsentementCookies() {
     <aside
       aria-labelledby="titre-consentement-cookies"
       aria-describedby="texte-consentement-cookies"
-      className="animate-cookie-dialog fixed bottom-4 right-4 z-[100] w-[min(25rem,calc(100vw-2rem))] rounded-2xl border border-[#d9dfd5] bg-[#fffefa] p-5 text-[#23382f] shadow-[0_18px_60px_rgba(20,35,27,0.24)] sm:bottom-6 sm:right-6 sm:p-6"
+      className="animate-cookie-dialog fixed bottom-4 right-4 z-[100] w-[min(25rem,calc(100vw-2rem))] rounded-[1.125rem] border border-[#d9dfd5] bg-[#fffefa] p-5 text-[#23382f] shadow-[0_18px_60px_rgba(20,35,27,0.24)] sm:bottom-6 sm:right-6 sm:p-6"
       role="dialog"
       aria-modal="false"
     >

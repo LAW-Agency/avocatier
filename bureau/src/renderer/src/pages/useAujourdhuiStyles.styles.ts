@@ -1,0 +1,42 @@
+import { makeStyles, tokens } from "@fluentui/react-components"
+
+export const useAujourdhuiStyles = makeStyles({
+  chiffres: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
+  grille: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 2fr) minmax(340px, 1fr)",
+    columnGap: tokens.spacingHorizontalL,
+    rowGap: tokens.spacingVerticalL,
+    alignItems: "start",
+    "@media (max-width: 1180px)": { gridTemplateColumns: "minmax(0, 1fr)" },
+  },
+  colonne: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalL, minWidth: 0 },
+  liste: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },
+  listeSerree: { rowGap: 0 },
+  demande: {
+    display: "flex",
+    flexDirection: "column",
+    rowGap: tokens.spacingVerticalM,
+    padding: tokens.spacingHorizontalL,
+    borderRadius: tokens.borderRadiusLarge,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
+  ligne: { display: "flex", alignItems: "flex-start", columnGap: tokens.spacingHorizontalM },
+  infos: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXXS },
+  nom: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalS, flexWrap: "wrap" },
+  secondaire: { color: tokens.colorNeutralForeground3 },
+  prix: { fontWeight: tokens.fontWeightSemibold, fontVariantNumeric: "tabular-nums" },
+  extrait: {
+    display: "flex",
+    flexDirection: "column",
+    rowGap: tokens.spacingVerticalSNudge,
+    padding: `${tokens.spacingVerticalMNudge} ${tokens.spacingHorizontalM}`,
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground3,
+  },
+  extraitLigne: { display: "flex", columnGap: tokens.spacingHorizontalS, alignItems: "flex-start", color: tokens.colorNeutralForeground2 },
+  message: { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  piedDemande: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalS, flexWrap: "wrap" },
+  sejour: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalM, padding: `${tokens.spacingVerticalS} 0` },
+  aucun: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalS, padding: `${tokens.spacingVerticalM} 0`, color: tokens.colorNeutralForeground3 },
+})

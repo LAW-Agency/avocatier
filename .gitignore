@@ -52,3 +52,9 @@ next-env.d.ts
 
 # Aperçus des e-mails en développement (sans SMTP)
 /.emails
+
+# logiciel des hôtes (Electron)
+/bureau/node_modules
+/bureau/out
+/bureau/dist
+/bureau/.env

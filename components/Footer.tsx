@@ -60,7 +60,7 @@ export default function Footer() {
           {/* MARQUE : logo, présentation, réseaux */}
           <div data-reveal className="md:col-span-5 space-y-6">
             <Link href="/" aria-label="Chez L'Avocatier — accueil" className="inline-block">
-              <Image src="/logo-texte-blanc.svg" alt="" width={1998} height={421} className="h-9 md:h-10 w-auto" />
+              <Image src="/logo-texte-blanc.svg" alt="" width={2036} height={530} className="h-10 md:h-12 w-auto" />
             </Link>
 
             <p className="max-w-sm text-pretty text-[0.95rem] leading-relaxed text-primary-light/75">

@@ -38,8 +38,8 @@ export default function Hero (){
                     <Image
                         src="/logo-texte-blanc.svg"
                         alt="Chez L'Avocatier"
-                        width={1998}
-                        height={421}
+                        width={2036}
+                        height={530}
                         preload
                         /* Largeur limitée aussi par la hauteur d'écran (portables peu hauts) */
                         className="mx-auto h-auto w-[min(92vw,68rem,125svh)] [mask-image:linear-gradient(to_bottom,#000_30%,rgb(0_0_0/0.2)_100%)]"

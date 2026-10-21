@@ -1,0 +1,37 @@
+import { json, pourLesHotes } from "@/lib/api/hotes"
+import { comptes, gestion, moteur } from "@/lib/reservation"
+import { aujourdhuiISO } from "@/lib/reservation/dates"
+
+// Tout ce qu'affiche le logiciel des hôtes, chargé en une fois (rechargé après chaque action et à chaque
+// changement signalé par le suivi en direct). L'équipe n'est envoyée qu'aux gérants.
+export const GET = pourLesHotes(async (_requete, membre) => {
+  const gerant = membre.role === "hote"
+  const [reservations, clients, hebergements, blocages, saisons, devises, chambres, paiements, equipe] = await Promise.all([
+    moteur.toutesLesReservations(),
+    comptes.listerClients(),
+    moteur.listerHebergements(),
+    moteur.listerBlocages(),
+    moteur.listerReglesSaisons(),
+    moteur.reglagesDevises(),
+    gestion.listerChambres(),
+    gestion.listerPaiements(),
+    gerant ? gestion.listerEquipe() : Promise.resolve([]),
+  ])
+  return json({
+    hote: { id: membre.id, prenom: membre.prenom, nom: membre.nom, email: membre.email, role: membre.role },
+    // Date du jour à Sainte-Marie, quel que soit le fuseau de l'ordinateur des hôtes
+    aujourdhui: aujourdhuiISO(),
+    reservations,
+    clients,
+    // Contenu des fiches (textes, photos) inutile au logiciel ; état du ménage en plus
+    hebergements: hebergements.map(({ id, nom, type, capaciteMax, prixNuit, literie, vue }) => {
+      const chambre = chambres.find((c) => c.id === id)
+      return { id, nom, type, capaciteMax, prixNuit, literie, vue, etat: chambre?.etat ?? "propre", noteEtat: chambre?.noteEtat ?? "" }
+    }),
+    blocages,
+    saisons,
+    devises,
+    paiements,
+    equipe: equipe.map(({ id, prenom, nom, email, role, actif, creeLe }) => ({ id, prenom, nom, email, role, actif, creeLe })),
+  })
+})

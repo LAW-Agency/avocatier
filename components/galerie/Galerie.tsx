@@ -222,7 +222,7 @@ export default function Galerie({ filtreInitial }: { filtreInitial: Filtre }) {
                         onClick={() => setOuverte(i)}
                         aria-label={p.legende}
                         aria-current={active ? "true" : undefined}
-                        className={`relative block h-14 w-14 overflow-hidden rounded-md transition duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sand md:h-16 md:w-20 ${
+                        className={`relative block h-14 w-14 overflow-hidden rounded-[0.5rem] transition duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sand md:h-16 md:w-20 ${
                           active ? "opacity-100 ring-2 ring-primary-light" : "opacity-40 hover:opacity-80"
                         }`}
                       >

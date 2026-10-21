@@ -1,0 +1,21 @@
+# Installateur Windows du logiciel des hôtes : npm run paquet → dist/
+appId: mg.avocatier.hotes
+productName: Chez L'Avocatier
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: resources/icon.png
+    to: icon.png
+win:
+  icon: resources/icon.ico
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Chez L'Avocatier
+  uninstallDisplayName: Chez L'Avocatier
+  artifactName: Chez-LAvocatier-${version}-installation.${ext}

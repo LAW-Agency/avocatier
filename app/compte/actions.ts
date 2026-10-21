@@ -10,12 +10,12 @@ import { fermerSession, ouvrirSession } from "@/lib/auth/session"
 import { urlDuSite } from "@/lib/email/modeles"
 import { envoyerLienDeReinitialisation, notifierAnnulationParLeClient, notifierMotDePasseModifie } from "@/lib/email/notifications"
 import { comptes, moteur } from "@/lib/reservation"
-import type { RoleCompte } from "@/lib/reservation/types"
 
 export type EtatFormulaire = {
   erreur?: string
   valeurs?: Record<string, string> // pour réafficher la saisie après une erreur
   lienExpire?: boolean // lien de récupération déjà utilisé ou expiré
+  motDePasseHote?: boolean // nouveau mot de passe d'un compte de l'équipe : à utiliser dans le logiciel, pas de session sur le site
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -25,13 +25,9 @@ const texte = (formData: FormData, nom: string) => String(formData.get(nom) ?? "
 
 // Avec un champ « suite » (page de connexion), on y redirige ; sans (parcours de réservation),
 // la page courante se met à jour d'elle-même puisque le cookie de session a changé.
-// Un compte hôte part vers son espace, sauf s'il venait déjà d'une page /admin.
-function poursuivre(formData: FormData, role: RoleCompte = "client"): EtatFormulaire {
+function poursuivre(formData: FormData): EtatFormulaire {
   const suite = formData.get("suite")
-  if (suite) {
-    const chemin = cheminInterne(suite)
-    redirect(role === "hote" && !chemin.startsWith("/admin") ? "/admin" : chemin)
-  }
+  if (suite) redirect(cheminInterne(suite))
   return {}
 }
 
@@ -43,9 +39,13 @@ export async function connexion(_etat: EtatFormulaire, formData: FormData): Prom
   if (!client || !verifierMotDePasse(motDePasse, client.motDePasseHash)) {
     return { erreur: "E-mail ou mot de passe incorrect.", valeurs: { email } }
   }
+  // L'équipe (hôtes, réception) gère les réservations depuis son logiciel : aucune session sur le site
+  if (client.role !== "client") {
+    return { erreur: "Ce compte de l'équipe se connecte depuis le logiciel Chez L'Avocatier, pas depuis le site.", valeurs: { email } }
+  }
 
   await ouvrirSession(client.id)
-  return poursuivre(formData, client.role)
+  return poursuivre(formData)
 }
 
 export async function inscription(_etat: EtatFormulaire, formData: FormData): Promise<EtatFormulaire> {
@@ -129,8 +129,10 @@ export async function choisirNouveauMotDePasse(_etat: EtatFormulaire, formData: 
   const client = await comptes.reinitialiserMotDePasse(empreinteJeton(jeton), hacherMotDePasse(motDePasse), le)
   if (!client) return { erreur: "Ce lien n'est plus valable : il a déjà servi ou a expiré.", lienExpire: true }
 
+  after(() => notifierMotDePasseModifie(client, le))
+  // Compte de l'équipe : nouveau mot de passe à saisir dans le logiciel, dont l'ancienne connexion est refusée
+  if (client.role !== "client") return { motDePasseHote: true }
   // Connecté d'office : cette session est postérieure au changement, les plus anciennes sont refusées
   await ouvrirSession(client.id)
-  after(() => notifierMotDePasseModifie(client, le))
-  redirect(cheminInterne(formData.get("suite"), client.role === "hote" ? "/admin" : "/compte"))
+  redirect(cheminInterne(formData.get("suite"), "/compte"))
 }

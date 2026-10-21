@@ -21,7 +21,7 @@ const C = {
 const POLICE = "'Outfit','Helvetica Neue',Helvetica,Arial,sans-serif"
 const NOM = "Chez L’Avocatier"
 // Wordmark blanc tiré de public/logo-texte-blanc.svg, en PNG trois fois plus large que l'affichage (écrans denses)
-const LOGO = { chemin: "/email/logo-texte-blanc.png", largeur: 180, hauteur: 38 }
+const LOGO = { chemin: "/email/logo-texte-blanc.png", largeur: 180, hauteur: 47 }
 const HOTES = "Joëlle & Stéphane"
 
 export function echapper(texte: string): string {
@@ -207,8 +207,7 @@ export function alerteNouvelleDemande(s: Sejour): Message {
         ],
       },
     ],
-    bouton: { libelle: "Traiter la demande", url: urlDuSite("/admin/reservations?statut=option") },
-    notes: ["Répondre à cet e-mail écrit directement au client."],
+    notes: ["À confirmer ou refuser dans le logiciel Chez L’Avocatier.", "Répondre à cet e-mail écrit directement au client."],
   })
 }
 
@@ -258,7 +257,6 @@ export function annulationParLeClient(s: Sejour): Message {
     titre: "Demande annulée par le client",
     paragraphes: [`${nomComplet(s.client)} a annulé sa demande ${r.reference}. Les dates sont de nouveau libres.`],
     sections: [{ titre: "Séjour", lignes: recapitulatif(s) }],
-    bouton: { libelle: "Voir les réservations", url: urlDuSite("/admin/reservations") },
   })
 }
 
