@@ -5,7 +5,7 @@ import { useDevise } from "@/components/Devise"
 import { DEVISES, estCodeDevise } from "@/lib/reservation/devises"
 
 // Pied de page : région et devise d'affichage des prix. « Par défaut » suit la devise choisie par les hôtes
-// dans /admin/tarifs ; un autre choix est retenu dans ce navigateur.
+// dans leur logiciel ; un autre choix est retenu dans ce navigateur.
 export default function SelecteurDevise() {
   const { reglages, devise, personnalisee, choisir } = useDevise()
   // Une seule devise proposée : rien à choisir

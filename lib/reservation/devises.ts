@@ -1,7 +1,7 @@
 import type { CodeDevise, ReglagesDevises } from "./types"
 
 // Catalogue des devises (pur, partagé navigateur/serveur). Les tarifs sont fixés en euros : les autres
-// devises sont une conversion indicative, au taux saisi par les hôtes dans /admin/tarifs.
+// devises sont une conversion indicative, au taux saisi par les hôtes dans leur logiciel (bureau/).
 
 export const DEVISE_REFERENCE: CodeDevise = "EUR"
 

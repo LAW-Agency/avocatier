@@ -20,10 +20,15 @@ function signer(contenu: string): string {
   return createHmac("sha256", secret()).update(contenu).digest("base64url")
 }
 
+// Valeur signée « idClient.expiration.signature » : cookie du site, ou jeton du logiciel des hôtes
+// (en-tête Authorization, voir lib/api/hotes.ts)
+export function emettreJeton(clientId: string): string {
+  const contenu = `${clientId}.${Date.now() + DUREE_S * 1000}`
+  return `${contenu}.${signer(contenu)}`
+}
+
 export async function ouvrirSession(clientId: string) {
-  const expiration = Date.now() + DUREE_S * 1000
-  const contenu = `${clientId}.${expiration}`
-  ;(await cookies()).set(COOKIE_SESSION, `${contenu}.${signer(contenu)}`, {
+  ;(await cookies()).set(COOKIE_SESSION, emettreJeton(clientId), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

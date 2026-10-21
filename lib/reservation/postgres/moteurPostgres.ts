@@ -37,21 +37,34 @@ import { codeErreur, db, lignes, transaction, type Executant } from "./db"
 const HEBERGEMENT = `id, slug, nom, type, description, image, capacite_max as "capaciteMax", literie, vue,
   prix_nuit as "prixNuit", presentation, galerie, salle_de_bains as "salleDeBains", equipements`
 
-const RESERVATION = `id, reference, client_id as "clientId", hebergement_id as "hebergementId", arrivee, depart,
+export const RESERVATION = `id, reference, client_id as "clientId", hebergement_id as "hebergementId", arrivee, depart,
   adultes, enfants, navette, telephone, message, montant_total as "montantTotal", statut, source,
-  cree_le as "creeLe", expire_le as "expireLe", historique`
+  cree_le as "creeLe", expire_le as "expireLe", historique, arrivee_le as "arriveeLe", depart_le as "departLe"`
 
-const CLIENT = `id, role, email, prenom, nom, telephone, pays, cree_le as "creeLe", sessions_valides_depuis as "sessionsValidesDepuis"`
+// E-mail facultatif pour un client créé à la réception : "" plutôt que null
+export const CLIENT = `id, role, coalesce(email, '') as email, prenom, nom, telephone, pays, cree_le as "creeLe",
+  sessions_valides_depuis as "sessionsValidesDepuis", actif, origine, note`
 
 // Horodatages rendus par pg en Date : convertis en texte ISO comme dans le reste du code
-type LigneReservation = Omit<Reservation, "creeLe" | "expireLe"> & { creeLe: Date; expireLe: Date | null }
-type LigneClient = Omit<ClientPublic, "creeLe" | "sessionsValidesDepuis"> & { creeLe: Date; sessionsValidesDepuis: Date | null }
+export type LigneReservation = Omit<Reservation, "creeLe" | "expireLe" | "arriveeLe" | "departLe"> & {
+  creeLe: Date
+  expireLe: Date | null
+  arriveeLe: Date | null
+  departLe: Date | null
+}
+export type LigneClient = Omit<ClientPublic, "creeLe" | "sessionsValidesDepuis"> & { creeLe: Date; sessionsValidesDepuis: Date | null }
 
-function versReservation({ creeLe, expireLe, ...reste }: LigneReservation): Reservation {
-  return { ...reste, creeLe: creeLe.toISOString(), ...(expireLe && { expireLe: expireLe.toISOString() }) }
+export function versReservation({ creeLe, expireLe, arriveeLe, departLe, ...reste }: LigneReservation): Reservation {
+  return {
+    ...reste,
+    creeLe: creeLe.toISOString(),
+    ...(expireLe && { expireLe: expireLe.toISOString() }),
+    ...(arriveeLe && { arriveeLe: arriveeLe.toISOString() }),
+    ...(departLe && { departLe: departLe.toISOString() }),
+  }
 }
 
-function versClient({ creeLe, sessionsValidesDepuis, ...reste }: LigneClient): ClientPublic {
+export function versClient({ creeLe, sessionsValidesDepuis, ...reste }: LigneClient): ClientPublic {
   return {
     ...reste,
     creeLe: creeLe.toISOString(),
@@ -69,21 +82,21 @@ function avecContenuDuCode(h: Hebergement): Hebergement {
 }
 
 // Événement à ajouter à `historique` (jsonb) : `historique || $n::jsonb`
-function evenement(statut: StatutReservation, note?: string): string {
+export function evenement(statut: StatutReservation, note?: string): string {
   return JSON.stringify([{ statut, le: new Date().toISOString(), ...(note && { note }) }])
 }
 
-async function lireHebergements(ex: Executant): Promise<Hebergement[]> {
+export async function lireHebergements(ex: Executant): Promise<Hebergement[]> {
   const liste = await lignes<Hebergement>(ex, `select ${HEBERGEMENT} from hebergements order by ordre, id`)
   return liste.map(avecContenuDuCode)
 }
 
-async function lireReglesSaisons(ex: Executant): Promise<RegleSaison[]> {
+export async function lireReglesSaisons(ex: Executant): Promise<RegleSaison[]> {
   return lignes<RegleSaison>(ex, `select nom, debut, fin, coefficient, sejour_min as "sejourMin" from regles_saisons order by debut`)
 }
 
 // Expiration paresseuse des options dépassées, avant toute lecture des réservations (en production : tâche planifiée)
-async function expirerOptions(ex: Executant) {
+export async function expirerOptions(ex: Executant) {
   await ex.query(
     `update reservations set statut = 'expiree', historique = historique || $1::jsonb
      where statut = 'option' and expire_le < now()`,
@@ -93,11 +106,11 @@ async function expirerOptions(ex: Executant) {
 
 // Verrou de transaction par hébergement : deux écritures sur le même hébergement (demandes, blocages)
 // passent l'une après l'autre, la vérification des dates ne peut pas se croiser avec une insertion
-async function verrouiller(tx: Executant, hebergementId: string) {
+export async function verrouiller(tx: Executant, hebergementId: string) {
   await tx.query("select pg_advisory_xact_lock(hashtext($1))", [hebergementId])
 }
 
-async function estOccupe(ex: Executant, hebergementId: string, debut: DateISO, fin: DateISO): Promise<boolean> {
+export async function estOccupe(ex: Executant, hebergementId: string, debut: DateISO, fin: DateISO): Promise<boolean> {
   const occupees = await lignes(
     ex,
     `select 1 from reservations
@@ -264,7 +277,7 @@ export const moteurPostgres: MoteurReservation = {
         "update reservations set statut = $2, expire_le = null, historique = historique || $3::jsonb where id = $1",
         [reservationId, statut, evenement(statut, note)],
       )
-      // E-mail au client envoyé par l'action (app/admin/actions.ts), une fois la transaction validée
+      // E-mail au client envoyé par la route de l'API (app/api/hotes/reservations/[id]), une fois la transaction validée
       return { ok: true }
     })
   },

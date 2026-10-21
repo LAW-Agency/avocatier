@@ -10,10 +10,9 @@ interface ChromeSiteProps {
   children: ReactNode
 }
 
-// Header, <main> et footer du site public ; l'espace hôtes (/admin) a sa propre mise en page
+// Header, <main> et footer du site
 export default function ChromeSite({ header, footer, children }: ChromeSiteProps) {
   const chemin = usePathname()
-  if (chemin === "/admin" || chemin.startsWith("/admin/")) return children
 
   return (
     <>

@@ -1,0 +1,192 @@
+import {
+  Avatar,
+  Body1,
+  Caption1,
+  Dropdown,
+  Option,
+  Table,
+  TableBody,
+  TableCell,
+  TableCellLayout,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+  Text,
+  mergeClasses,
+} from "@fluentui/react-components"
+import { MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
+import { useState } from "react"
+import { formaterHeure, formaterPlage, formaterPrix } from "@partage/dates"
+import type { ModePaiement, Reservation } from "@partage/types"
+import { Carte, EnTete, Vide } from "../composants/commun"
+import FicheReservation from "../composants/FicheReservation"
+import { Histogramme, Indicateur, Repartition } from "../composants/graphiques"
+import { useCadreTableStyles } from "../composants/useCommunStyles.styles"
+import { nomDe, soldeDe, useDonneesChargees } from "../donnees"
+import { MODES_PAIEMENT, NOMS_SOURCES } from "../libelles"
+import { debutDeMois, encaissementsDans, evolution, indicateurs, nomDuMois, parMois, periodes, PERIODES, repartition, type ChoixPeriode } from "../statistiques"
+import { useGestionStyles } from "./useGestionStyles.styles"
+
+// Revenus (gérants) : chiffre d'affaires réparti par nuit, encaissements, reste à encaisser, par mois
+// et par mode de paiement. Montants en euros, comme les tarifs.
+export default function Revenus() {
+  const styles = useGestionStyles()
+  const cadre = useCadreTableStyles()
+  const { d, clientDe, hebergementDe } = useDonneesChargees()
+  const [choix, setChoix] = useState<ChoixPeriode>("mois")
+  const { actuelle, precedente } = periodes(choix, d.aujourdhui)
+  const maintenant = indicateurs(d, actuelle)
+  const avant = indicateurs(d, precedente)
+
+  const douzeMois = parMois(d, { debut: debutDeMois(d.aujourdhui, -11), fin: debutDeMois(d.aujourdhui, 1) })
+  const moisCourant = debutDeMois(d.aujourdhui)
+  const encaissements = encaissementsDans(d.paiements, actuelle)
+  const parMode = repartition(
+    (Object.keys(MODES_PAIEMENT) as ModePaiement[]).map((mode) => ({ cle: mode, valeur: encaissements.filter((p) => p.mode === mode).reduce((t, p) => t + p.montant, 0) })),
+  ).filter((m) => m.valeur > 0)
+  const confirmees = d.reservations.filter((r) => r.statut === "confirmee")
+  const parSource = repartition(
+    (Object.keys(NOMS_SOURCES) as Reservation["source"][]).map((source) => ({
+      cle: source,
+      valeur: confirmees.filter((r) => r.source === source && r.arrivee >= actuelle.debut && r.arrivee < actuelle.fin).reduce((t, r) => t + r.montantTotal, 0),
+    })),
+  ).filter((s) => s.valeur > 0)
+  // Impayés : séjours confirmés non soldés, les plus anciens d'abord
+  const impayes = confirmees
+    .map((r) => ({ r, solde: soldeDe(r, d.paiements) }))
+    .filter(({ solde }) => solde > 0)
+    .sort((a, b) => a.r.arrivee.localeCompare(b.r.arrivee))
+  const resteTotal = impayes.reduce((t, { solde }) => t + solde, 0)
+
+  return (
+    <>
+      <EnTete
+        titre="Revenus"
+        description="Chiffre d'affaires des séjours confirmés (réparti nuit par nuit), encaissements et reste à encaisser."
+        actions={
+          <Dropdown className={styles.periode} value={PERIODES[choix]} selectedOptions={[choix]} onOptionSelect={(_e, data) => setChoix(data.optionValue as ChoixPeriode)} aria-label="Période">
+            {(Object.keys(PERIODES) as ChoixPeriode[]).map((c) => (
+              <Option key={c} value={c}>
+                {PERIODES[c]}
+              </Option>
+            ))}
+          </Dropdown>
+        }
+      />
+
+      <div className={styles.chiffres}>
+        <Indicateur Icone={MoneyRegular} libelle="Chiffre d'affaires" valeur={formaterPrix(maintenant.chiffreAffaires)} evolution={evolution(maintenant.chiffreAffaires, avant.chiffreAffaires)} note="Nuits de la période" />
+        <Indicateur Icone={WalletRegular} libelle="Encaissé" valeur={formaterPrix(maintenant.encaisse)} evolution={evolution(maintenant.encaisse, avant.encaisse)} note={`${encaissements.length} encaissements`} />
+        <Indicateur Icone={ReceiptMoneyRegular} libelle="Reste à encaisser" valeur={formaterPrix(resteTotal)} note={`${impayes.length} séjours non soldés, toutes dates`} />
+        <Indicateur Icone={TagRegular} libelle="Prix moyen par nuit" valeur={formaterPrix(maintenant.prixMoyen)} evolution={evolution(maintenant.prixMoyen, avant.prixMoyen)} note={`RevPAR ${formaterPrix(maintenant.revPar)}`} />
+      </div>
+
+      <Carte titre="Les 12 derniers mois" description="Chiffre d'affaires des nuits du mois et encaissements datés du mois">
+        <Histogramme
+          barres={douzeMois.map((m) => ({
+            cle: m.debut,
+            libelle: nomDuMois(m.debut, m.debut.slice(5, 7) === "01"),
+            valeur: m.indicateurs.chiffreAffaires,
+            secondaire: m.indicateurs.encaisse,
+            actuelle: m.debut === moisCourant,
+            etiquette: m.indicateurs.chiffreAffaires >= 1000 ? `${Math.round(m.indicateurs.chiffreAffaires / 100) / 10} k` : String(m.indicateurs.chiffreAffaires),
+          }))}
+          formater={formaterPrix}
+          legende={{ principale: "Chiffre d'affaires", secondaire: "Encaissé" }}
+        />
+      </Carte>
+
+      <div className={styles.moitie}>
+        <Carte titre="Encaissements par mode" description={PERIODES[choix]}>
+          {parMode.length ? (
+            <Repartition lignes={parMode.map((m) => ({ cle: m.cle, libelle: MODES_PAIEMENT[m.cle], part: m.part, detail: formaterPrix(m.valeur) }))} />
+          ) : (
+            <Body1 className={styles.secondaire}>Aucun encaissement sur la période.</Body1>
+          )}
+        </Carte>
+        <Carte titre="Chiffre d'affaires par provenance" description="Séjours confirmés commençant dans la période">
+          {parSource.length ? (
+            <Repartition lignes={parSource.map((s) => ({ cle: s.cle, libelle: NOMS_SOURCES[s.cle], part: s.part, detail: formaterPrix(s.valeur) }))} />
+          ) : (
+            <Body1 className={styles.secondaire}>Aucun séjour confirmé sur la période.</Body1>
+          )}
+        </Carte>
+      </div>
+
+      <div className={styles.deuxColonnes}>
+        <Carte titre="Reste à encaisser" description="Séjours confirmés non soldés">
+          {impayes.length === 0 ? (
+            <Vide Icone={CheckmarkCircleRegular} titre="Tout est encaissé" texte="Aucun séjour confirmé n'attend de paiement." />
+          ) : (
+            <div className={cadre.root}>
+              <Table size="small" aria-label="Séjours non soldés">
+                <TableHeader className={cadre.entete}>
+                  <TableRow>
+                    <TableHeaderCell className={cadre.premiere}>Client</TableHeaderCell>
+                    <TableHeaderCell>Séjour</TableHeaderCell>
+                    <TableHeaderCell style={{ width: "110px" }}>
+                      <span className={cadre.droite}>Reste</span>
+                    </TableHeaderCell>
+                    <TableHeaderCell style={{ width: "100px" }} aria-label="Fiche" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {impayes.map(({ r, solde }) => (
+                    <TableRow key={r.id}>
+                      <TableCell className={cadre.premiere}>
+                        <TableCellLayout truncate media={<Avatar name={nomDe(clientDe(r))} color="colorful" size={24} />}>
+                          {nomDe(clientDe(r))}
+                        </TableCellLayout>
+                      </TableCell>
+                      <TableCell>
+                        <TableCellLayout truncate description={hebergementDe(r)?.nom}>
+                          {formaterPlage(r.arrivee, r.depart)}
+                        </TableCellLayout>
+                      </TableCell>
+                      <TableCell>
+                        <span className={mergeClasses(cadre.droite, styles.reste)}>{formaterPrix(solde)}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={cadre.droite}>
+                          <FicheReservation reservation={r} />
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Carte>
+
+        <Carte titre="Derniers encaissements" description={PERIODES[choix]}>
+          {encaissements.length === 0 ? (
+            <Body1 className={styles.secondaire}>Aucun encaissement sur la période.</Body1>
+          ) : (
+            <ul className={styles.liste}>
+              {[...encaissements]
+                .reverse()
+                .slice(0, 12)
+                .map((p) => {
+                  const r = d.reservations.find((x) => x.id === p.reservationId)
+                  return (
+                    <li key={p.id} className={styles.ligne}>
+                      <div>
+                        <Text block truncate wrap={false}>
+                          {r ? nomDe(clientDe(r)) : "Réservation supprimée"}
+                        </Text>
+                        <Caption1 className={styles.secondaire}>
+                          {MODES_PAIEMENT[p.mode]} · {formaterHeure(p.le)}
+                        </Caption1>
+                      </div>
+                      <Text className={styles.montant}>{formaterPrix(p.montant)}</Text>
+                    </li>
+                  )
+                })}
+            </ul>
+          )}
+        </Carte>
+      </div>
+    </>
+  )
+}

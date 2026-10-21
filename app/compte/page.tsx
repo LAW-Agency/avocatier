@@ -36,7 +36,6 @@ const lienAction =
 export default async function ComptePage() {
   const client = await clientConnecte()
   if (!client) redirect("/compte/connexion?suite=/compte")
-  if (client.role === "hote") redirect("/admin")
 
   const [reservations, hebergements] = await Promise.all([
     moteur.reservationsDuClient(client.id),

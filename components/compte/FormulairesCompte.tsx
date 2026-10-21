@@ -123,6 +123,14 @@ export function FormulaireRecuperation({ suite }: { suite?: string }) {
 
 export function FormulaireNouveauMotDePasse({ jeton, suite }: { jeton: string; suite?: string }) {
   const [etat, action, enCours] = useActionState<EtatFormulaire, FormData>(choisirNouveauMotDePasse, {})
+  if (etat.motDePasseHote) {
+    return (
+      <div role="status" className="space-y-5 text-body text-ink">
+        <p className="font-heading text-xl text-forest">Mot de passe modifié</p>
+        <p className="text-pretty">Reconnectez-vous au logiciel Chez L’Avocatier avec votre nouveau mot de passe.</p>
+      </div>
+    )
+  }
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="jeton" value={jeton} />

@@ -28,7 +28,7 @@ export type Hebergement = {
 // Jour de l'année « MM-JJ », sans année : une saison revient chaque année aux mêmes dates
 export type JourAnnee = string
 
-// Saison telle que les hôtes la définissent (/admin/tarifs) : mêmes dates et mêmes règles chaque année.
+// Saison telle que les hôtes la définissent (logiciel, Tarifs) : mêmes dates et mêmes règles chaque année.
 // `fin` est la dernière nuit comprise ; une saison peut passer le 31 décembre (du « 12-20 » au « 01-04 »).
 // Hors de toute saison : prix de base, une nuit minimum (« saison normale »).
 export type RegleSaison = {
@@ -51,7 +51,8 @@ export type Saison = {
 // option : demande reçue, dates bloquées 48 h en attendant la réponse des hôtes
 export type StatutReservation = "option" | "confirmee" | "annulee" | "refusee" | "expiree"
 
-export type SourceReservation = "site" | "booking" | "telephone" | "whatsapp"
+// sur_place : client venu à la réception, réservation saisie dans le logiciel
+export type SourceReservation = "site" | "booking" | "telephone" | "whatsapp" | "sur_place"
 
 export type EvenementReservation = {
   statut: StatutReservation
@@ -77,9 +78,12 @@ export type Reservation = {
   creeLe: string
   expireLe?: string // fin de l'option
   historique: EvenementReservation[]
+  // Arrivée et départ enregistrés par la réception (date-heure ISO) ; le statut reste « confirmee »
+  arriveeLe?: string
+  departLe?: string
 }
 
-// Événement de l'historique d'une réservation, avec de quoi l'annoncer aux hôtes (suivi en direct de /admin)
+// Événement de l'historique d'une réservation, avec de quoi l'annoncer aux hôtes (suivi en direct du logiciel)
 export type ActiviteReservation = EvenementReservation & {
   reservationId: string
   reference: string
@@ -109,8 +113,9 @@ export type PeriodeOccupee = {
   fin: DateISO
 }
 
-// hote : Joëlle & Stéphane, accès à l'espace /admin ; jamais attribué par l'inscription du site
-export type RoleCompte = "client" | "hote"
+// hote : Joëlle & Stéphane, tout le logiciel des hôtes (bureau/) ; reception : équipe d'accueil, sans tarifs,
+// statistiques ni utilisateurs. Jamais attribués par l'inscription du site
+export type RoleCompte = "client" | "hote" | "reception"
 
 export type Client = {
   id: string
@@ -124,6 +129,9 @@ export type Client = {
   creeLe: string
   // Mot de passe changé (récupération de compte) : les sessions ouvertes avant sont refusées
   sessionsValidesDepuis?: string
+  actif: boolean // compte de l'équipe désactivé : plus de connexion
+  origine: "site" | "reception" // reception : client créé au comptoir, sans mot de passe, e-mail facultatif ("")
+  note: string // note interne des hôtes sur le client
 }
 
 // Ce qui sort de la couche de données : jamais le mot de passe
@@ -144,11 +152,11 @@ export type ResultatDemande =
   | { ok: true; reservation: Reservation }
   | { ok: false; erreur: string }
 
-export type NouveauClient = Omit<Client, "id" | "creeLe" | "role" | "sessionsValidesDepuis">
+export type NouveauClient = Omit<Client, "id" | "creeLe" | "role" | "sessionsValidesDepuis" | "actif" | "origine" | "note">
 
 export type ResultatAction = { ok: true } | { ok: false; erreur: string }
 
-// Tarifs modifiés par les hôtes (/admin/tarifs) : prix de base en euros et liste complète des saisons
+// Tarifs modifiés par les hôtes (logiciel, Tarifs) : prix de base en euros et liste complète des saisons
 export type ModificationTarifs = {
   prix: Record<string, number> // hebergementId → prix de base par nuit
   saisons: RegleSaison[] // remplace toutes les saisons
@@ -164,3 +172,45 @@ export type ReglagesDevises = {
   taux: Record<CodeDevise, number> // 1 € = taux × devise
   misAJourLe: string // date-heure ISO de la dernière modification des taux
 }
+
+// --- Logiciel des hôtes : réception, chambres, encaissements, équipe ---
+
+// Ménage et maintenance d'un hébergement
+export type EtatChambre = "propre" | "a_nettoyer" | "maintenance"
+
+export type Chambre = { id: string; etat: EtatChambre; noteEtat: string }
+
+export type ModePaiement = "especes" | "carte" | "mobile_money" | "virement" | "autre"
+
+// Encaissement d'une réservation, en euros ; montant négatif : remboursement
+export type Paiement = {
+  id: string
+  reservationId: string
+  montant: number
+  mode: ModePaiement
+  note: string
+  le: string // date-heure ISO
+  enregistrePar?: string // compte de l'équipe
+}
+
+// Réservation saisie dans le logiciel (téléphone, WhatsApp, Booking.com, comptoir) : confirmée d'office
+export type ReservationDirecte = {
+  clientId: string
+  hebergementId: string
+  arrivee: DateISO
+  depart: DateISO
+  adultes: number
+  enfants: number
+  navette: boolean
+  source: Exclude<SourceReservation, "site">
+  montantTotal: number | null // null : tarif calculé (saisons comprises)
+  telephone: string
+  message: string
+}
+
+export type NouveauClientLocal = Pick<Client, "prenom" | "nom" | "email" | "telephone" | "pays" | "note">
+
+export type NouveauMembre = Pick<Client, "prenom" | "nom" | "email"> & { role: "hote" | "reception"; motDePasseHash: string }
+
+export type ModificationMembre = { role?: "hote" | "reception"; actif?: boolean; motDePasseHash?: string }
+
