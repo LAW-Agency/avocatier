@@ -1,6 +1,6 @@
-import { json, lireCorps, pourLesGerants } from "@/lib/api/hotes"
+import { journaliser, json, lireCorps, nomDuMembre, pourLesGerants } from "@/lib/api/hotes"
 import { hacherMotDePasse } from "@/lib/auth/motDePasse"
-import { gestion } from "@/lib/reservation"
+import { comptes, gestion } from "@/lib/reservation"
 import { MOT_DE_PASSE_MIN } from "@/lib/reservation/controles"
 import type { ModificationMembre } from "@/lib/reservation/types"
 
@@ -20,5 +20,16 @@ export const PATCH = pourLesGerants(async (requete, membre, contexte: RouteConte
   }
 
   const resultat = await gestion.modifierMembre(id, modification)
-  return resultat.ok ? json({ ok: true }) : json({ erreur: resultat.erreur }, 409)
+  if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
+  const changements = [
+    modification.role && `rôle : ${modification.role === "hote" ? "gérant" : "réception"}`,
+    modification.actif === false && "compte désactivé",
+    modification.actif === true && "compte réactivé",
+    modification.motDePasseHash && "mot de passe réinitialisé",
+  ].filter(Boolean)
+  journaliser(membre, "equipe", "Compte modifié", async () => {
+    const compte = await comptes.trouverParId(id)
+    return [compte ? nomDuMembre(compte) : "Compte supprimé", ...changements].join(" · ")
+  })
+  return json({ ok: true })
 })

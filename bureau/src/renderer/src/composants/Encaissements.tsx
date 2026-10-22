@@ -1,9 +1,11 @@
 import { Body1, Button, Caption1, Dropdown, Input, MessageBar, MessageBarBody, Option, Spinner, Text, Tooltip, mergeClasses } from "@fluentui/react-components"
-import { DeleteRegular, MoneyRegular } from "@fluentui/react-icons"
+import { DeleteRegular, MoneyRegular, ReceiptRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import { formaterHeure, formaterPrix } from "@partage/dates"
 import type { ModePaiement, Reservation } from "@partage/types"
+import { numeroRecu } from "../documents"
 import { soldeDe, useDonneesChargees } from "../donnees"
+import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useEncaissementsStyles } from "./useReservationStyles.styles"
 
@@ -12,6 +14,7 @@ import { useEncaissementsStyles } from "./useReservationStyles.styles"
 export default function Encaissements({ reservation: r }: { reservation: Reservation }) {
   const styles = useEncaissementsStyles()
   const { d, executer, gerant, paiementsDe } = useDonneesChargees()
+  const { imprimerRecu } = useFichiers()
   const paiements = paiementsDe(r)
   const solde = soldeDe(r, d.paiements)
   const [montant, setMontant] = useState(solde > 0 ? String(solde) : "")
@@ -67,10 +70,13 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
                 </Body1>
                 <Caption1 className={styles.libelle}>
                   {formaterHeure(p.le)}
-                  {membre(p.enregistrePar) && `, par ${membre(p.enregistrePar)}`}
+                  {membre(p.enregistrePar) && `, par ${membre(p.enregistrePar)}`} · reçu {numeroRecu(p)}
                 </Caption1>
               </div>
               <Text className={styles.montant}>{formaterPrix(p.montant)}</Text>
+              <Tooltip content="Reçu (PDF)" relationship="label">
+                <Button appearance="subtle" size="small" icon={<ReceiptRegular />} onClick={() => imprimerRecu(p)} />
+              </Tooltip>
               {gerant ? (
                 <Tooltip content="Supprimer cet encaissement" relationship="label">
                   <Button appearance="subtle" size="small" icon={<DeleteRegular />} onClick={() => supprimer(p.id)} />

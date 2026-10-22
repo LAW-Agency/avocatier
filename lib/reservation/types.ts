@@ -52,7 +52,7 @@ export type Saison = {
 export type StatutReservation = "option" | "confirmee" | "annulee" | "refusee" | "expiree"
 
 // sur_place : client venu à la réception, réservation saisie dans le logiciel
-export type SourceReservation = "site" | "booking" | "telephone" | "whatsapp" | "sur_place"
+export type SourceReservation = "site" | "booking" | "airbnb" | "telephone" | "whatsapp" | "sur_place"
 
 export type EvenementReservation = {
   statut: StatutReservation
@@ -81,6 +81,9 @@ export type Reservation = {
   // Arrivée et départ enregistrés par la réception (date-heure ISO) ; le statut reste « confirmee »
   arriveeLe?: string
   departLe?: string
+  // Facture éditée par l'équipe : numéro « FA-2026-0001 », attribué une fois pour toutes
+  factureNumero?: string
+  factureLe?: string
 }
 
 // Événement de l'historique d'une réservation, avec de quoi l'annoncer aux hôtes (suivi en direct du logiciel)
@@ -104,6 +107,7 @@ export type Blocage = {
   debut: DateISO
   fin: DateISO
   raison: string
+  calendrierId?: string // importé d'un calendrier externe (Booking.com, Airbnb…) : remplacé à chaque synchronisation
 }
 
 // Nuits occupées, sans aucune donnée client : seule information envoyée au navigateur
@@ -132,6 +136,7 @@ export type Client = {
   actif: boolean // compte de l'équipe désactivé : plus de connexion
   origine: "site" | "reception" // reception : client créé au comptoir, sans mot de passe, e-mail facultatif ("")
   note: string // note interne des hôtes sur le client
+  effaceLe?: string // données personnelles effacées à la demande du client (fiche anonymisée)
 }
 
 // Ce qui sort de la couche de données : jamais le mot de passe
@@ -191,7 +196,26 @@ export type Paiement = {
   note: string
   le: string // date-heure ISO
   enregistrePar?: string // compte de l'équipe
+  numero: number // numéro du reçu
 }
+
+// Journal d'activité de l'équipe (logiciel des hôtes) : qui a fait quoi, et quand
+export type CategorieJournal = "connexion" | "reservation" | "client" | "chambre" | "paiement" | "planning" | "tarifs" | "equipe" | "journal"
+
+export type EntreeJournal = {
+  id: string
+  le: string // date-heure ISO
+  membreId?: string // absent si le compte a été supprimé
+  auteur: string // prénom et nom au moment de l'action
+  categorie: CategorieJournal
+  action: string // « Demande confirmée »
+  detail: string // « AVO-2026-0042, Joëlle Martin »
+}
+
+export type NouvelleEntreeJournal = Omit<EntreeJournal, "id" | "le">
+
+// Entrées à effacer : une sélection, celles d'avant une date, ou tout le journal
+export type EffacementJournal = { ids: string[] } | { avant: string } | { tout: true }
 
 // Réservation saisie dans le logiciel (téléphone, WhatsApp, Booking.com, comptoir) : confirmée d'office
 export type ReservationDirecte = {
@@ -214,3 +238,58 @@ export type NouveauMembre = Pick<Client, "prenom" | "nom" | "email"> & { role: "
 
 export type ModificationMembre = { role?: "hote" | "reception"; actif?: boolean; motDePasseHash?: string }
 
+
+// Modification d'une réservation active par l'équipe : tout le séjour est renvoyé, pas seulement ce qui change
+export type ModificationReservation = {
+  hebergementId: string
+  arrivee: DateISO
+  depart: DateISO
+  adultes: number
+  enfants: number
+  navette: boolean
+  montantTotal: number | null // null : tarif recalculé (saisons comprises)
+}
+
+// `changements` : ce qui a changé, en clair (« Dates : 12 – 15 nov. → 13 – 16 nov. »), vide si rien
+export type ResultatModification = { ok: true; changements: string[] } | { ok: false; erreur: string }
+
+// Coordonnées d'un client corrigées par l'équipe
+export type ModificationClient = Pick<Client, "prenom" | "nom" | "email" | "telephone" | "pays">
+
+// --- Calendriers des plateformes (iCal) ---
+
+export type Plateforme = "booking" | "airbnb" | "autre"
+
+// Calendrier d'une plateforme pour un hébergement : import de ses dates (urlImport) et export des nôtres
+// (lien secret construit avec `jeton`, à donner à la plateforme)
+export type CalendrierExterne = {
+  id: string
+  hebergementId: string
+  plateforme: Plateforme
+  nom: string // « Booking.com »
+  urlImport: string // vide : export seulement
+  jeton: string
+  synchroniseLe?: string // dernière importation réussie
+  erreur: string // dernière importation en échec ("" sinon)
+  creeLe: string
+}
+
+export type NouveauCalendrier = Pick<CalendrierExterne, "hebergementId" | "plateforme" | "nom" | "urlImport">
+
+// Période lue dans un fichier iCal (`fin` exclue, comme `depart`)
+export type PeriodeImportee = { uid: string; debut: DateISO; fin: DateISO; raison: string }
+
+// Bilan d'une importation : périodes ajoutées et retirées depuis la précédente
+export type BilanSynchronisation = { calendrierId: string; ajoutees: PeriodeImportee[]; retirees: number; erreur?: string }
+
+// --- Factures et reçus ---
+
+// Coordonnées de l'hôtel imprimées sur les factures et les reçus
+export type ReglagesFacturation = {
+  raisonSociale: string
+  adresse: string
+  telephone: string
+  email: string
+  identifiants: string // NIF, STAT, RCS…
+  mentions: string // pied des factures
+}

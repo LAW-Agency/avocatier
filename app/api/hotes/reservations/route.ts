@@ -1,4 +1,4 @@
-import { json, lireCorps, nomDuMembre, pourLesHotes, rafraichirSite } from "@/lib/api/hotes"
+import { decrireReservation, journaliser, json, lireCorps, nomDuMembre, pourLesHotes, rafraichirSite } from "@/lib/api/hotes"
 import { gestion } from "@/lib/reservation"
 import type { ReservationDirecte } from "@/lib/reservation/types"
 
@@ -24,6 +24,7 @@ export const POST = pourLesHotes(async (requete, membre) => {
   }
   const resultat = await gestion.creerReservationDirecte(reservation, nomDuMembre(membre))
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
+  journaliser(membre, "reservation", "Réservation saisie", () => decrireReservation(resultat.reservation.id))
   rafraichirSite()
   return json({ ok: true, reservation: resultat.reservation })
 })

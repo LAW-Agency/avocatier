@@ -7,9 +7,11 @@ import {
   DialogSurface,
   DialogTitle,
   DialogTrigger,
+  Field,
   MessageBar,
   MessageBarBody,
   Spinner,
+  Textarea,
   mergeClasses,
 } from "@fluentui/react-components"
 import { CheckmarkRegular, DismissCircleRegular, DoorArrowLeftRegular, DoorArrowRightRegular, ProhibitedRegular } from "@fluentui/react-icons"
@@ -27,20 +29,28 @@ interface ActionsReservationProps {
   alignement?: "debut" | "fin"
 }
 
-// Ce que l'équipe peut faire selon le statut : confirmer directement ; refuser ou annuler après confirmation
+// Ce que l'équipe peut faire selon le statut : confirmer directement ; refuser ou annuler après confirmation,
+// avec un mot facultatif pour le client (ajouté à son e-mail : raison, autres dates proposées…)
 export default function ActionsReservation({ reservationId, statut, reference, taille = "medium", alignement = "debut" }: ActionsReservationProps) {
   const styles = useActionsStyles()
-  const { executer } = useDonnees()
+  const { donnees, executer } = useDonnees()
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [mot, setMot] = useState("")
   if (statut !== "option" && statut !== "confirmee") return null
+  const clientId = donnees?.reservations.find((r) => r.id === reservationId)?.clientId
+  const email = donnees?.clients.find((c) => c.id === clientId)?.email
 
   async function envoyer(nouveau: "confirmee" | "refusee" | "annulee") {
     setEnCours(true)
     setErreur(null)
-    const resultat = await executer("PATCH", `/api/hotes/reservations/${encodeURIComponent(reservationId)}`, { statut: nouveau })
+    const resultat = await executer("PATCH", `/api/hotes/reservations/${encodeURIComponent(reservationId)}`, {
+      statut: nouveau,
+      ...(nouveau !== "confirmee" && { mot }),
+    })
     setEnCours(false)
     if (!resultat.ok) setErreur(resultat.erreur)
+    else setMot("")
   }
 
   const fermeture =
@@ -79,7 +89,16 @@ export default function ActionsReservation({ reservationId, statut, reference, t
           <DialogSurface>
             <DialogBody>
               <DialogTitle>{fermeture.titre}</DialogTitle>
-              <DialogContent>{fermeture.texte}</DialogContent>
+              <DialogContent className={styles.pile}>
+                {fermeture.texte}
+                {email ? (
+                  <Field label="Mot pour le client" hint="Facultatif : la raison, d'autres dates à proposer… Il est ajouté à l'e-mail et à l'historique.">
+                    <Textarea value={mot} onChange={(_e, data) => setMot(data.value)} resize="vertical" maxLength={2000} />
+                  </Field>
+                ) : (
+                  <span>Ce client n&apos;a pas d&apos;adresse e-mail : prévenez-le par téléphone.</span>
+                )}
+              </DialogContent>
               <DialogActions>
                 <DialogTrigger disableButtonEnhancement>
                   <Button appearance="secondary">Retour</Button>

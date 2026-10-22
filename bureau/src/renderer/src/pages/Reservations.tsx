@@ -1,9 +1,11 @@
-import { Button, CounterBadge, Tab, TabList, makeStyles, tokens } from "@fluentui/react-components"
-import { CalendarAddRegular } from "@fluentui/react-icons"
+import { Button, CounterBadge, Tab, TabList, Tooltip, makeStyles, tokens } from "@fluentui/react-components"
+import { ArrowDownloadRegular, CalendarAddRegular } from "@fluentui/react-icons"
 import type { StatutReservation } from "@partage/types"
 import { EnTete } from "../composants/commun"
 import TableReservations from "../composants/TableReservations"
 import { nomDe, useDonneesChargees } from "../donnees"
+import { csvReservations } from "../exports"
+import { useFichiers } from "../fichiers"
 
 const FILTRES: { statut: StatutReservation | null; libelle: string }[] = [
   { statut: null, libelle: "Toutes" },
@@ -26,6 +28,7 @@ const normaliser = (texte: string) => texte.normalize("NFD").replace(/\p{Diacrit
 export default function Reservations({ filtre }: { filtre: StatutReservation | null }) {
   const styles = useStyles()
   const { d, clientDe, hebergementDe, naviguer, recherche, ouvrirNouvelleReservation } = useDonneesChargees()
+  const { exporter } = useFichiers()
 
   const cherche = normaliser(recherche.trim())
   const trouvees = d.reservations.filter((r) => {
@@ -50,9 +53,16 @@ export default function Reservations({ filtre }: { filtre: StatutReservation | n
         titre={cherche ? `Résultats pour « ${recherche.trim()} »` : "Réservations"}
         description="Demandes reçues sur le site et séjours confirmés. Une demande bloque les dates 48 h en attendant votre réponse."
         actions={
-          <Button appearance="primary" icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation()}>
-            Nouvelle réservation
-          </Button>
+          <>
+            <Tooltip content="Exporter la liste affichée (onglet et recherche) pour Excel (CSV)" relationship="description">
+              <Button icon={<ArrowDownloadRegular />} disabled={liste.length === 0} onClick={() => exporter("Réservations", csvReservations(liste, d))}>
+                Exporter
+              </Button>
+            </Tooltip>
+            <Button appearance="primary" icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation()}>
+              Nouvelle réservation
+            </Button>
+          </>
         }
       />
       <div className={styles.pile}>

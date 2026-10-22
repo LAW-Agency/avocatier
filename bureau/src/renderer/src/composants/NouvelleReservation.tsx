@@ -28,14 +28,14 @@ import { useState, type FormEvent } from "react"
 import { ajouterJours, chevauche, formaterPrix, nombreNuits, pluriel } from "@partage/dates"
 import { calculerDevis, deplierSaisons } from "@partage/regles"
 import type { ReservationDirecte } from "@partage/types"
-import { nomDe, useDonneesChargees, type Preremplissage } from "../donnees"
+import { blocageGene, clientsVisibles, nomDe, useDonneesChargees, type Preremplissage } from "../donnees"
 import { NOMS_SOURCES } from "../libelles"
 import ChampDate from "./ChampDate"
 import { ChampsClient, useCreationClient } from "./NouveauClient"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
 
 type Source = ReservationDirecte["source"]
-const SOURCES: Source[] = ["sur_place", "telephone", "whatsapp", "booking"]
+const SOURCES: Source[] = ["sur_place", "telephone", "whatsapp", "booking", "airbnb"]
 
 const normaliser = (texte: string) => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
 
@@ -78,16 +78,19 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
   const hebergement = d.hebergements.find((h) => h.id === hebergementId)
   const tarif = hebergement && nuits ? calculerDevis(hebergement, arrivee, depart, saisons).total : null
 
-  // Hébergements déjà pris (réservation active ou dates bloquées) aux dates choisies
+  // Hébergements déjà pris (réservation active ou dates bloquées) aux dates choisies ; une réservation
+  // Booking.com saisie à la main n'est pas gênée par les dates déjà importées de Booking.com
   const occupes = new Set(
     nuits
       ? [
           ...d.reservations.filter((r) => (r.statut === "option" || r.statut === "confirmee") && chevauche(arrivee, depart, r.arrivee, r.depart)).map((r) => r.hebergementId),
-          ...d.blocages.filter((b) => chevauche(arrivee, depart, b.debut, b.fin)).map((b) => b.hebergementId),
+          ...d.blocages.filter((b) => chevauche(arrivee, depart, b.debut, b.fin) && blocageGene(b, source, d.calendriers)).map((b) => b.hebergementId),
         ]
       : [],
   )
-  const clientsTrouves = d.clients.filter((c) => normaliser(`${nomDe(c)} ${c.email} ${c.telephone}`).includes(normaliser(recherche.trim()))).slice(0, 30)
+  const clientsTrouves = clientsVisibles(d.clients)
+    .filter((c) => normaliser(`${nomDe(c)} ${c.email} ${c.telephone}`).includes(normaliser(recherche.trim())))
+    .slice(0, 30)
 
   async function envoyer(e: FormEvent) {
     e.preventDefault()

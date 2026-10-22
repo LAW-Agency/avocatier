@@ -27,6 +27,7 @@ import type {
   Reservation,
   ResultatAction,
   ResultatDemande,
+  SourceReservation,
   StatutReservation,
 } from "../types"
 import { codeErreur, db, lignes, transaction, type Executant } from "./db"
@@ -39,36 +40,46 @@ const HEBERGEMENT = `id, slug, nom, type, description, image, capacite_max as "c
 
 export const RESERVATION = `id, reference, client_id as "clientId", hebergement_id as "hebergementId", arrivee, depart,
   adultes, enfants, navette, telephone, message, montant_total as "montantTotal", statut, source,
-  cree_le as "creeLe", expire_le as "expireLe", historique, arrivee_le as "arriveeLe", depart_le as "departLe"`
+  cree_le as "creeLe", expire_le as "expireLe", historique, arrivee_le as "arriveeLe", depart_le as "departLe",
+  facture_numero as "factureNumero", facture_le as "factureLe"`
 
 // E-mail facultatif pour un client créé à la réception : "" plutôt que null
 export const CLIENT = `id, role, coalesce(email, '') as email, prenom, nom, telephone, pays, cree_le as "creeLe",
-  sessions_valides_depuis as "sessionsValidesDepuis", actif, origine, note`
+  sessions_valides_depuis as "sessionsValidesDepuis", actif, origine, note, efface_le as "effaceLe"`
 
 // Horodatages rendus par pg en Date : convertis en texte ISO comme dans le reste du code
-export type LigneReservation = Omit<Reservation, "creeLe" | "expireLe" | "arriveeLe" | "departLe"> & {
+export type LigneReservation = Omit<Reservation, "creeLe" | "expireLe" | "arriveeLe" | "departLe" | "factureNumero" | "factureLe"> & {
   creeLe: Date
   expireLe: Date | null
   arriveeLe: Date | null
   departLe: Date | null
+  factureNumero: string | null
+  factureLe: Date | null
 }
-export type LigneClient = Omit<ClientPublic, "creeLe" | "sessionsValidesDepuis"> & { creeLe: Date; sessionsValidesDepuis: Date | null }
+export type LigneClient = Omit<ClientPublic, "creeLe" | "sessionsValidesDepuis" | "effaceLe"> & {
+  creeLe: Date
+  sessionsValidesDepuis: Date | null
+  effaceLe: Date | null
+}
 
-export function versReservation({ creeLe, expireLe, arriveeLe, departLe, ...reste }: LigneReservation): Reservation {
+export function versReservation({ creeLe, expireLe, arriveeLe, departLe, factureNumero, factureLe, ...reste }: LigneReservation): Reservation {
   return {
     ...reste,
     creeLe: creeLe.toISOString(),
     ...(expireLe && { expireLe: expireLe.toISOString() }),
     ...(arriveeLe && { arriveeLe: arriveeLe.toISOString() }),
     ...(departLe && { departLe: departLe.toISOString() }),
+    ...(factureNumero && { factureNumero }),
+    ...(factureLe && { factureLe: factureLe.toISOString() }),
   }
 }
 
-export function versClient({ creeLe, sessionsValidesDepuis, ...reste }: LigneClient): ClientPublic {
+export function versClient({ creeLe, sessionsValidesDepuis, effaceLe, ...reste }: LigneClient): ClientPublic {
   return {
     ...reste,
     creeLe: creeLe.toISOString(),
     ...(sessionsValidesDepuis && { sessionsValidesDepuis: sessionsValidesDepuis.toISOString() }),
+    ...(effaceLe && { effaceLe: effaceLe.toISOString() }),
   }
 }
 
@@ -110,15 +121,27 @@ export async function verrouiller(tx: Executant, hebergementId: string) {
   await tx.query("select pg_advisory_xact_lock(hashtext($1))", [hebergementId])
 }
 
-export async function estOccupe(ex: Executant, hebergementId: string, debut: DateISO, fin: DateISO): Promise<boolean> {
+// `sauf` : réservation modifiée, qui ne se gêne pas elle-même. `source` : provenance de la réservation
+// (saisie ou modifiée par l'équipe) ; les dates importées du calendrier de cette même plateforme sont les siennes
+// (réservation Booking.com déjà importée de Booking.com) et ne la bloquent pas
+export async function estOccupe(
+  ex: Executant,
+  hebergementId: string,
+  debut: DateISO,
+  fin: DateISO,
+  { sauf, source }: { sauf?: string; source?: SourceReservation } = {},
+): Promise<boolean> {
   const occupees = await lignes(
     ex,
     `select 1 from reservations
      where hebergement_id = $1 and statut = any($4) and daterange(arrivee, depart) && daterange($2::date, $3::date)
+       and id is distinct from $5
      union all
-     select 1 from blocages where hebergement_id = $1 and daterange(debut, fin) && daterange($2::date, $3::date)
+     select 1 from blocages b left join calendriers_externes c on c.id = b.calendrier_id
+     where b.hebergement_id = $1 and daterange(b.debut, b.fin) && daterange($2::date, $3::date)
+       and ($6::text is null or c.plateforme is distinct from $6)
      limit 1`,
-    [hebergementId, debut, fin, STATUTS_ACTIFS],
+    [hebergementId, debut, fin, STATUTS_ACTIFS, sauf ?? null, source ?? null],
   )
   return occupees.length > 0
 }
@@ -283,7 +306,11 @@ export const moteurPostgres: MoteurReservation = {
   },
 
   async listerBlocages() {
-    return lignes<Blocage>(db(), `select id, hebergement_id as "hebergementId", debut, fin, raison from blocages order by debut`)
+    const liste = await lignes<Omit<Blocage, "calendrierId"> & { calendrierId: string | null }>(
+      db(),
+      `select id, hebergement_id as "hebergementId", debut, fin, raison, calendrier_id as "calendrierId" from blocages order by debut`,
+    )
+    return liste.map(({ calendrierId, ...reste }) => ({ ...reste, ...(calendrierId && { calendrierId }) }))
   },
 
   async ajouterBlocage(blocage) {
@@ -314,7 +341,8 @@ export const moteurPostgres: MoteurReservation = {
   },
 
   async supprimerBlocage(id) {
-    const resultat = await db().query("delete from blocages where id = $1", [id])
+    // Dates importées d'une plateforme : elles reviendraient à la synchronisation suivante
+    const resultat = await db().query("delete from blocages where id = $1 and calendrier_id is null", [id])
     return (resultat.rowCount ?? 0) > 0
   },
 

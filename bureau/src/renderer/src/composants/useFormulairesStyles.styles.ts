@@ -19,4 +19,8 @@ export const useFormulairesStyles = makeStyles({
   montant: { fontSize: tokens.fontSizeBase500, fontWeight: tokens.fontWeightSemibold, fontVariantNumeric: "tabular-nums" },
   secondaire: { color: tokens.colorNeutralForeground3 },
   nombre: { textAlign: "right", fontVariantNumeric: "tabular-nums" },
+  // Résumé de ce qui change (modification d'une réservation)
+  changements: { margin: 0, paddingLeft: tokens.spacingHorizontalXL, display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXS },
+  // Choix entre deux fiches (fusion de clients)
+  choixFiche: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXS },
 })

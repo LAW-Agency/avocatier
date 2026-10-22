@@ -17,6 +17,8 @@ const pont: PontAvocatier = {
   api: (methode, chemin, corps) => ipcRenderer.invoke("api", methode, chemin, corps),
   ouvrirLien: (url) => ipcRenderer.invoke("lien:ouvrir", url),
   signalerATraiter: (nombre) => ipcRenderer.send("hotes:a-traiter", nombre),
+  enregistrerCsv: (nom, contenu) => ipcRenderer.invoke("fichier:csv", nom, contenu),
+  enregistrerPdf: (nom, html) => ipcRenderer.invoke("fichier:pdf", nom, html),
   reglages: () => ipcRenderer.invoke("reglages:lire"),
   modifierReglages: (modification) => ipcRenderer.invoke("reglages:modifier", modification),
   infos: () => ipcRenderer.invoke("logiciel:infos"),
@@ -24,11 +26,15 @@ const pont: PontAvocatier = {
   reduire: () => ipcRenderer.send("fenetre:reduire"),
   basculerAgrandie: () => ipcRenderer.send("fenetre:agrandir"),
   fermer: () => ipcRenderer.send("fenetre:fermer"),
+  basculerPleinEcran: () => ipcRenderer.send("fenetre:plein-ecran"),
+  zoomer: (sens) => ipcRenderer.send("fenetre:zoom", sens),
   surActivite: (rappel) => abonner("activite", rappel),
   surNavigation: (rappel) => abonner("naviguer", rappel),
   surSessionExpiree: (rappel) => abonner("session:expiree", rappel),
   surAgrandie: (rappel) => abonner("fenetre:agrandie", rappel),
   surReglages: (rappel) => abonner("reglages", rappel),
+  surZoom: (rappel) => abonner("fenetre:zoom", rappel),
+  surPleinEcran: (rappel) => abonner("fenetre:plein-ecran", rappel),
 }
 
 contextBridge.exposeInMainWorld("avocatier", pont)

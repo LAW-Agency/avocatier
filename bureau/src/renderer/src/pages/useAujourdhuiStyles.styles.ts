@@ -1,16 +1,61 @@
 import { makeStyles, tokens } from "@fluentui/react-components"
 
 export const useAujourdhuiStyles = makeStyles({
-  chiffres: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
-  grille: {
+  // Tableau de bord : 4 colonnes (2 sur une fenêtre étroite), widgets de 1 à 4 colonnes ; les trous laissés
+  // par un widget large sont comblés par les suivants (dense)
+  tableau: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 2fr) minmax(340px, 1fr)",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gridAutoFlow: "row dense",
     columnGap: tokens.spacingHorizontalL,
     rowGap: tokens.spacingVerticalL,
-    alignItems: "start",
-    "@media (max-width: 1180px)": { gridTemplateColumns: "minmax(0, 1fr)" },
+    alignItems: "stretch",
+    "@media (max-width: 1180px)": { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
   },
-  colonne: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalL, minWidth: 0 },
+  taille1: { gridColumn: "span 1" },
+  taille2: { gridColumn: "span 2" },
+  taille3: { gridColumn: "span 3", "@media (max-width: 1180px)": { gridColumn: "span 2" } },
+  taille4: { gridColumn: "span 4", "@media (max-width: 1180px)": { gridColumn: "span 2" } },
+  widget: { position: "relative", display: "flex", flexDirection: "column", minWidth: 0, borderRadius: tokens.borderRadiusXLarge },
+  // Mode personnalisation : contour pointillé, barre d'outils au-dessus du contenu, contenu inactif
+  widgetEdition: {
+    cursor: "grab",
+    outline: `${tokens.strokeWidthThick} dashed ${tokens.colorBrandStroke2}`,
+    outlineOffset: "3px",
+    rowGap: tokens.spacingVerticalXS,
+    ":active": { cursor: "grabbing" },
+  },
+  widgetDeplace: { opacity: 0.4 },
+  widgetCible: { outlineColor: tokens.colorBrandStroke1, outlineStyle: "solid", backgroundColor: tokens.colorBrandBackground2 },
+  outils: {
+    display: "flex",
+    alignItems: "center",
+    columnGap: tokens.spacingHorizontalXS,
+    padding: `${tokens.spacingVerticalXXS} ${tokens.spacingHorizontalXS}`,
+    borderRadius: tokens.borderRadiusLarge,
+    backgroundColor: tokens.colorBrandBackground2,
+    color: tokens.colorBrandForeground2,
+  },
+  poignee: { display: "inline-flex", fontSize: tokens.fontSizeBase500, cursor: "grab" },
+  nomWidget: { flex: 1, minWidth: 0, fontWeight: tokens.fontWeightSemibold, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  contenuWidget: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 },
+  contenuInerte: { userSelect: "none" },
+  // Le widget remplit sa case (hauteur de la rangée)
+  remplir: { flex: 1 },
+  barreEdition: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    columnGap: tokens.spacingHorizontalM,
+    rowGap: tokens.spacingVerticalS,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
+    borderRadius: tokens.borderRadiusXLarge,
+    backgroundColor: tokens.colorBrandBackground2,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorBrandStroke2}`,
+  },
+  iconeEdition: { fontSize: tokens.fontSizeBase600, color: tokens.colorBrandForeground1, flexShrink: 0 },
+  iconeLigne: { fontSize: tokens.fontSizeBase500, color: tokens.colorNeutralForeground3, flexShrink: 0 },
+  raccourcis: { display: "flex", flexWrap: "wrap", gap: tokens.spacingHorizontalS },
   liste: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },
   listeSerree: { rowGap: 0 },
   demande: {

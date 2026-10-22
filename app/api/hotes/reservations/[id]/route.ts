@@ -1,6 +1,6 @@
 import { after } from "next/server"
-import { json, lireCorps, pourLesHotes, rafraichirSite } from "@/lib/api/hotes"
-import { notifierDecisionDesHotes } from "@/lib/email/notifications"
+import { decrireReservation, journaliser, json, lireCorps, nomDuMembre, pourLesHotes, rafraichirSite } from "@/lib/api/hotes"
+import { notifierDecisionDesHotes, notifierModificationParLesHotes } from "@/lib/email/notifications"
 import { gestion, moteur } from "@/lib/reservation"
 import type { StatutReservation } from "@/lib/reservation/types"
 
@@ -12,24 +12,65 @@ const NOTES: Partial<Record<StatutReservation, string>> = {
   refusee: "Déclinée par les hôtes",
   annulee: "Annulée par les hôtes",
 }
+const ACTIONS: Record<StatutHote, string> = { confirmee: "Demande confirmée", refusee: "Demande refusée", annulee: "Réservation annulée" }
+const MOUVEMENTS = {
+  arrivee: ["Arrivée enregistrée", "Arrivée annulée"],
+  depart: ["Départ enregistré", "Départ annulé"],
+} as const
+const MOT_MAX = 2000
 
-// { statut } : confirmer ou refuser une demande, annuler une réservation confirmée.
+// { statut, mot? } : confirmer ou refuser une demande, annuler une réservation confirmée ; `mot` : message des
+// hôtes ajouté à l'e-mail du client (et à l'historique).
 // { mouvement: "arrivee" | "depart", annuler? } : arrivée ou départ du client enregistré par la réception.
-export const PATCH = pourLesHotes(async (requete, _membre, contexte: RouteContext<"/api/hotes/reservations/[id]">) => {
+// { modification: { hebergementId, arrivee, depart, adultes, enfants, navette, montantTotal }, prevenir?, mot? } :
+// séjour modifié ; `prevenir` : e-mail au client avec ce qui change.
+export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext<"/api/hotes/reservations/[id]">) => {
   const { id } = await contexte.params
   const corps = await lireCorps(requete)
+  const mot = String(corps?.mot ?? "").trim().slice(0, MOT_MAX)
 
   if (corps?.mouvement === "arrivee" || corps?.mouvement === "depart") {
-    const resultat = await gestion.enregistrerMouvement(id, corps.mouvement, corps.annuler === true)
-    return resultat.ok ? json({ ok: true }) : json({ erreur: resultat.erreur }, 409)
+    const annuler = corps.annuler === true
+    const resultat = await gestion.enregistrerMouvement(id, corps.mouvement, annuler)
+    if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
+    journaliser(membre, "reservation", MOUVEMENTS[corps.mouvement][annuler ? 1 : 0], () => decrireReservation(id))
+    return json({ ok: true })
+  }
+
+  const m = corps?.modification
+  if (m && typeof m === "object" && !Array.isArray(m)) {
+    const champ = (nom: string) => (m as Record<string, unknown>)[nom]
+    const montant = champ("montantTotal")
+    const resultat = await gestion.modifierReservation(
+      id,
+      {
+        hebergementId: String(champ("hebergementId") ?? ""),
+        arrivee: String(champ("arrivee") ?? ""),
+        depart: String(champ("depart") ?? ""),
+        adultes: Number(champ("adultes")),
+        enfants: Number(champ("enfants") ?? 0),
+        navette: champ("navette") === true,
+        montantTotal: montant === null || montant === undefined || montant === "" ? null : Number(montant),
+      },
+      nomDuMembre(membre),
+    )
+    if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
+    const { changements } = resultat
+    if (changements.length > 0) {
+      journaliser(membre, "reservation", "Réservation modifiée", async () => `${await decrireReservation(id)} · ${changements.join(" ; ")}`)
+      if (corps?.prevenir === true) after(() => notifierModificationParLesHotes(id, changements, mot))
+      rafraichirSite()
+    }
+    return json({ ok: true, changements })
   }
 
   const statut = corps?.statut
   if (!estStatutHote(statut)) return json({ erreur: "Action inconnue." }, 400)
-  const resultat = await moteur.changerStatut(id, statut, NOTES[statut])
+  const resultat = await moteur.changerStatut(id, statut, mot ? `${NOTES[statut]} : « ${mot} »` : NOTES[statut])
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
+  journaliser(membre, "reservation", ACTIONS[statut], () => decrireReservation(id))
   // Le client est prévenu par e-mail, après la réponse
-  after(() => notifierDecisionDesHotes(id, statut))
+  after(() => notifierDecisionDesHotes(id, statut, mot))
   rafraichirSite()
   return json({ ok: true })
 })

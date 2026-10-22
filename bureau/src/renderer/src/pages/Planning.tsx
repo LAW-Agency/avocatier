@@ -4,8 +4,10 @@ import {
   Dropdown,
   Field,
   Input,
+  Link,
   MessageBar,
   MessageBarBody,
+  MessageBarTitle,
   Option,
   Spinner,
   Table,
@@ -22,21 +24,23 @@ import {
 } from "@fluentui/react-components"
 import { CalendarAddRegular, CalendarClockRegular, CalendarCancelRegular, ChevronLeftRegular, ChevronRightRegular, LockOpenRegular } from "@fluentui/react-icons"
 import { useState, type CSSProperties, type FormEvent } from "react"
-import { ajouterJours, formaterDate, formaterPlage, nombreNuits, pluriel, versDate } from "@partage/dates"
+import { ajouterJours, chevauche, formaterDate, formaterPlage, nombreNuits, pluriel, versDate } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
-import type { DateISO, Reservation } from "@partage/types"
+import type { Blocage, DateISO, Reservation } from "@partage/types"
+import Calendriers from "../composants/Calendriers"
 import ChampDate from "../composants/ChampDate"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
-import { nomDe, useDonneesChargees } from "../donnees"
+import { blocageGene, doublesReservations, nomDe, useDonneesChargees } from "../donnees"
 import { usePlanningStyles } from "./usePlanningStyles.styles"
 
 const JOURS_AFFICHES = 28
 
 
-type Barre = { cle: string; debut: DateISO; fin: DateISO; libelle: string; detail: string; genre: "option" | "confirmee" | "blocage"; reservation?: Reservation }
+type Barre = { cle: string; debut: DateISO; fin: DateISO; libelle: string; detail: string; genre: "option" | "confirmee" | "blocage" | "conflit"; reservation?: Reservation }
 
 const estWeekEnd = (jour: DateISO) => [0, 6].includes(versDate(jour).getUTCDay())
+const estActive = (r: Reservation) => r.statut === "option" || r.statut === "confirmee"
 
 // Planning : une ligne par hébergement, une colonne par nuit ; réservations et blocages en barres
 export default function Planning() {
@@ -45,22 +49,31 @@ export default function Planning() {
   const [debut, setDebut] = useState(d.aujourdhui)
   const jours = Array.from({ length: JOURS_AFFICHES }, (_, i) => ajouterJours(debut, i))
   const colonnes: CSSProperties = { gridTemplateColumns: `168px repeat(${JOURS_AFFICHES}, minmax(28px, 1fr))` }
+  const calendrierDe = (b: Blocage) => d.calendriers.find((c) => c.id === b.calendrierId)
+  const conflits = doublesReservations(d)
+  const enConflit = new Set(conflits.map((c) => c.blocage.id))
 
   // Nuit déjà prise (réservation active ou dates bloquées)
   const occupee = (hebergementId: string, nuit: DateISO) =>
-    d.reservations.some((r) => r.hebergementId === hebergementId && (r.statut === "option" || r.statut === "confirmee") && r.arrivee <= nuit && r.depart > nuit) ||
+    d.reservations.some((r) => r.hebergementId === hebergementId && estActive(r) && r.arrivee <= nuit && r.depart > nuit) ||
     d.blocages.some((b) => b.hebergementId === hebergementId && b.debut <= nuit && b.fin > nuit)
 
   function barresDe(hebergementId: string): Barre[] {
     const reservations = d.reservations
-      .filter((r) => r.hebergementId === hebergementId && (r.statut === "option" || r.statut === "confirmee"))
+      .filter((r) => r.hebergementId === hebergementId && estActive(r))
       .map((r): Barre => {
         const nom = clientDe(r) ? nomDe(clientDe(r)) : r.reference
         return { cle: r.id, debut: r.arrivee, fin: r.depart, libelle: nom, detail: `${nom}, ${formaterPlage(r.arrivee, r.depart)}, ${libelleStatutHote[r.statut]}`, genre: r.statut === "option" ? "option" : "confirmee", reservation: r }
       })
     const blocages = d.blocages
       .filter((b) => b.hebergementId === hebergementId)
-      .map((b): Barre => ({ cle: b.id, debut: b.debut, fin: b.fin, libelle: b.raison || "Bloqué", detail: `${b.raison || "Dates bloquées"}, ${formaterPlage(b.debut, b.fin)}`, genre: "blocage" }))
+      // Réservation Booking.com saisie à la main et la même importée de Booking.com : une seule barre
+      .filter((b) => !b.calendrierId || !d.reservations.some((r) => r.hebergementId === hebergementId && estActive(r) && chevauche(b.debut, b.fin, r.arrivee, r.depart) && !blocageGene(b, r.source, d.calendriers)))
+      .map((b): Barre => {
+        const libelle = calendrierDe(b)?.nom ?? (b.raison || "Bloqué")
+        const conflit = enConflit.has(b.id)
+        return { cle: b.id, debut: b.debut, fin: b.fin, libelle, detail: `${conflit ? "Double réservation : " : ""}${b.raison || "Dates bloquées"}, ${formaterPlage(b.debut, b.fin)}`, genre: conflit ? "conflit" : "blocage" }
+      })
     return [...reservations, ...blocages]
   }
 
@@ -86,6 +99,20 @@ export default function Planning() {
           </>
         }
       />
+
+      {conflits.length > 0 && (
+        <MessageBar intent="error" layout="multiline">
+          <MessageBarBody>
+            <MessageBarTitle>{conflits.length > 1 ? `${conflits.length} doubles réservations` : "Double réservation"}</MessageBarTitle>
+            {conflits.map(({ blocage: b, reservation: r }) => (
+              <div key={`${b.id}-${r.id}`}>
+                {calendrierDe(b)?.nom ?? "Une plateforme"} bloque {d.hebergements.find((h) => h.id === b.hebergementId)?.nom} {formaterPlage(b.debut, b.fin)}, déjà pris par{" "}
+                <FicheReservation reservation={r} declencheur={<Link>{r.reference} ({nomDe(clientDe(r))})</Link>} />. Déplacez ou annulez l&apos;une des deux réservations.
+              </div>
+            ))}
+          </MessageBarBody>
+        </MessageBar>
+      )}
 
       <div className={styles.cadre}>
         <div className={styles.defilement}>
@@ -158,17 +185,24 @@ export default function Planning() {
             <span className={mergeClasses(styles.pastille, styles.option)} /> Demande à traiter
           </Caption1>
           <Caption1>
-            <span className={mergeClasses(styles.pastille, styles.blocage)} /> Dates bloquées
+            <span className={mergeClasses(styles.pastille, styles.blocage)} /> Dates bloquées (ou importées d&apos;une plateforme)
           </Caption1>
+          {conflits.length > 0 && (
+            <Caption1>
+              <span className={mergeClasses(styles.pastille, styles.conflit)} /> Double réservation
+            </Caption1>
+          )}
         </div>
       </div>
 
       <div className={styles.bas}>
-        <Carte titre="Bloquer des dates" description="Réservation reçue par téléphone, WhatsApp ou Booking.com, travaux ou fermeture : ces nuits ne seront plus proposées sur le site.">
+        <Carte titre="Bloquer des dates" description="Travaux, fermeture, privatisation : ces nuits ne seront plus proposées sur le site. Pour Booking.com ou Airbnb, reliez plutôt leur calendrier ci-dessous.">
           <FormulaireBlocage />
         </Carte>
         <BlocagesAVenir />
       </div>
+
+      <Calendriers />
     </>
   )
 }
@@ -241,7 +275,8 @@ function BlocagesAVenir() {
   const styles = usePlanningStyles()
   const { d, executer } = useDonneesChargees()
   const [erreur, setErreur] = useState<string | null>(null)
-  const blocages = d.blocages.filter((b) => b.fin > d.aujourdhui).sort((a, b) => a.debut.localeCompare(b.debut))
+  // Dates fermées à la main ; celles des plateformes se gèrent dans la carte des calendriers
+  const blocages = d.blocages.filter((b) => !b.calendrierId && b.fin > d.aujourdhui).sort((a, b) => a.debut.localeCompare(b.debut))
 
   async function liberer(id: string) {
     const resultat = await executer("DELETE", `/api/hotes/blocages/${encodeURIComponent(id)}`)

@@ -1,6 +1,7 @@
 import {
   Avatar,
   Body1,
+  Button,
   Caption1,
   Dropdown,
   Option,
@@ -14,7 +15,7 @@ import {
   Text,
   mergeClasses,
 } from "@fluentui/react-components"
-import { MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
+import { ArrowDownloadRegular, MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
 import { useState } from "react"
 import { formaterHeure, formaterPlage, formaterPrix } from "@partage/dates"
 import type { ModePaiement, Reservation } from "@partage/types"
@@ -23,6 +24,8 @@ import FicheReservation from "../composants/FicheReservation"
 import { Histogramme, Indicateur, Repartition } from "../composants/graphiques"
 import { useCadreTableStyles } from "../composants/useCommunStyles.styles"
 import { nomDe, soldeDe, useDonneesChargees } from "../donnees"
+import { csvEncaissements } from "../exports"
+import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT, NOMS_SOURCES } from "../libelles"
 import { debutDeMois, encaissementsDans, evolution, indicateurs, nomDuMois, parMois, periodes, PERIODES, repartition, type ChoixPeriode } from "../statistiques"
 import { useGestionStyles } from "./useGestionStyles.styles"
@@ -33,6 +36,7 @@ export default function Revenus() {
   const styles = useGestionStyles()
   const cadre = useCadreTableStyles()
   const { d, clientDe, hebergementDe } = useDonneesChargees()
+  const { exporter } = useFichiers()
   const [choix, setChoix] = useState<ChoixPeriode>("mois")
   const { actuelle, precedente } = periodes(choix, d.aujourdhui)
   const maintenant = indicateurs(d, actuelle)
@@ -64,13 +68,22 @@ export default function Revenus() {
         titre="Revenus"
         description="Chiffre d'affaires des séjours confirmés (réparti nuit par nuit), encaissements et reste à encaisser."
         actions={
-          <Dropdown className={styles.periode} value={PERIODES[choix]} selectedOptions={[choix]} onOptionSelect={(_e, data) => setChoix(data.optionValue as ChoixPeriode)} aria-label="Période">
-            {(Object.keys(PERIODES) as ChoixPeriode[]).map((c) => (
-              <Option key={c} value={c}>
-                {PERIODES[c]}
-              </Option>
-            ))}
-          </Dropdown>
+          <>
+            <Dropdown className={styles.periode} value={PERIODES[choix]} selectedOptions={[choix]} onOptionSelect={(_e, data) => setChoix(data.optionValue as ChoixPeriode)} aria-label="Période">
+              {(Object.keys(PERIODES) as ChoixPeriode[]).map((c) => (
+                <Option key={c} value={c}>
+                  {PERIODES[c]}
+                </Option>
+              ))}
+            </Dropdown>
+            <Button
+              icon={<ArrowDownloadRegular />}
+              disabled={encaissements.length === 0}
+              onClick={() => exporter(`Encaissements ${PERIODES[choix].toLowerCase()}`, csvEncaissements(encaissements, d))}
+            >
+              Exporter les encaissements
+            </Button>
+          </>
         }
       />
 

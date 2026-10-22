@@ -1,4 +1,4 @@
-import type { EtatChambre, ModePaiement, Reservation } from "@partage/types"
+import type { EtatChambre, ModePaiement, Plateforme, Reservation } from "@partage/types"
 import type { RoleEquipe } from "../../partage/ipc"
 
 // Libellés affichés par le logiciel (les valeurs viennent de la base, voir lib/reservation/types.ts)
@@ -7,6 +7,7 @@ import type { RoleEquipe } from "../../partage/ipc"
 export const SOURCES: Record<Reservation["source"], string> = {
   site: "sur le site",
   booking: "via Booking.com",
+  airbnb: "via Airbnb",
   telephone: "par téléphone",
   whatsapp: "par WhatsApp",
   sur_place: "à la réception",
@@ -16,9 +17,17 @@ export const SOURCES: Record<Reservation["source"], string> = {
 export const NOMS_SOURCES: Record<Reservation["source"], string> = {
   site: "Site internet",
   booking: "Booking.com",
+  airbnb: "Airbnb",
   telephone: "Téléphone",
   whatsapp: "WhatsApp",
   sur_place: "Sur place",
+}
+
+// Plateformes dont on importe le calendrier
+export const PLATEFORMES: Record<Plateforme, string> = {
+  booking: "Booking.com",
+  airbnb: "Airbnb",
+  autre: "Autre plateforme",
 }
 
 export const MODES_PAIEMENT: Record<ModePaiement, string> = {

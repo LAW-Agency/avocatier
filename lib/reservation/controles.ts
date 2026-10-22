@@ -1,9 +1,14 @@
-import { ajouterJours, aujourdhuiISO, estDateISO, nombreNuits } from "./dates"
+import { ajouterJours, aujourdhuiISO, estDateISO, formaterPlage, formaterPrix, nombreNuits, pluriel } from "./dates"
 import { CODES_DEVISES, DEVISE_REFERENCE } from "./devises"
 import { chevauchementSaisons, deplierSaisons, estJourAnnee, NUITS_MAX, verifierDates } from "./regles"
 import type {
   Blocage,
   DateISO,
+  ModificationClient,
+  ModificationReservation,
+  NouveauCalendrier,
+  Plateforme,
+  ReglagesFacturation,
   EtatChambre,
   ModePaiement,
   NouveauClientLocal,
@@ -145,7 +150,7 @@ export function normaliserDevises({
 // --- Logiciel des hôtes : réception, encaissements, équipe ---
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-export const SOURCES_DIRECTES = ["telephone", "whatsapp", "booking", "sur_place"] as const
+export const SOURCES_DIRECTES = ["telephone", "whatsapp", "booking", "airbnb", "sur_place"] as const
 export const MODES_PAIEMENT: ModePaiement[] = ["especes", "carte", "mobile_money", "virement", "autre"]
 export const ETATS_CHAMBRE: EtatChambre[] = ["propre", "a_nettoyer", "maintenance"]
 export const MOT_DE_PASSE_MIN = 8
@@ -169,6 +174,52 @@ export function controlerReservationDirecte(r: ReservationDirecte, hebergement: 
   return null
 }
 
+// Réservation modifiée par l'équipe (demande ou séjour confirmé) : mêmes règles que la saisie directe, plus ce
+// qui est déjà arrivé (client sur place : date d'arrivée figée ; client parti : plus rien ne change). Le jour du
+// départ, le séjour peut encore être prolongé.
+export function controlerModification(
+  avant: Reservation,
+  m: ModificationReservation,
+  hebergement: Hebergement | undefined,
+  aujourdhui: DateISO,
+): string | null {
+  if (avant.statut !== "option" && avant.statut !== "confirmee") return "Seules les demandes et les réservations confirmées se modifient."
+  if (avant.departLe || avant.depart < aujourdhui) return "Ce séjour est terminé : il ne peut plus être modifié."
+  if (!hebergement) return "Choisissez un hébergement."
+  if (!estDateISO(m.arrivee) || !estDateISO(m.depart)) return "Dates invalides."
+  if (m.depart <= m.arrivee) return "Le départ doit suivre l'arrivée."
+  if (nombreNuits(m.arrivee, m.depart) > 90) return "Séjour de 90 nuits au plus."
+  if (avant.arriveeLe && m.arrivee !== avant.arrivee) return "Le client est déjà arrivé : sa date d'arrivée ne change plus."
+  if (m.arrivee !== avant.arrivee && m.arrivee < ajouterJours(aujourdhui, -1)) return "La nouvelle date d'arrivée est déjà passée."
+  if (m.depart < aujourdhui) return "La date de départ est déjà passée."
+  if (!Number.isInteger(m.adultes) || !Number.isInteger(m.enfants) || m.adultes < 1 || m.enfants < 0) return "Nombre de voyageurs invalide."
+  if (m.adultes + m.enfants > hebergement.capaciteMax) return `${hebergement.nom} accueille ${hebergement.capaciteMax} personnes au maximum.`
+  if (m.montantTotal !== null && (!Number.isInteger(m.montantTotal) || !estEntre(m.montantTotal, 0, MONTANT_MAX))) {
+    return "Saisissez un montant entier en euros."
+  }
+  return null
+}
+
+const voyageurs = (adultes: number, enfants: number) => [pluriel(adultes, "adulte"), enfants ? pluriel(enfants, "enfant") : ""].filter(Boolean).join(", ")
+
+// Ce qui change, en clair, pour l'historique, le journal et l'e-mail au client (vide : rien ne change)
+export function changementsReservation(
+  avant: Reservation,
+  apres: Omit<ModificationReservation, "montantTotal"> & { montantTotal: number },
+  nomHebergement: (id: string) => string,
+): string[] {
+  const navette = (oui: boolean) => (oui ? "demandée" : "non demandée")
+  return [
+    avant.hebergementId !== apres.hebergementId && `Hébergement : ${nomHebergement(avant.hebergementId)} → ${nomHebergement(apres.hebergementId)}`,
+    (avant.arrivee !== apres.arrivee || avant.depart !== apres.depart) &&
+      `Dates : ${formaterPlage(avant.arrivee, avant.depart)} → ${formaterPlage(apres.arrivee, apres.depart)}`,
+    (avant.adultes !== apres.adultes || avant.enfants !== apres.enfants) &&
+      `Voyageurs : ${voyageurs(avant.adultes, avant.enfants)} → ${voyageurs(apres.adultes, apres.enfants)}`,
+    avant.navette !== apres.navette && `Navette : ${navette(avant.navette)} → ${navette(apres.navette)}`,
+    avant.montantTotal !== apres.montantTotal && `Montant : ${formaterPrix(avant.montantTotal)} → ${formaterPrix(apres.montantTotal)}`,
+  ].filter((c): c is string => Boolean(c))
+}
+
 export function controlerPaiement(montant: number, mode: string): string | null {
   if (!Number.isInteger(montant) || montant === 0 || !estEntre(Math.abs(montant), 1, MONTANT_MAX)) {
     return "Saisissez un montant entier en euros (négatif pour un remboursement)."
@@ -181,6 +232,51 @@ export function controlerClientLocal(c: NouveauClientLocal): string | null {
   if (!c.prenom.trim() && !c.nom.trim()) return "Saisissez au moins le prénom ou le nom du client."
   if (c.email && !EMAIL.test(c.email)) return "Cette adresse e-mail n'est pas valide."
   return null
+}
+
+// Coordonnées corrigées par l'équipe ; un compte du site garde une adresse e-mail (c'est son identifiant)
+export function controlerModificationClient(c: ModificationClient, compteDuSite: boolean): string | null {
+  if (!c.prenom.trim() && !c.nom.trim()) return "Saisissez au moins le prénom ou le nom du client."
+  if (compteDuSite && !c.email.trim()) return "Ce client a un compte sur le site : son adresse e-mail est obligatoire, elle lui sert à se connecter."
+  if (c.email && !EMAIL.test(c.email)) return "Cette adresse e-mail n'est pas valide."
+  return null
+}
+
+// --- Calendriers des plateformes (iCal) ---
+
+export const PLATEFORMES: Plateforme[] = ["booking", "airbnb", "autre"]
+const NOM_CALENDRIER_MAX = 40
+
+export function controlerCalendrier(c: NouveauCalendrier, hebergement: Hebergement | undefined): string | null {
+  if (!hebergement) return "Choisissez un hébergement."
+  if (!PLATEFORMES.includes(c.plateforme)) return "Choisissez la plateforme."
+  if (!c.nom.trim() || c.nom.length > NOM_CALENDRIER_MAX) return `Donnez au calendrier un nom de ${NOM_CALENDRIER_MAX} caractères au plus.`
+  if (c.urlImport) {
+    let url: URL
+    try {
+      url = new URL(c.urlImport)
+    } catch {
+      return "Ce lien n'est pas une adresse valide : copiez le lien d'exportation iCal donné par la plateforme."
+    }
+    if (url.protocol !== "https:") return "Le lien du calendrier doit commencer par https://."
+  }
+  return null
+}
+
+// --- Factures ---
+
+const FACTURATION_MAX = { raisonSociale: 120, adresse: 300, telephone: 40, email: 120, identifiants: 300, mentions: 1000 }
+
+export function normaliserFacturation(r: Partial<Record<keyof ReglagesFacturation, unknown>>): ReglagesFacturation {
+  const texte = (cle: keyof ReglagesFacturation) => String(r[cle] ?? "").trim().slice(0, FACTURATION_MAX[cle])
+  return {
+    raisonSociale: texte("raisonSociale"),
+    adresse: texte("adresse"),
+    telephone: texte("telephone"),
+    email: texte("email"),
+    identifiants: texte("identifiants"),
+    mentions: texte("mentions"),
+  }
 }
 
 export function controlerMembre({ prenom, email }: { prenom: string; email: string }, motDePasse: string): string | null {

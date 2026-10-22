@@ -3,9 +3,10 @@ import { join } from "node:path"
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, Notification, shell, Tray } from "electron"
 import iconeIco from "../../resources/icon.ico?asset"
 import icone from "../../resources/icon.png?asset"
-import type { Annonce, Hote, Methode, Reglages } from "../partage/ipc"
+import { NIVEAUX_ZOOM, type Annonce, type Hote, type Methode, type Reglages } from "../partage/ipc"
 import { appeler, quandJetonRefuse } from "./api"
 import { lireEtatFenetre, suivreEtatFenetre } from "./fenetre"
+import { enregistrerCsv, enregistrerPdf } from "./fichiers"
 import { lireReglages, modifierReglages } from "./reglages"
 import { fermer, memoriser, ouvrir, SERVEUR_PAR_DEFAUT, sessionActive } from "./session"
 import { arreterSuivi, demarrerSuivi } from "./suivi"
@@ -49,6 +50,53 @@ function mettreAJourTitre() {
   zone?.setToolTip(aTraiter > 0 ? `${NOM} : ${aTraiter} demande${aTraiter > 1 ? "s" : ""} à traiter` : NOM)
 }
 
+// Zoom de l'interface, gardé dans les réglages du poste ; l'interface affiche le nouveau facteur
+function zoomer(sens: "plus" | "moins" | "initial") {
+  if (!fenetre) return
+  const rang = NIVEAUX_ZOOM.findIndex((n) => n >= fenetre!.webContents.getZoomFactor() - 0.001)
+  const actuel = rang === -1 ? NIVEAUX_ZOOM.length - 1 : rang
+  const suivant = sens === "initial" ? 1 : NIVEAUX_ZOOM[Math.min(NIVEAUX_ZOOM.length - 1, Math.max(0, actuel + (sens === "plus" ? 1 : -1)))]
+  fenetre.webContents.setZoomFactor(suivant)
+  fenetre.webContents.send("reglages", modifierReglages({ zoom: suivant }))
+  fenetre.webContents.send("fenetre:zoom", suivant)
+}
+
+function basculerPleinEcran() {
+  fenetre?.setFullScreen(!fenetre.isFullScreen())
+}
+
+// Raccourcis de la fenêtre (le logiciel n'a pas de menu, donc aucun raccourci de Chromium par défaut) :
+// F11 plein écran, Ctrl + / Ctrl - / Ctrl 0 zoom (pavé numérique compris)
+function raccourcis(fenetre: BrowserWindow) {
+  fenetre.webContents.on("before-input-event", (e, input) => {
+    if (input.type !== "keyDown") return
+    if (input.key === "F11" && !input.control && !input.alt) {
+      e.preventDefault()
+      basculerPleinEcran()
+      return
+    }
+    if (!input.control || input.alt) return
+    const sens =
+      input.key === "+" || input.key === "=" || input.code === "NumpadAdd"
+        ? "plus"
+        : input.key === "-" || input.code === "NumpadSubtract"
+          ? "moins"
+          : input.key === "0" || input.code === "Numpad0"
+            ? "initial"
+            : null
+    if (!sens) return
+    e.preventDefault()
+    zoomer(sens)
+  })
+  // Ctrl + molette de la souris (ou pincement du pavé tactile)
+  fenetre.webContents.on("zoom-changed", (_e, direction) => zoomer(direction === "in" ? "plus" : "moins"))
+  // Zoom gardé d'un lancement à l'autre (Chromium le remet à 100 % à chaque chargement)
+  fenetre.webContents.on("did-finish-load", () => fenetre.webContents.setZoomFactor(lireReglages().zoom))
+  const pleinEcran = (valeur: boolean) => () => fenetre.webContents.send("fenetre:plein-ecran", valeur)
+  fenetre.on("enter-full-screen", pleinEcran(true))
+  fenetre.on("leave-full-screen", pleinEcran(false))
+}
+
 function creerFenetre() {
   const etat = lireEtatFenetre()
   fenetre = new BrowserWindow({
@@ -82,6 +130,7 @@ function creerFenetre() {
   if (process.platform === "win32") fenetre.setAppDetails({ appId: ID_APPLICATION, appIconPath: iconeIco, relaunchDisplayName: NOM })
   if (etat.agrandie) fenetre.maximize()
   suivreEtatFenetre(fenetre)
+  raccourcis(fenetre)
 
   // Affichage seulement quand l'interface a peint son premier écran avec le bon thème (signal de l'interface,
   // « fenetre:prete ») : plus de fenêtre blanche, de thème qui bascule ni de mise en page qui saute au lancement.
@@ -152,7 +201,7 @@ function annoncer(annonces: Annonce[]) {
     const notification = new Notification({ title: a.titre, body: a.detail, icon: icone })
     notification.on("click", () => {
       afficher()
-      fenetre?.webContents.send("naviguer", a.filtre)
+      fenetre?.webContents.send("naviguer", a.vers)
     })
     notification.show()
   }
@@ -194,13 +243,24 @@ ipcMain.handle("session:connexion", async (_e, email: string, motDePasse: string
   return { ok: true, donnees: resultat.donnees.hote }
 })
 
-ipcMain.handle("session:deconnexion", () => deconnecter())
+ipcMain.handle("session:deconnexion", () => {
+  // Notée au journal d'activité, sans attendre le serveur : le jeton est lu avant d'être oublié
+  void appeler("POST", "/api/hotes/deconnexion")
+  deconnecter()
+})
 
 ipcMain.handle("api", (_e, methode: Methode, chemin: string, corps?: unknown) => appeler(methode, chemin, corps))
 
 ipcMain.handle("lien:ouvrir", (_e, url: string) => {
   if (/^(https?:|mailto:|tel:)/.test(url)) return shell.openExternal(url)
 })
+
+ipcMain.handle("fichier:csv", (_e, nom: unknown, contenu: unknown) =>
+  typeof nom === "string" && typeof contenu === "string" ? enregistrerCsv(fenetre, nom, contenu) : { erreur: "Export invalide." },
+)
+ipcMain.handle("fichier:pdf", (_e, nom: unknown, html: unknown) =>
+  typeof nom === "string" && typeof html === "string" ? enregistrerPdf(fenetre, nom, html) : { erreur: "Document invalide." },
+)
 
 ipcMain.handle("reglages:lire", () => lireReglages())
 ipcMain.handle("reglages:modifier", (_e, modification: Partial<Reglages>) => {
@@ -217,6 +277,10 @@ ipcMain.handle("logiciel:infos", () => ({ version: app.getVersion(), installe: a
 ipcMain.on("fenetre:reduire", () => fenetre?.minimize())
 ipcMain.on("fenetre:agrandir", () => (fenetre?.isMaximized() ? fenetre.unmaximize() : fenetre?.maximize()))
 ipcMain.on("fenetre:fermer", () => fenetre?.close())
+ipcMain.on("fenetre:plein-ecran", basculerPleinEcran)
+ipcMain.on("fenetre:zoom", (_e, sens: unknown) => {
+  if (sens === "plus" || sens === "moins" || sens === "initial") zoomer(sens)
+})
 
 ipcMain.on("hotes:a-traiter", (_e, nombre: number) => {
   aTraiter = Number.isInteger(nombre) && nombre > 0 ? nombre : 0

@@ -211,7 +211,10 @@ export function alerteNouvelleDemande(s: Sejour): Message {
   })
 }
 
-export function decisionDesHotes(s: Sejour, statut: "confirmee" | "refusee" | "annulee"): Message {
+// Mot écrit par les hôtes au moment d'agir (refus, annulation, modification) : un paragraphe tel quel
+const motDesHotes = (mot?: string): string[] => (mot?.trim() ? [mot.trim()] : [])
+
+export function decisionDesHotes(s: Sejour, statut: "confirmee" | "refusee" | "annulee", mot?: string): Message {
   const r = s.reservation
   const bonjour = `Bonjour ${s.client.prenom},`
   if (statut === "confirmee") {
@@ -235,6 +238,7 @@ export function decisionDesHotes(s: Sejour, statut: "confirmee" | "refusee" | "a
       paragraphes: [
         bonjour,
         `${HOTES} ne peuvent malheureusement pas vous accueillir à ces dates. Votre demande est close et aucun paiement n’a été demandé.`,
+        ...motDesHotes(mot),
         "D’autres dates ou un autre hébergement vous conviendraient peut-être.",
       ],
       sections: [{ titre: "Votre demande", lignes: recapitulatif(s) }],
@@ -244,9 +248,41 @@ export function decisionDesHotes(s: Sejour, statut: "confirmee" | "refusee" | "a
   return message(`Réservation annulée : ${s.hebergement.nom}, ${plage(r)}`, {
     apercu: `Votre réservation ${r.reference} est annulée.`,
     titre: "Votre réservation est annulée",
-    paragraphes: [bonjour, `${HOTES} ont annulé votre réservation ${r.reference}. Pour toute question, il suffit de répondre à cet e-mail.`],
+    paragraphes: [
+      bonjour,
+      `${HOTES} ont annulé votre réservation ${r.reference}.`,
+      ...motDesHotes(mot),
+      "Pour toute question, il suffit de répondre à cet e-mail.",
+    ],
     sections: votreSejour(s),
     bouton: { libelle: "Voir mon compte", url: urlDuSite("/compte") },
+  })
+}
+
+// Séjour modifié par les hôtes (dates, hébergement, voyageurs, montant) : ce qui change, puis le séjour à jour
+export function modificationParLesHotes(s: Sejour, changements: string[], mot?: string): Message {
+  const r = s.reservation
+  return message(`Votre séjour ${r.reference} a été modifié`, {
+    apercu: changements.join(" · "),
+    titre: r.statut === "option" ? "Votre demande a été modifiée" : "Votre séjour a été modifié",
+    paragraphes: [
+      `Bonjour ${s.client.prenom},`,
+      `${HOTES} ont mis à jour votre ${r.statut === "option" ? "demande" : "réservation"} ${r.reference}. Voici ce qui change ; le récapitulatif ci-dessous est à jour.`,
+      ...motDesHotes(mot),
+    ],
+    sections: [
+      // « Dates : 12 – 15 nov. → 13 – 16 nov. » : libellé à gauche, changement à droite
+      {
+        titre: "Ce qui change",
+        lignes: changements.map((c): Ligne => {
+          const [quoi, ...detail] = c.split(" : ")
+          return [quoi, detail.join(" : ")]
+        }),
+      },
+      ...votreSejour(s),
+    ],
+    bouton: { libelle: "Voir mon séjour", url: urlDuSite("/compte") },
+    notes: ["Une question ou un changement qui ne vous convient pas ? Il suffit de répondre à cet e-mail."],
   })
 }
 

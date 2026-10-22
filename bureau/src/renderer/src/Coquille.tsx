@@ -22,19 +22,11 @@ import {
   NavItem,
   NavSectionHeader,
   ProgressBar,
-  SearchBox,
   Text,
   Skeleton,
   SkeletonItem,
-  Toast,
-  ToastBody,
-  ToastTitle,
-  ToastTrigger,
-  Toaster,
   Tooltip,
   mergeClasses,
-  useId,
-  useToastController,
 } from "@fluentui/react-components"
 import {
   ArrowSyncRegular,
@@ -45,8 +37,11 @@ import {
   CalendarLtrRegular,
   DataTrendingFilled,
   DataTrendingRegular,
-  DismissRegular,
+  BookOpenFilled,
+  BookOpenRegular,
   GlobeRegular,
+  HistoryFilled,
+  HistoryRegular,
   HomeFilled,
   HomeRegular,
   MailInboxFilled,
@@ -65,19 +60,21 @@ import {
   bundleIcon,
   type FluentIcon,
 } from "@fluentui/react-icons"
-import { useEffect, useEffectEvent, useState, type ReactNode } from "react"
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
 import { pluriel } from "@partage/dates"
-import type { StatutReservation } from "@partage/types"
-import type { Annonce } from "../../partage/ipc"
+import type { Annonce, Destination } from "../../partage/ipc"
 import embleme from "./assets/embleme-blanc.svg"
 import { BarreTitre } from "./composants/BarreTitre"
 import NouvelleReservation from "./composants/NouvelleReservation"
+import { RechercheGlobale } from "./composants/RechercheGlobale"
 import { PAGES_GERANTS, useDonnees, type Vue } from "./donnees"
 import { ROLES } from "./libelles"
 import Aujourdhui from "./pages/Aujourdhui"
 import Chambres from "./pages/Chambres"
 import Clients from "./pages/Clients"
 import FicheClient from "./pages/FicheClient"
+import Guide from "./pages/Guide"
+import Journal from "./pages/Journal"
 import Parametres from "./pages/Parametres"
 import Planning from "./pages/Planning"
 import Reservations from "./pages/Reservations"
@@ -86,6 +83,7 @@ import Statistiques from "./pages/Statistiques"
 import Tarifs from "./pages/Tarifs"
 import Utilisateurs from "./pages/Utilisateurs"
 import { situationDuJour } from "./situation"
+import { useAnnoncer } from "./toasts"
 import { useCoquilleStyles } from "./useCoquilleStyles.styles"
 
 type PageNav = Exclude<Vue["page"], "client">
@@ -117,6 +115,11 @@ const ACTIVITE: Rubrique[] = [
     libelle: "Clients",
     Icone: bundleIcon(PeopleFilled, PeopleRegular),
   },
+  {
+    page: "journal",
+    libelle: "Journal",
+    Icone: bundleIcon(HistoryFilled, HistoryRegular),
+  },
 ]
 
 const GESTION: Rubrique[] = [
@@ -142,6 +145,12 @@ const GESTION: Rubrique[] = [
   },
 ]
 
+const GUIDE: Rubrique = {
+  page: "guide",
+  libelle: "Guide",
+  Icone: bundleIcon(BookOpenFilled, BookOpenRegular),
+}
+
 const PARAMETRES: Rubrique = {
   page: "parametres",
   libelle: "Paramètres",
@@ -151,10 +160,10 @@ const PARAMETRES: Rubrique = {
 // Fenêtre principale une fois connecté : barre de titre avec recherche, navigation à gauche, écran courant
 export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void }) {
   const styles = useCoquilleStyles()
-  const { donnees, erreur, recharger, vue, naviguer, recherche, setRecherche, ouvrirNouvelleReservation } = useDonnees()
+  const { donnees, erreur, recharger, vue, naviguer, ouvrirNouvelleReservation } = useDonnees()
   const [navOuverte, setNavOuverte] = useState(true)
-  const idToasts = useId("annonces")
-  const { dispatchToast } = useToastController(idToasts)
+  const champRecherche = useRef<HTMLInputElement>(null)
+  const { annoncer } = useAnnoncer()
   const gerant = donnees?.hote.role === "hote"
 
   const aTraiter = donnees?.reservations.filter((r) => r.statut === "option").length ?? 0
@@ -164,30 +173,42 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const surActivite = useEffectEvent((annonces: Annonce[]) => {
     void recharger()
     for (const a of annonces) {
-      dispatchToast(
-        <Toast>
-          <ToastTitle
-            action={
-              <ToastTrigger>
-                <Button appearance="transparent" size="small" icon={<DismissRegular />} aria-label="Fermer" />
-              </ToastTrigger>
-            }
-          >
-            {a.titre}
-          </ToastTitle>
-          <ToastBody subtitle={<Link onClick={() => naviguer({ page: "reservations", filtre: a.filtre })}>Voir les réservations</Link>}>{a.detail}</ToastBody>
-        </Toast>,
-        { toastId: a.id, intent: "info", timeout: 60_000, pauseOnHover: true },
-      )
+      annoncer({
+        id: a.id,
+        titre: a.titre,
+        texte: a.detail,
+        lien: <Link onClick={() => naviguer(a.vers)}>{a.vers.page === "planning" ? "Voir le planning" : "Voir les réservations"}</Link>,
+        // Double réservation : reste affichée jusqu'à ce qu'on la ferme
+        ...(a.alerte ? { intent: "error" as const, duree: -1 } : { duree: 60_000 }),
+      })
     }
   })
-  const surNavigation = useEffectEvent((filtre: StatutReservation) => naviguer({ page: "reservations", filtre }))
+  const surNavigation = useEffectEvent((vers: Destination) => naviguer(vers))
+  // Raccourcis de l'interface (zoom et plein écran : processus principal) : Ctrl + F recherche, Ctrl + N
+  // nouvelle réservation, F1 guide
+  const surTouche = useEffectEvent((e: KeyboardEvent) => {
+    if (!donnees) return
+    const touche = e.key.toLowerCase()
+    if (e.ctrlKey && !e.altKey && !e.shiftKey && touche === "f") {
+      e.preventDefault()
+      champRecherche.current?.focus()
+      champRecherche.current?.select()
+    } else if (e.ctrlKey && !e.altKey && !e.shiftKey && touche === "n") {
+      e.preventDefault()
+      ouvrirNouvelleReservation()
+    } else if (e.key === "F1") {
+      e.preventDefault()
+      naviguer({ page: "guide" })
+    }
+  })
   useEffect(() => {
     const finActivite = window.avocatier.surActivite(surActivite)
     const finNavigation = window.avocatier.surNavigation(surNavigation)
+    window.addEventListener("keydown", surTouche)
     return () => {
       finActivite()
       finNavigation()
+      window.removeEventListener("keydown", surTouche)
     }
   }, [])
 
@@ -224,25 +245,18 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   else if (vue.page === "statistiques") ecran = <Statistiques />
   else if (vue.page === "tarifs") ecran = <Tarifs />
   else if (vue.page === "utilisateurs") ecran = <Utilisateurs />
+  else if (vue.page === "journal") ecran = <Journal />
+  else if (vue.page === "guide") ecran = <Guide key={vue.section} section={vue.section} />
   else ecran = <Parametres onDeconnexion={onDeconnexion} />
 
   return (
     <div className={styles.coquille}>
       <BarreTitre
         centre={
-          <SearchBox
-            className={styles.recherche}
-            placeholder="Rechercher un client, une référence, un hébergement"
-            value={recherche}
-            onChange={(_e, d) => {
-              setRecherche(d.value)
-              if (d.value && vue.page !== "reservations") naviguer({ page: "reservations", filtre: null })
-            }}
-            disabled={!donnees}
-          />
+          <RechercheGlobale ref={champRecherche} className={styles.recherche} disabled={!donnees} />
         }
         actions={
-          <Tooltip content="Nouvelle réservation" relationship="label">
+          <Tooltip content="Nouvelle réservation (Ctrl + N)" relationship="label">
             <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees} onClick={() => ouvrirNouvelleReservation()} />
           </Tooltip>
         }
@@ -308,6 +322,9 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
                   </Caption1>
                 </div>
               )}
+              <NavItem value={GUIDE.page} icon={<GUIDE.Icone className={styles.iconeNav} />} className={lienNav(GUIDE.page)}>
+                {GUIDE.libelle}
+              </NavItem>
               <NavItem value={PARAMETRES.page} icon={<PARAMETRES.Icone className={styles.iconeNav} />} className={lienNav(PARAMETRES.page)}>
                 {PARAMETRES.libelle}
               </NavItem>
@@ -329,7 +346,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
             <Tooltip content="Ouvrir la navigation" relationship="label">
               <Hamburger onClick={() => setNavOuverte(true)} />
             </Tooltip>
-            {[...rubriques, PARAMETRES].map(({ page, libelle, Icone }) => (
+            {[...rubriques, GUIDE, PARAMETRES].map(({ page, libelle, Icone }) => (
               <Tooltip key={page} content={libelle} relationship="label" positioning="after">
                 <div className={styles.railBouton}>
                   <Button
@@ -375,7 +392,6 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
       </div>
 
       {donnees && <NouvelleReservation />}
-      <Toaster toasterId={idToasts} position="bottom-end" />
     </div>
   )
 }

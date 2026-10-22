@@ -36,13 +36,15 @@ interface ChampDateProps {
   min?: DateISO
   id?: string
   className?: string
+  disabled?: boolean
 }
 
-export default function ChampDate({ valeur, onChange, min, id, className }: ChampDateProps) {
+export default function ChampDate({ valeur, onChange, min, id, className, disabled }: ChampDateProps) {
   return (
     <DatePicker
       id={id}
       className={className}
+      disabled={disabled}
       value={valeur ? depuisISO(valeur) : null}
       onSelectDate={(date) => onChange(date ? versISO(date) : "")}
       minDate={min ? depuisISO(min) : undefined}

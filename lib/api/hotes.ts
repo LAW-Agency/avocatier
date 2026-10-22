@@ -1,8 +1,9 @@
 import { revalidatePath } from "next/cache"
-import { NextResponse, type NextRequest } from "next/server"
+import { after, NextResponse, type NextRequest } from "next/server"
 import { verifierJeton } from "@/lib/auth/session"
-import { comptes } from "@/lib/reservation"
-import type { ClientPublic } from "@/lib/reservation/types"
+import { comptes, gestion, moteur } from "@/lib/reservation"
+import { formaterPlage } from "@/lib/reservation/dates"
+import type { CategorieJournal, ClientPublic } from "@/lib/reservation/types"
 
 // API du logiciel des hôtes (application Electron du dossier bureau/, routes app/api/hotes/) : jeton signé
 // envoyé dans « Authorization: Bearer … », même format et même durée que le cookie de session du site.
@@ -59,6 +60,36 @@ export const pourLesGerants = <Contexte>(traiter: (requete: NextRequest, membre:
   pourLesHotes(traiter, ["hote"])
 
 export const nomDuMembre = (membre: Pick<ClientPublic, "prenom" | "nom">) => `${membre.prenom} ${membre.nom}`.trim()
+
+// Action de l'équipe notée au journal d'activité (écran Journal du logiciel), après la réponse : le détail peut
+// demander des lectures en base sans ralentir l'action. Un échec d'écriture du journal n'annule pas l'action.
+export function journaliser(
+  membre: Pick<Membre, "id" | "prenom" | "nom">,
+  categorie: CategorieJournal,
+  action: string,
+  detail: string | (() => Promise<string>) = "",
+) {
+  after(async () => {
+    try {
+      const texte = typeof detail === "string" ? detail : await detail()
+      await gestion.noterActivite({ membreId: membre.id, auteur: nomDuMembre(membre), categorie, action, detail: texte })
+    } catch (erreur) {
+      console.error("Journal d'activité :", erreur)
+    }
+  })
+}
+
+// « AVO-2026-0042 · Joëlle Martin · 12 – 15 nov. » pour le journal
+export async function decrireReservation(id: string): Promise<string> {
+  const r = await moteur.trouverReservation(id)
+  if (!r) return "Réservation supprimée"
+  const client = await comptes.trouverParId(r.clientId)
+  return [r.reference, client && nomDuMembre(client), formaterPlage(r.arrivee, r.depart)].filter(Boolean).join(" · ")
+}
+
+export async function nomHebergement(id: string): Promise<string> {
+  return (await moteur.listerHebergements()).find((h) => h.id === id)?.nom ?? id
+}
 
 // Une décision des hôtes change les disponibilités ou les prix : calendrier de réservation, fiches,
 // compte des clients et devises de la vitrine sont à régénérer

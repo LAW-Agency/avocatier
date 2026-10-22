@@ -5,6 +5,7 @@ import { after } from "next/server"
 import { clientConnecte } from "@/lib/auth/dal"
 import { notifierNouvelleDemande } from "@/lib/email/notifications"
 import { moteur } from "@/lib/reservation"
+import { synchroniserCalendriers } from "@/lib/reservation/calendriers"
 
 export type EtatDemande = {
   erreur?: string
@@ -21,6 +22,11 @@ export async function envoyerDemande(_etat: EtatDemande, formData: FormData): Pr
   const texte = (nom: string) => String(formData.get(nom) ?? "").trim()
   const telephone = texte("telephone")
   if (!telephone) return { erreur: "Indiquez un numéro de téléphone ou WhatsApp pour que les hôtes puissent vous joindre." }
+
+  // Dates des plateformes (Booking.com, Airbnb…) rafraîchies juste avant de vérifier la disponibilité, si leur
+  // dernière importation date de plus de 10 minutes ; une plateforme lente ne bloque pas la demande plus de 4 s
+  const hebergementId = texte("hebergementId")
+  if (hebergementId) await synchroniserCalendriers({ hebergementId, ageMinMs: 10 * 60_000, delaiMs: 4_000 }).catch(() => [])
 
   const resultat = await moteur.creerDemande(client.id, {
     hebergementId: texte("hebergementId"),

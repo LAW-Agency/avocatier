@@ -20,6 +20,7 @@ import photo from "./assets/connexion.jpeg"
 import { BarreTitre } from "./composants/BarreTitre"
 import { Logotype } from "./composants/Logotype"
 import { useReglages } from "./reglages"
+import { useAnnoncer } from "./toasts"
 import { useConnexionStyles } from "./useConnexionStyles.styles"
 
 // Récupération du mot de passe sur le site (même parcours que les clients) ; adresse saisie illisible :
@@ -51,6 +52,7 @@ export default function Connexion({ serveurParDefaut, expiree, onConnecte }: Con
   const [parametres, setParametres] = useState(false)
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const { annoncer } = useAnnoncer()
 
   async function envoyer(e: FormEvent) {
     e.preventDefault()
@@ -58,7 +60,10 @@ export default function Connexion({ serveurParDefaut, expiree, onConnecte }: Con
     setErreur(null)
     const resultat = await window.avocatier.connexion(email, motDePasse, serveur, seSouvenir)
     setEnCours(false)
-    if (!resultat.ok) return setErreur(resultat.erreur)
+    if (!resultat.ok) {
+      annoncer({ id: "connexion", titre: "Connexion refusée", texte: resultat.erreur, intent: "error", duree: 8000 })
+      return setErreur(resultat.erreur)
+    }
     onConnecte({ hote: resultat.donnees, serveur })
   }
 
