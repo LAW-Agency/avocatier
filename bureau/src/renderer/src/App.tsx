@@ -1,11 +1,13 @@
-import { FluentProvider, Spinner, tokens } from "@fluentui/react-components"
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { FluentProvider, Spinner, Toaster, tokens } from "@fluentui/react-components"
+import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react"
 import type { Reglages, Session } from "../../partage/ipc"
 import Connexion from "./Connexion"
 import Coquille from "./Coquille"
 import { FournisseurDonnees } from "./donnees"
+import { ROLES } from "./libelles"
 import { ContexteReglages } from "./reglages"
 import { themeClair, themeSombre } from "./theme"
+import { TOASTER, useAnnoncer } from "./toasts"
 import { useAppStyles, useBarresDeDefilement } from "./useAppStyles.styles"
 
 // Fenêtre avec Mica (Windows 11) : voir MICA dans src/main/index.ts
@@ -32,6 +34,27 @@ export default function App() {
   const [etat, setEtat] = useState<Etat>({ chargement: true })
   const [reglages, setReglages] = useState<Reglages | null>(null)
   const sombre = reglages?.theme === "sombre" || (reglages?.theme !== "clair" && systemeSombre)
+  const { annoncer } = useAnnoncer()
+
+  // Notifications de la fenêtre : zoom (Ctrl + / Ctrl -), plein écran (F11), session refusée par le serveur
+  const surZoom = useEffectEvent((facteur: number) =>
+    annoncer({ id: "zoom", titre: `Zoom : ${Math.round(facteur * 100)} %`, texte: "Ctrl + pour agrandir, Ctrl - pour réduire, Ctrl 0 pour revenir à 100 %.", duree: 2500 }),
+  )
+  const surPleinEcran = useEffectEvent((pleinEcran: boolean) =>
+    annoncer({ id: "plein-ecran", titre: pleinEcran ? "Plein écran" : "Plein écran quitté", texte: pleinEcran ? "Appuyez sur F11 pour revenir à la fenêtre." : undefined, duree: 2500 }),
+  )
+  const surExpiree = useEffectEvent(() =>
+    annoncer({
+      titre: "Session expirée",
+      texte: "Le serveur a refusé votre connexion (mot de passe changé, compte désactivé ou session trop ancienne). Reconnectez-vous.",
+      intent: "warning",
+      duree: 10_000,
+    }),
+  )
+  // Connexion gardée depuis le lancement précédent (« Se souvenir de moi »)
+  const surSessionReprise = useEffectEvent((session: Session) =>
+    annoncer({ titre: `Bon retour, ${session.hote.prenom}`, texte: `Connexion reprise en tant que ${ROLES[session.hote.role].toLowerCase()}.`, intent: "success" }),
+  )
 
   useEffect(() => {
     let annule = false
@@ -39,14 +62,22 @@ export default function App() {
       if (annule) return
       setReglages(r)
       setEtat({ chargement: false, session, serveurParDefaut })
+      if (session) surSessionReprise(session)
     })
     // Jeton refusé par le serveur (expiré, mot de passe changé, compte désactivé) : retour à la connexion
-    const finExpiree = window.avocatier.surSessionExpiree(() => setEtat((e) => (e.chargement ? e : { ...e, session: null, expiree: true })))
+    const finExpiree = window.avocatier.surSessionExpiree(() => {
+      setEtat((e) => (e.chargement ? e : { ...e, session: null, expiree: true }))
+      surExpiree()
+    })
     const finReglages = window.avocatier.surReglages(setReglages)
+    const finZoom = window.avocatier.surZoom(surZoom)
+    const finPleinEcran = window.avocatier.surPleinEcran(surPleinEcran)
     return () => {
       annule = true
       finExpiree()
       finReglages()
+      finZoom()
+      finPleinEcran()
     }
   }, [])
 
@@ -74,8 +105,10 @@ export default function App() {
           <FournisseurDonnees key={etat.session.hote.email}>
             <Coquille
               onDeconnexion={async () => {
+                const prenom = etat.session?.hote.prenom
                 await window.avocatier.deconnexion()
                 setEtat({ ...etat, session: null, expiree: false })
+                annoncer({ titre: "Vous êtes déconnecté", texte: `À bientôt${prenom ? `, ${prenom}` : ""}. Les nouvelles demandes ne sont plus suivies sur cet ordinateur.` })
               }}
             />
           </FournisseurDonnees>
@@ -83,10 +116,14 @@ export default function App() {
           <Connexion
             serveurParDefaut={etat.serveurParDefaut}
             expiree={etat.expiree ?? false}
-            onConnecte={(session) => setEtat({ ...etat, session, serveurParDefaut: session.serveur, expiree: false })}
+            onConnecte={(session) => {
+              setEtat({ ...etat, session, serveurParDefaut: session.serveur, expiree: false })
+              annoncer({ titre: "Connexion réussie", texte: `Bienvenue, ${session.hote.prenom}. Vous êtes connecté en tant que ${ROLES[session.hote.role].toLowerCase()}.`, intent: "success" })
+            }}
           />
         )}
       </ContexteReglages>
+      <Toaster toasterId={TOASTER} position="bottom-end" />
     </FluentProvider>
   )
 }

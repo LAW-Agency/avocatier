@@ -11,20 +11,46 @@ import {
   DialogTitle,
   DialogTrigger,
   Link,
+  Spinner,
   Subtitle2,
   Text,
+  Tooltip,
 } from "@fluentui/react-components"
-import { CallRegular, ChatRegular, DismissRegular, MailRegular, VehicleBusRegular } from "@fluentui/react-icons"
+import { CallRegular, ChatRegular, DismissRegular, DocumentPdfRegular, MailRegular, VehicleBusRegular } from "@fluentui/react-icons"
 import { useState, type ReactElement, type ReactNode } from "react"
 import { formaterHeure, formaterPlage, formaterPrix, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
 import { libelleEvenement } from "@partage/statuts"
 import type { Reservation } from "@partage/types"
 import { estTermine, nomDe, useDonneesChargees } from "../donnees"
+import { useFichiers } from "../fichiers"
 import { SOURCES } from "../libelles"
 import ActionsReservation, { BoutonReception } from "./ActionsReservation"
 import { BadgeStatut } from "./commun"
 import Encaissements from "./Encaissements"
+import ModifierReservation from "./ModifierReservation"
 import { useFicheStyles } from "./useReservationStyles.styles"
+
+// Facture PDF d'un séjour confirmé (numéro attribué à la première édition)
+function BoutonFacture({ reservation: r }: { reservation: Reservation }) {
+  const { imprimerFacture } = useFichiers()
+  const [enCours, setEnCours] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  return (
+    <Tooltip content={erreur ?? (r.factureNumero ? `Facture ${r.factureNumero}, éditée le ${formaterHeure(r.factureLe ?? r.creeLe)}` : "Attribue un numéro de facture et enregistre le PDF")} relationship="description">
+      <Button
+        icon={enCours ? <Spinner size="tiny" /> : <DocumentPdfRegular />}
+        disabled={enCours}
+        onClick={async () => {
+          setEnCours(true)
+          setErreur(await imprimerFacture(r))
+          setEnCours(false)
+        }}
+      >
+        {r.factureNumero ? "Facture" : "Éditer la facture"}
+      </Button>
+    </Tooltip>
+  )
+}
 
 function Fait({ titre, children }: { titre: string; children: ReactNode }) {
   const styles = useFicheStyles()
@@ -57,6 +83,9 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
   const termine = estTermine(r, d.aujourdhui)
   const restant = r.statut === "option" && r.expireLe ? tempsRestant(r.expireLe) : null
   const actions = !termine && (r.statut === "option" || r.statut === "confirmee")
+  // Le jour du départ, un séjour se prolonge encore (pas une fois le départ enregistré)
+  const modifiable = (r.statut === "option" || r.statut === "confirmee") && !r.departLe && r.depart >= d.aujourdhui
+  const facturable = r.statut === "confirmee"
   const telephone = r.telephone || client?.telephone
 
   return (
@@ -83,6 +112,7 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
             <span>{formaterPlage(r.arrivee, r.depart)}</span>
             <Caption1 className={styles.description}>
               Réservation {r.reference}, reçue le {formaterHeure(r.creeLe)} {SOURCES[r.source]}
+              {r.factureNumero && ` · facture ${r.factureNumero}`}
             </Caption1>
           </DialogTitle>
 
@@ -184,9 +214,13 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
             </aside>
           </DialogContent>
 
-          {actions && (
+          {(actions || modifiable || facturable) && (
             <DialogActions fluid className={styles.pied}>
-              <ActionsReservation reservationId={r.id} statut={r.statut} reference={r.reference} alignement="fin" />
+              <div className={styles.outils}>
+                {modifiable && <ModifierReservation reservation={r} />}
+                {facturable && <BoutonFacture reservation={r} />}
+              </div>
+              {actions && <ActionsReservation reservationId={r.id} statut={r.statut} reference={r.reference} alignement="fin" />}
             </DialogActions>
           )}
         </DialogBody>

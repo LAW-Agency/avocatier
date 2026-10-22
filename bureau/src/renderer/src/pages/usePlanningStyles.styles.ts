@@ -90,6 +90,12 @@ export const usePlanningStyles = makeStyles({
     color: tokens.colorNeutralForeground2,
     boxShadow: `inset 0 0 0 ${tokens.strokeWidthThin} ${tokens.colorNeutralStroke1}`,
   },
+  // Dates d'une plateforme sur une de nos réservations : à régler sans attendre
+  conflit: {
+    backgroundColor: tokens.colorStatusDangerBackground2,
+    color: tokens.colorStatusDangerForeground2,
+    boxShadow: `inset 0 0 0 ${tokens.strokeWidthThick} ${tokens.colorStatusDangerBorder2}`,
+  },
   legende: {
     display: "flex",
     flexWrap: "wrap",

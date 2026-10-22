@@ -1,4 +1,5 @@
 import { json, pourLesHotes } from "@/lib/api/hotes"
+import { urlDuSite } from "@/lib/email/modeles"
 import { comptes, gestion, moteur } from "@/lib/reservation"
 import { aujourdhuiISO } from "@/lib/reservation/dates"
 
@@ -6,7 +7,7 @@ import { aujourdhuiISO } from "@/lib/reservation/dates"
 // changement signalé par le suivi en direct). L'équipe n'est envoyée qu'aux gérants.
 export const GET = pourLesHotes(async (_requete, membre) => {
   const gerant = membre.role === "hote"
-  const [reservations, clients, hebergements, blocages, saisons, devises, chambres, paiements, equipe] = await Promise.all([
+  const [reservations, clients, hebergements, blocages, saisons, devises, chambres, paiements, equipe, calendriers, facturation] = await Promise.all([
     moteur.toutesLesReservations(),
     comptes.listerClients(),
     moteur.listerHebergements(),
@@ -16,6 +17,8 @@ export const GET = pourLesHotes(async (_requete, membre) => {
     gestion.listerChambres(),
     gestion.listerPaiements(),
     gerant ? gestion.listerEquipe() : Promise.resolve([]),
+    gestion.listerCalendriers(),
+    gestion.reglagesFacturation(),
   ])
   return json({
     hote: { id: membre.id, prenom: membre.prenom, nom: membre.nom, email: membre.email, role: membre.role },
@@ -33,5 +36,8 @@ export const GET = pourLesHotes(async (_requete, membre) => {
     devises,
     paiements,
     equipe: equipe.map(({ id, prenom, nom, email, role, actif, creeLe }) => ({ id, prenom, nom, email, role, actif, creeLe })),
+    // Lien d'export complet (adresse publique du site), à coller dans la plateforme ; le jeton reste côté serveur
+    calendriers: calendriers.map(({ jeton, ...c }) => ({ ...c, urlExport: urlDuSite(`/calendrier/${jeton}.ics`) })),
+    facturation,
   })
 })

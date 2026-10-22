@@ -9,26 +9,46 @@ import {
   Button,
   Caption1,
   Divider,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   MessageBar,
   MessageBarBody,
   Spinner,
   Subtitle2,
   Textarea,
+  Tooltip,
   mergeClasses,
 } from "@fluentui/react-components"
-import { CalendarAddRegular, CallRegular, EarthRegular, MailRegular, PeopleRegular, SaveRegular } from "@fluentui/react-icons"
+import {
+  CalendarAddRegular,
+  CallRegular,
+  EarthRegular,
+  EditRegular,
+  MailRegular,
+  MoreHorizontalRegular,
+  PeopleRegular,
+  PeopleSwapRegular,
+  PersonDeleteRegular,
+  SaveRegular,
+} from "@fluentui/react-icons"
 import { useState } from "react"
 import { formaterHeure, formaterPrix, nombreNuits } from "@partage/dates"
 import type { ClientPublic } from "@partage/types"
 import { Carte, EnTete, Vide } from "../composants/commun"
+import { FenetresClient, type FenetreClient } from "../composants/GestionClient"
 import TableReservations from "../composants/TableReservations"
 import { nomDe, soldeDe, useDonneesChargees } from "../donnees"
 import { useFicheClientStyles } from "./useClientsStyles.styles"
 
-// Fiche d'un client : coordonnées, chiffres et note interne, puis ses séjours à venir et passés
+// Fiche d'un client : coordonnées, chiffres et note interne, puis ses séjours à venir et passés. Coordonnées
+// modifiables par toute l'équipe ; fusion de deux fiches et effacement (RGPD) réservés aux gérants
 export default function FicheClient({ id }: { id: string }) {
   const styles = useFicheClientStyles()
-  const { d, naviguer, ouvrirNouvelleReservation } = useDonneesChargees()
+  const { d, gerant, naviguer, ouvrirNouvelleReservation } = useDonneesChargees()
+  const [fenetre, setFenetre] = useState<FenetreClient | null>(null)
   const client = d.clients.find((c) => c.id === id)
 
   const filAriane = (
@@ -78,8 +98,13 @@ export default function FicheClient({ id }: { id: string }) {
             )}
           </span>
         }
-        description={`Fiche créée le ${formaterHeure(client.creeLe)}${client.origine === "site" ? " (compte du site)" : ""}`}
+        description={
+          client.effaceLe
+            ? `Données effacées à la demande du client le ${formaterHeure(client.effaceLe)} : seuls ses séjours restent, pour la comptabilité.`
+            : `Fiche créée le ${formaterHeure(client.creeLe)}${client.origine === "site" ? " (compte du site)" : ""}`
+        }
         actions={
+          !client.effaceLe && (
           <>
             {client.telephone && (
               <Button icon={<CallRegular />} onClick={() => window.avocatier.ouvrirLien(`tel:${client.telephone.replace(/\s/g, "")}`)}>
@@ -91,12 +116,36 @@ export default function FicheClient({ id }: { id: string }) {
                 Écrire
               </Button>
             )}
+            <Button icon={<EditRegular />} onClick={() => setFenetre("coordonnees")}>
+              Modifier
+            </Button>
+            {gerant && (
+              <Menu>
+                <MenuTrigger disableButtonEnhancement>
+                  <Tooltip content="Autres actions" relationship="label">
+                    <Button icon={<MoreHorizontalRegular />} />
+                  </Tooltip>
+                </MenuTrigger>
+                <MenuPopover>
+                  <MenuList>
+                    <MenuItem icon={<PeopleSwapRegular />} onClick={() => setFenetre("fusion")}>
+                      Fusionner avec une autre fiche…
+                    </MenuItem>
+                    <MenuItem icon={<PersonDeleteRegular />} onClick={() => setFenetre("effacement")}>
+                      Effacer les données du client…
+                    </MenuItem>
+                  </MenuList>
+                </MenuPopover>
+              </Menu>
+            )}
             <Button appearance="primary" icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation({ clientId: client.id })}>
               Nouvelle réservation
             </Button>
           </>
+          )
         }
       />
+      <FenetresClient key={client.id} client={client} ouverte={fenetre} onFermer={() => setFenetre(null)} />
 
       <Carte>
         <div className={styles.resume}>
@@ -125,7 +174,7 @@ export default function FicheClient({ id }: { id: string }) {
         </div>
       </Carte>
 
-      <NoteInterne key={client.id} client={client} />
+      {!client.effaceLe && <NoteInterne key={`${client.id}-${client.note}`} client={client} />}
 
       <section className={styles.section}>
         <Subtitle2 as="h2" className={styles.titreSection}>

@@ -1,10 +1,10 @@
-import { json, lireCorps, pourLesGerants, rafraichirSite } from "@/lib/api/hotes"
+import { journaliser, json, lireCorps, pourLesGerants, rafraichirSite } from "@/lib/api/hotes"
 import { moteur } from "@/lib/reservation"
 import type { RegleSaison } from "@/lib/reservation/types"
 
 // Nouveaux tarifs : { prix: { hebergementId: euros }, saisons: RegleSaison[] }, revérifiés par le moteur
 // (controlerTarifs). Les réservations existantes gardent leur montant.
-export const PUT = pourLesGerants(async (requete) => {
+export const PUT = pourLesGerants(async (requete, membre) => {
   const corps = await lireCorps(requete)
   const prix = corps?.prix && typeof corps.prix === "object" ? (corps.prix as Record<string, unknown>) : {}
   const saisons = Array.isArray(corps?.saisons) ? (corps.saisons as Record<string, unknown>[]) : []
@@ -23,6 +23,12 @@ export const PUT = pourLesGerants(async (requete) => {
     ),
   })
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 400)
+  journaliser(
+    membre,
+    "tarifs",
+    "Tarifs modifiés",
+    `${Object.keys(prix).length} prix de base · ${saisons.length} saison${saisons.length > 1 ? "s" : ""}${saisons.length ? ` (${saisons.map((s) => String(s?.nom ?? "")).join(", ")})` : ""}`,
+  )
   rafraichirSite()
   return json({ ok: true })
 })

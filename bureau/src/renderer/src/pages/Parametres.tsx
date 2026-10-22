@@ -1,6 +1,10 @@
-import { Body1, Button, Caption1, Dropdown, Option, Subtitle2, Switch } from "@fluentui/react-components"
+import { Body1, Button, Caption1, Dropdown, Field, Input, MessageBar, MessageBarBody, Option, Spinner, Subtitle2, Switch, Textarea, Tooltip, mergeClasses } from "@fluentui/react-components"
 import {
   AlertRegular,
+  SaveRegular,
+  FullScreenMaximizeRegular,
+  ZoomInRegular,
+  ZoomOutRegular,
   ArrowExitRegular,
   BrightnessHighRegular,
   DesktopRegular,
@@ -11,8 +15,9 @@ import {
   WindowRegular,
   type FluentIcon,
 } from "@fluentui/react-icons"
-import { useEffect, useState, type ReactNode } from "react"
-import type { InfosLogiciel, Theme } from "../../../partage/ipc"
+import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import type { ReglagesFacturation } from "@partage/types"
+import { NIVEAUX_ZOOM, type InfosLogiciel, type Theme } from "../../../partage/ipc"
 import { EnTete } from "../composants/commun"
 import { nomDe, useDonneesChargees } from "../donnees"
 import { ROLES } from "../libelles"
@@ -47,11 +52,75 @@ function Groupe({ titre, children }: { titre: string; children: ReactNode }) {
   )
 }
 
+// Coordonnées de l'hôtel imprimées sur les factures et les reçus (gérants), communes à toute l'équipe : gardées
+// sur le serveur, pas sur ce poste
+function Facturation({ initiales }: { initiales: ReglagesFacturation }) {
+  const styles = useParametresStyles()
+  const { executer } = useDonneesChargees()
+  const [valeurs, setValeurs] = useState(initiales)
+  const [enCours, setEnCours] = useState(false)
+  const [etat, setEtat] = useState<{ erreur?: string; ok?: boolean }>({})
+  const champ = (nom: keyof ReglagesFacturation) => ({
+    value: valeurs[nom],
+    onChange: (_e: unknown, data: { value: string }) => {
+      setValeurs({ ...valeurs, [nom]: data.value })
+      setEtat({})
+    },
+  })
+
+  async function enregistrer(e: FormEvent) {
+    e.preventDefault()
+    setEnCours(true)
+    const resultat = await executer("PUT", "/api/hotes/facturation", valeurs)
+    setEnCours(false)
+    setEtat(resultat.ok ? { ok: true } : { erreur: resultat.erreur })
+  }
+
+  return (
+    <form className={styles.formulaire} onSubmit={enregistrer}>
+      <Caption1 className={mergeClasses(styles.explication, styles.pleine)}>
+        En-tête et pied des factures et des reçus PDF (fiche d&apos;une réservation). Communs à toute l&apos;équipe.
+      </Caption1>
+      <Field label="Nom de l'établissement" required>
+        <Input {...champ("raisonSociale")} maxLength={120} />
+      </Field>
+      <Field label="Identifiants légaux" hint="NIF, STAT, RCS… une ligne chacun">
+        <Textarea {...champ("identifiants")} resize="vertical" maxLength={300} rows={2} />
+      </Field>
+      <Field label="Adresse">
+        <Textarea {...champ("adresse")} resize="vertical" maxLength={300} rows={2} />
+      </Field>
+      <div className={styles.colonne}>
+        <Field label="Téléphone">
+          <Input type="tel" {...champ("telephone")} maxLength={40} />
+        </Field>
+        <Field label="E-mail">
+          <Input type="email" {...champ("email")} maxLength={120} />
+        </Field>
+      </div>
+      <Field label="Mentions en bas des factures" hint="Conditions de paiement, coordonnées bancaires, mobile money…" className={styles.pleine}>
+        <Textarea {...champ("mentions")} resize="vertical" maxLength={1000} rows={3} />
+      </Field>
+      {etat.erreur && (
+        <MessageBar intent="error" className={styles.pleine}>
+          <MessageBarBody>{etat.erreur}</MessageBarBody>
+        </MessageBar>
+      )}
+      <div className={mergeClasses(styles.commande, styles.pleine)}>
+        <Button type="submit" appearance="primary" disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
+          Enregistrer
+        </Button>
+        {etat.ok && <Caption1>Enregistré : les prochaines factures et les prochains reçus en tiendront compte.</Caption1>}
+      </div>
+    </form>
+  )
+}
+
 // Paramètres du poste (gardés sur cet ordinateur) et du compte connecté
 export default function Parametres({ onDeconnexion }: { onDeconnexion: () => void }) {
   const styles = useParametresStyles()
   const { reglages, modifier } = useReglages()
-  const { d } = useDonneesChargees()
+  const { d, gerant } = useDonneesChargees()
   const [infos, setInfos] = useState<InfosLogiciel | null>(null)
   const [serveur, setServeur] = useState("")
   useEffect(() => {
@@ -72,6 +141,22 @@ export default function Parametres({ onDeconnexion }: { onDeconnexion: () => voi
               </Option>
             ))}
           </Dropdown>
+        </Ligne>
+        <Ligne Icone={ZoomInRegular} titre="Taille de l'affichage" explication="Raccourcis : Ctrl + pour agrandir, Ctrl - pour réduire, Ctrl 0 pour revenir à 100 % (ou Ctrl + molette).">
+          <Tooltip content="Réduire (Ctrl -)" relationship="label">
+            <Button icon={<ZoomOutRegular />} disabled={reglages.zoom <= NIVEAUX_ZOOM[0]} onClick={() => window.avocatier.zoomer("moins")} />
+          </Tooltip>
+          <Button appearance="subtle" className={styles.zoom} onClick={() => window.avocatier.zoomer("initial")} title="Revenir à 100 % (Ctrl 0)">
+            {Math.round(reglages.zoom * 100)} %
+          </Button>
+          <Tooltip content="Agrandir (Ctrl +)" relationship="label">
+            <Button icon={<ZoomInRegular />} disabled={reglages.zoom >= NIVEAUX_ZOOM[NIVEAUX_ZOOM.length - 1]} onClick={() => window.avocatier.zoomer("plus")} />
+          </Tooltip>
+        </Ligne>
+        <Ligne Icone={FullScreenMaximizeRegular} titre="Plein écran" explication="Masque la barre des tâches de Windows. Raccourci : F11 pour entrer et sortir.">
+          <Button icon={<FullScreenMaximizeRegular />} onClick={() => window.avocatier.basculerPleinEcran()}>
+            Basculer (F11)
+          </Button>
         </Ligne>
       </Groupe>
 
@@ -103,6 +188,12 @@ export default function Parametres({ onDeconnexion }: { onDeconnexion: () => voi
           <Button onClick={onDeconnexion}>Se déconnecter</Button>
         </Ligne>
       </Groupe>
+
+      {gerant && (
+        <Groupe titre="Factures et reçus">
+          <Facturation initiales={d.facturation} />
+        </Groupe>
+      )}
 
       <Groupe titre="À propos">
         <Ligne Icone={InfoRegular} titre="Chez L'Avocatier, logiciel des hôtes" explication={`Version ${infos?.version ?? "…"} · LAW Agency`} />

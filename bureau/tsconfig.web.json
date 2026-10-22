@@ -13,5 +13,5 @@
     "noEmit": true,
     "paths": { "@partage/*": ["../lib/reservation/*"] }
   },
-  "include": ["src/renderer/**/*", "src/preload/*.d.ts", "src/partage/**/*", "../lib/reservation/dates.ts", "../lib/reservation/devises.ts", "../lib/reservation/regles.ts", "../lib/reservation/statuts.ts", "../lib/reservation/tauxDeChange.ts", "../lib/reservation/types.ts"]
+  "include": ["src/renderer/**/*", "src/preload/*.d.ts", "src/partage/**/*", "../lib/reservation/controles.ts", "../lib/reservation/dates.ts", "../lib/reservation/devises.ts", "../lib/reservation/regles.ts", "../lib/reservation/statuts.ts", "../lib/reservation/tauxDeChange.ts", "../lib/reservation/types.ts"]
 }

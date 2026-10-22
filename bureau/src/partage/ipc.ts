@@ -15,11 +15,24 @@ export type Methode = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 export type ResultatApi<T = unknown> = { ok: true; donnees: T } | { ok: false; erreur: string; statut?: number }
 
-// Nouveauté venue des clients (ou de l'échéance d'une option), annoncée par le suivi en direct.
-// `filtre` : liste des réservations à ouvrir quand on clique sur l'annonce
-export type Annonce = { id: string; titre: string; detail: string; filtre: StatutReservation }
+// Écran ouvert par un clic sur une annonce : liste des réservations filtrée, ou planning (calendriers des plateformes)
+export type Destination = { page: "reservations"; filtre: StatutReservation } | { page: "planning" }
+
+// Nouveauté venue des clients, de l'échéance d'une option ou d'une plateforme (Booking.com, Airbnb…), annoncée
+// par le suivi en direct. `alerte` : à régler sans attendre (double réservation)
+export type Annonce = { id: string; titre: string; detail: string; vers: Destination; alerte?: boolean }
+
+// Fichier enregistré par le logiciel (export, facture) : chemin choisi, ou null si l'enregistrement est abandonné
+export type ResultatFichier = { chemin: string } | { erreur: string } | null
 
 export type Theme = "systeme" | "clair" | "sombre"
+
+// Tableau de bord « Aujourd'hui » : widgets affichés, dans l'ordre, avec leur largeur (colonnes sur 4)
+export type TailleWidget = 1 | 2 | 3 | 4
+export type PlaceWidget = { id: string; taille: TailleWidget }
+
+// Zoom de l'interface (Ctrl + / Ctrl - / Ctrl 0, Ctrl + molette) : facteurs proposés, comme dans un navigateur
+export const NIVEAUX_ZOOM = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const
 
 // Préférences du poste, gardées par le processus principal (fichier reglages.json du dossier utilisateur)
 export type Reglages = {
@@ -29,6 +42,8 @@ export type Reglages = {
   demarrage: boolean // lancer le logiciel à l'ouverture de la session Windows
   seSouvenir: boolean // garder la connexion d'un lancement à l'autre
   dernierEmail: string // proposé à l'écran de connexion (si seSouvenir)
+  zoom: number // facteur de NIVEAUX_ZOOM
+  tableau: PlaceWidget[] | null // null : disposition d'origine
 }
 
 export type InfosLogiciel = { version: string; installe: boolean }
@@ -44,6 +59,10 @@ export interface PontAvocatier {
   ouvrirLien(url: string): Promise<void>
   // Nombre de demandes à traiter : titre de la fenêtre et info-bulle de l'icône de notification
   signalerATraiter(nombre: number): void
+  // Export pour un tableur : CSV en UTF-8 (avec BOM, pour Excel), à l'endroit choisi dans « Enregistrer sous »
+  enregistrerCsv(nom: string, contenu: string): Promise<ResultatFichier>
+  // Facture ou reçu : page HTML complète mise en PDF A4, enregistrée puis ouverte
+  enregistrerPdf(nom: string, html: string): Promise<ResultatFichier>
 
   reglages(): Promise<Reglages>
   modifierReglages(modification: Partial<Reglages>): Promise<Reglages>
@@ -56,11 +75,17 @@ export interface PontAvocatier {
   reduire(): void
   basculerAgrandie(): void
   fermer(): void
+  // Mêmes effets que F11 et Ctrl + / Ctrl - / Ctrl 0 (paramètres, menu du compte)
+  basculerPleinEcran(): void
+  zoomer(sens: "plus" | "moins" | "initial"): void
 
   // Abonnements : renvoient la fonction de désabonnement
   surActivite(rappel: (annonces: Annonce[]) => void): () => void
-  surNavigation(rappel: (filtre: StatutReservation) => void): () => void
+  surNavigation(rappel: (vers: Destination) => void): () => void
   surSessionExpiree(rappel: () => void): () => void
   surAgrandie(rappel: (agrandie: boolean) => void): () => void
   surReglages(rappel: (reglages: Reglages) => void): () => void
+  // Zoom changé (facteur) et passage en plein écran : annoncés par l'interface
+  surZoom(rappel: (facteur: number) => void): () => void
+  surPleinEcran(rappel: (pleinEcran: boolean) => void): () => void
 }

@@ -7,6 +7,7 @@ import {
   annulationParLeClient,
   decisionDesHotes,
   lienDeReinitialisation,
+  modificationParLesHotes,
   motDePasseModifie,
   type Sejour,
 } from "./modeles"
@@ -51,10 +52,19 @@ export function notifierNouvelleDemande(reservationId: string) {
   })
 }
 
-export function notifierDecisionDesHotes(reservationId: string, statut: "confirmee" | "refusee" | "annulee") {
+// `mot` : message écrit par les hôtes au moment de refuser ou d'annuler (facultatif)
+export function notifierDecisionDesHotes(reservationId: string, statut: "confirmee" | "refusee" | "annulee", mot?: string) {
   return sansErreur("décision des hôtes", async () => {
     const s = await sejour(reservationId)
-    if (s) await envoyerEmail({ a: s.client.email, repondreA: hotes()[0], ...decisionDesHotes(s, statut) })
+    // Client de la réception sans adresse : rien à envoyer
+    if (s?.client.email) await envoyerEmail({ a: s.client.email, repondreA: hotes()[0], ...decisionDesHotes(s, statut, mot) })
+  })
+}
+
+export function notifierModificationParLesHotes(reservationId: string, changements: string[], mot?: string) {
+  return sansErreur("modification par les hôtes", async () => {
+    const s = await sejour(reservationId)
+    if (s?.client.email) await envoyerEmail({ a: s.client.email, repondreA: hotes()[0], ...modificationParLesHotes(s, changements, mot) })
   })
 }
 

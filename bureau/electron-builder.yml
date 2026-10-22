@@ -13,8 +13,14 @@ extraResources:
 win:
   icon: resources/icon.ico
   target: nsis
+# Images de l'installateur : resources/installerSidebar.bmp et installerHeader.bmp (trouvées d'office dans
+# buildResources), tirées de resources/installation.png par scripts/images-installateur.mjs
 nsis:
   oneClick: false
+  include: resources/installer.nsh
+  language: "1036"
+  installerLanguages:
+    - fr_FR
   allowToChangeInstallationDirectory: true
   shortcutName: Chez L'Avocatier
   uninstallDisplayName: Chez L'Avocatier

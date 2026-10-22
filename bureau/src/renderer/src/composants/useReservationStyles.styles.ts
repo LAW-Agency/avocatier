@@ -63,7 +63,16 @@ export const useFicheStyles = makeStyles({
       backgroundColor: tokens.colorBrandBackground,
     },
   },
-  pied: { padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXXL}`, borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}` },
+  pied: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    columnGap: tokens.spacingHorizontalM,
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXXL}`,
+    borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
+  // Modifier, facture : à gauche du pied ; la décision (confirmer, refuser, annuler) reste à droite
+  outils: { display: "flex", flexWrap: "wrap", columnGap: tokens.spacingHorizontalS, rowGap: tokens.spacingVerticalS },
 })
 
 export const useEncaissementsStyles = makeStyles({
@@ -77,7 +86,7 @@ export const useEncaissementsStyles = makeStyles({
   liste: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column" },
   ligne: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto auto",
+    gridTemplateColumns: "minmax(0, 1fr) auto auto auto",
     alignItems: "center",
     columnGap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalS} 0`,

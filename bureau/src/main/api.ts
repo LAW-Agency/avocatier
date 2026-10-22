@@ -32,7 +32,8 @@ export async function appeler<T>(methode: Methode, chemin: string, corps?: unkno
   }
 
   const contenu = (await reponse.json().catch(() => null)) as (T & { erreur?: string }) | null
-  if (reponse.status === 401 && chemin !== "/api/hotes/connexion") surJetonRefuse()
+  // Connexion refusée ou déconnexion déjà faite : pas de « session expirée »
+  if (reponse.status === 401 && chemin !== "/api/hotes/connexion" && chemin !== "/api/hotes/deconnexion") surJetonRefuse()
   if (!reponse.ok || contenu === null) {
     return { ok: false, statut: reponse.status, erreur: contenu?.erreur ?? `Réponse inattendue du serveur (${reponse.status}).` }
   }

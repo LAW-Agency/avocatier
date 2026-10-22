@@ -1,11 +1,13 @@
-import { Avatar, Badge, CounterBadge, SearchBox, Table, TableBody, TableCell, TableCellLayout, TableHeader, TableHeaderCell, TableRow } from "@fluentui/react-components"
-import { ChevronRightRegular, PeopleRegular } from "@fluentui/react-icons"
+import { Avatar, Badge, Button, CounterBadge, SearchBox, Table, TableBody, TableCell, TableCellLayout, TableHeader, TableHeaderCell, TableRow, Tooltip } from "@fluentui/react-components"
+import { ArrowDownloadRegular, ChevronRightRegular, PeopleRegular } from "@fluentui/react-icons"
 import { useState } from "react"
 import { formaterPlage, pluriel } from "@partage/dates"
 import { EnTete, Vide } from "../composants/commun"
 import NouveauClient from "../composants/NouveauClient"
 import { useCadreTableStyles } from "../composants/useCommunStyles.styles"
-import { nomDe, useDonneesChargees } from "../donnees"
+import { clientsVisibles, nomDe, useDonneesChargees } from "../donnees"
+import { csvClients } from "../exports"
+import { useFichiers } from "../fichiers"
 import { useClientsStyles } from "./useClientsStyles.styles"
 
 const normaliser = (texte: string) => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
@@ -15,9 +17,11 @@ export default function Clients() {
   const styles = useClientsStyles()
   const cadre = useCadreTableStyles()
   const { d, naviguer } = useDonneesChargees()
+  const { exporter } = useFichiers()
   const [filtre, setFiltre] = useState("")
+  const clients = clientsVisibles(d.clients)
 
-  const lignes = d.clients
+  const lignes = clients
     .filter((c) => normaliser(`${nomDe(c)} ${c.email} ${c.telephone} ${c.pays}`).includes(normaliser(filtre.trim())))
     .map((c) => {
       const sejours = d.reservations.filter((r) => r.clientId === c.id)
@@ -27,16 +31,21 @@ export default function Clients() {
       return { client: c, sejours: sejours.length, prochain }
     })
     .sort((a, b) => (a.prochain?.arrivee ?? "9999").localeCompare(b.prochain?.arrivee ?? "9999"))
-  const comptoir = d.clients.filter((c) => c.origine === "reception").length
+  const comptoir = clients.filter((c) => c.origine === "reception").length
 
   return (
     <>
       <EnTete
         titre="Clients"
-        description={`${pluriel(d.clients.length, "client")}, dont ${pluriel(comptoir, "enregistré", "enregistrés")} à la réception`}
+        description={`${pluriel(clients.length, "client")}, dont ${pluriel(comptoir, "enregistré", "enregistrés")} à la réception`}
         actions={
           <>
             <SearchBox className={styles.recherche} placeholder="Filtrer les clients" value={filtre} onChange={(_e, data) => setFiltre(data.value)} />
+            <Tooltip content="Exporter la liste affichée pour Excel (CSV)" relationship="description">
+              <Button icon={<ArrowDownloadRegular />} disabled={lignes.length === 0} onClick={() => exporter("Clients", csvClients(lignes.map((l) => l.client), d))}>
+                Exporter
+              </Button>
+            </Tooltip>
             <NouveauClient onCree={(client) => naviguer({ page: "client", id: client.id })} />
           </>
         }
