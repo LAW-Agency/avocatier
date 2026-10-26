@@ -21,6 +21,8 @@ const MICA = process.platform === "win32" && Number(release().split(".")[2]) >= 
 // Essais automatisés : dossier de données séparé, donc une instance à part (le verrou d'instance unique et la
 // session sont liés à ce dossier)
 if (process.env.AVOCATIER_DOSSIER) app.setPath("userData", process.env.AVOCATIER_DOSSIER)
+// Développement : dossier à part, pour ne pas laisser l'adresse localhost (session.json) au logiciel installé
+else if (!app.isPackaged) app.setPath("userData", join(app.getPath("appData"), `${NOM} (dev)`))
 
 let fenetre: BrowserWindow | null = null
 let zone: Tray | null = null

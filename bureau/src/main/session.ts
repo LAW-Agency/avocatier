@@ -24,7 +24,9 @@ function lire() {
   try {
     if (existsSync(chemin())) {
       const fichier = JSON.parse(readFileSync(chemin(), "utf8")) as Fichier
-      etat.serveur = fichier.serveur || SERVEUR_PAR_DEFAUT
+      // Logiciel installé : une adresse localhost vient d'une session de développement (même dossier avant la séparation)
+      const local = app.isPackaged && /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(fichier.serveur ?? "")
+      etat.serveur = (!local && fichier.serveur) || SERVEUR_PAR_DEFAUT
       if (fichier.hote && fichier.jetonChiffre && safeStorage.isEncryptionAvailable()) {
         etat.hote = fichier.hote
         etat.jeton = safeStorage.decryptString(Buffer.from(fichier.jetonChiffre, "base64"))
