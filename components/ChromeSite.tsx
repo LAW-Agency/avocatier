@@ -1,8 +1,8 @@
 "use client"
 
-import { usePathname } from "next/navigation"
 import { ViewTransition, type ReactNode } from "react"
 import BoutonDefilement from "@/components/BoutonDefilement"
+import { useChemin } from "@/components/useChemin"
 
 interface ChromeSiteProps {
   header: ReactNode
@@ -12,7 +12,8 @@ interface ChromeSiteProps {
 
 // Header, <main> et footer du site
 export default function ChromeSite({ header, footer, children }: ChromeSiteProps) {
-  const chemin = usePathname()
+  // Même chemin que le header : « /index » (accueil régénéré par Vercel) vaut « / »
+  const chemin = useChemin()
 
   return (
     <>

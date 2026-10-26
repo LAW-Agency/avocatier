@@ -1,9 +1,9 @@
 'use client'
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
 import { ChevronDown, MapPin, User } from "lucide-react"
 import { useEffect, useState, useSyncExternalStore } from "react"
+import { useChemin } from "@/components/useChemin"
 import { navLinks } from "@/data/navLinks"
 
 // Pages avec un hero plein écran : le header y reste transparent tant qu'on n'a pas défilé
@@ -24,7 +24,7 @@ function useScrolled() {
 }
 
 export default function Header() {
-  const pathname = usePathname()
+  const pathname = useChemin()
   const hasHero = HERO_PAGES.includes(pathname)
   // Page de réservation ou de compte ouverte : le bouton correspondant le signale
   const surReservation = pathname.startsWith("/reserver")
