@@ -169,6 +169,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const { donnees, erreur, recharger, vue, naviguer, changementEcran, enLigne, setEnLigne, ouvrirNouvelleReservation } = useDonnees()
   const [navOuverte, setNavOuverte] = useState(true)
   const champRecherche = useRef<HTMLInputElement>(null)
+  const zoneDefilement = useRef<HTMLElement>(null)
   const { annoncer } = useAnnoncer()
   const gerant = donnees?.hote.role === "hote"
 
@@ -236,6 +237,11 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const rubriqueActive: PageNav = vue.page === "client" ? "clients" : vue.page
   const situation = donnees ? situationDuJour(donnees, donnees.aujourdhui) : null
   const cleEcran = vue.page === "client" ? `client-${vue.id}` : vue.page === "guide" ? `guide-${vue.section ?? ""}` : vue.page
+  // Nouvel écran affiché en haut de la zone qui défile (sauf section du Guide : le Guide y défile lui-même)
+  const versSectionGuide = vue.page === "guide" && !!vue.section
+  useEffect(() => {
+    if (!versSectionGuide) zoneDefilement.current?.scrollTo({ top: 0 })
+  }, [cleEcran, versSectionGuide])
   const lienNav = (page: PageNav) => mergeClasses(styles.lienNav, rubriqueActive === page && styles.lienNavActif)
 
   let ecran: ReactNode
@@ -411,7 +417,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
           </nav>
         )}
 
-        <main className={styles.contenu}>
+        <main ref={zoneDefilement} className={styles.contenu}>
           {!donnees && !erreur ? (
             ecran
           ) : (
