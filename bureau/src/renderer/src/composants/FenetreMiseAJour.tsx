@@ -37,6 +37,8 @@ const useStyles = makeStyles({
   texteNotes: { whiteSpace: "pre-wrap" },
   progression: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalS },
   secondaire: { color: tokens.colorNeutralForeground3 },
+  // Libellé sur une ligne : la colonne des boutons de la fenêtre est sinon trop étroite
+  bouton: { whiteSpace: "nowrap", flexShrink: 0 },
 })
 
 // Fenêtre des mises à jour (src/main/misesAJour.ts), montée une fois dans la coquille : s'ouvre quand une nouvelle
@@ -117,8 +119,10 @@ export default function FenetreMiseAJour() {
           </DialogContent>
           {fermable && (
             <DialogActions>
-              <Button onClick={plusTard}>Plus tard</Button>
-              <Button appearance="primary" icon={<ArrowDownloadRegular />} onClick={() => window.avocatier.mettreAJour()}>
+              <Button className={styles.bouton} onClick={plusTard}>
+                Plus tard
+              </Button>
+              <Button className={styles.bouton} appearance="primary" icon={<ArrowDownloadRegular />} onClick={() => window.avocatier.mettreAJour()}>
                 {etat.etat === "erreur" ? "Réessayer" : "Mettre à jour"}
               </Button>
             </DialogActions>
