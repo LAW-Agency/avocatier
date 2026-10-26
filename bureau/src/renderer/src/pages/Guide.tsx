@@ -28,7 +28,8 @@ const useStyles = makeStyles({
   mise: { display: "grid", gridTemplateColumns: "240px minmax(0, 1fr)", columnGap: tokens.spacingHorizontalXXL, alignItems: "start", "@media (max-width: 1100px)": { gridTemplateColumns: "minmax(0, 1fr)" } },
   sommaire: {
     position: "sticky",
-    top: 0,
+    // Même espacement en haut que la page, une fois collé
+    top: tokens.spacingVerticalXXL,
     display: "flex",
     flexDirection: "column",
     rowGap: tokens.spacingVerticalXXS,
@@ -38,7 +39,7 @@ const useStyles = makeStyles({
   lienActif: { backgroundColor: tokens.colorSubtleBackgroundSelected, fontWeight: tokens.fontWeightSemibold },
   sections: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalL, minWidth: 0 },
   section: {
-    scrollMarginTop: tokens.spacingVerticalL,
+    scrollMarginTop: tokens.spacingVerticalXXL,
     display: "flex",
     flexDirection: "column",
     rowGap: tokens.spacingVerticalM,
@@ -169,7 +170,10 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <h3>Parcours du client</h3>
         <ol>
           <li>Il choisit ses dates : les nuits déjà prises ou bloquées ne sont pas proposées, et le séjour minimum de la saison s&apos;applique.</li>
-          <li>Il indique le nombre de voyageurs, puis choisit un hébergement assez grand ; le prix est calculé nuit par nuit selon les saisons.</li>
+          <li>
+            Il indique le nombre de voyageurs et de chambres (plusieurs chambres d&apos;une même catégorie possible, au moins un adulte par chambre), puis choisit la catégorie
+            ; le prix est calculé nuit par nuit selon les saisons. Il ne voit jamais les numéros : les chambres libres sont attribuées automatiquement.
+          </li>
           <li>Il se connecte ou crée son compte client (obligatoire), complète ses coordonnées, son message et la navette aéroport s&apos;il le souhaite.</li>
           <li>
             Sa demande devient une <strong>option de 48 h</strong> : les dates sont bloquées et la demande apparaît dans le logiciel (notification, compteur « À traiter »).
@@ -178,6 +182,10 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <h3>Après la demande</h3>
         <ul>
           <li>Le client et les hôtes reçoivent un e-mail récapitulatif.</li>
+          <li>
+            Une demande de plusieurs chambres crée une réservation par chambre (une référence chacune). Confirmer ou refuser l&apos;une d&apos;elles s&apos;applique à toute la
+            demande ; une fois confirmées, chacune s&apos;annule séparément.
+          </li>
           <li>Quand vous confirmez ou refusez, le client est prévenu par e-mail automatiquement.</li>
           <li>Sans réponse sous 48 h, l&apos;option expire et les dates se libèrent.</li>
           <li>Le client peut annuler sa demande depuis son compte : vous en êtes prévenu dans le logiciel.</li>
@@ -223,7 +231,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     Icone: MailInboxRegular,
     ecran: { page: "reservations" },
     motsCles:
-      "réservation demande option confirmer refuser annuler expirée statut fiche historique nouvelle réservation téléphone whatsapp booking airbnb sur place arrivée départ référence AVO modifier changer dates prolonger remise montant mot message client facture exporter excel csv",
+      "réservation demande option confirmer refuser annuler expirée statut fiche historique nouvelle réservation téléphone whatsapp booking airbnb sur place arrivée départ référence AVO modifier changer dates prolonger remise montant mot message client facture exporter excel xlsx csv tableur",
     contenu: (
       <>
         <Tableau>
@@ -268,8 +276,8 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <h3>Modifier une réservation</h3>
         <ul>
           <li>
-            Bouton <strong>Modifier</strong> au pied de la fiche : dates, hébergement, voyageurs, navette et montant (une remise se fait ici). « Appliquer le tarif » recalcule le
-            montant pour les nouvelles dates.
+            Bouton <strong>Modifier</strong> au pied de la fiche : dates, hébergement, chambre, voyageurs, navette et montant (une remise se fait ici). « Appliquer le tarif »
+            recalcule le montant pour les nouvelles dates. Pour changer un client de chambre, choisissez-en une autre de la même catégorie.
           </li>
           <li>Le résumé « Ce qui change » s&apos;affiche avant d&apos;enregistrer ; la modification est notée dans l&apos;historique et au journal.</li>
           <li>Le client peut être prévenu par e-mail, avec un mot de votre part. Client arrivé : sa date d&apos;arrivée ne change plus, mais le séjour se prolonge jusqu&apos;au jour du départ.</li>
@@ -277,8 +285,8 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <h3>Saisir une réservation</h3>
         <p>
           Bouton <strong>Nouvelle réservation</strong> (barre de titre, Aujourd&apos;hui, Planning ou fiche client) pour un client au téléphone, sur WhatsApp, via Booking.com,
-          Airbnb ou au comptoir. Choisissez ou créez le client, l&apos;hébergement libre aux dates voulues ; le tarif est calculé et reste modifiable. La réservation est confirmée
-          d&apos;office.
+          Airbnb ou au comptoir. Choisissez ou créez le client, la catégorie libre aux dates voulues et la chambre (la première libre, ou celle de votre choix) ; le tarif est
+          calculé et reste modifiable. La réservation est confirmée d&apos;office.
         </p>
         <h3>Facture et export</h3>
         <ul>
@@ -287,7 +295,8 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
             éditions suivantes gardent le même numéro.
           </li>
           <li>
-            <strong>Exporter</strong> enregistre la liste affichée (onglet et recherche compris) pour Excel.
+            <strong>Exporter</strong> enregistre la liste affichée (onglet et recherche compris) dans un classeur Excel (.xlsx) prêt à imprimer : titre, en-tête figé
+            avec filtres, vraies dates et montants en euros, ligne de total.
           </li>
         </ul>
       </>
@@ -296,24 +305,51 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
   {
     id: "planning",
     titre: "Planning et dates bloquées",
-    resume: "Occupation par hébergement et fermeture de dates.",
+    resume: "Occupation de chaque chambre et fermeture de dates.",
     Icone: CalendarLtrRegular,
     ecran: { page: "planning" },
     motsCles:
-      "planning calendrier occupation bloquer dates blocage fermeture travaux privatisation booking airbnb ical synchroniser importer exporter lien double réservation conflit libérer",
+      "planning calendrier semaine vue durée trier tri ordre occupation affichage replier déplier compact densité libres aller date bloquer dates blocage fermeture travaux privatisation booking airbnb ical synchroniser importer exporter lien double réservation conflit libérer",
     contenu: (
       <>
-        <p>Une ligne par hébergement, une colonne par nuit : les réservations et les dates bloquées apparaissent en barres. Naviguez de semaine en semaine.</p>
+        <p>
+          Une ligne par chambre, regroupées par catégorie, une colonne par nuit : les réservations et les dates bloquées apparaissent en barres. Cliquez une nuit libre pour
+          réserver cette chambre.
+        </p>
+        <ul>
+          <li>
+            <strong>Période</strong> : 1, 2 ou 3 semaines (onglets). Les flèches avancent ou reculent d&apos;autant, « Aujourd&apos;hui » revient à la date du jour, et le champ
+            de date va directement au jour choisi.
+          </li>
+          <li>
+            <strong>Catégories repliables</strong> : cliquez le nom d&apos;une catégorie pour la replier ; sa ligne montre alors, nuit par nuit, une jauge des chambres prises
+            (rouge : complète).
+          </li>
+          <li>
+            Ligne <strong>Chambres libres</strong> en haut : le nombre de chambres encore libres chaque nuit, en orange quand il en reste peu, en rouge quand tout est pris.
+          </li>
+          <li>Un point orange ou rouge à côté d&apos;un numéro signale une chambre à nettoyer ou en maintenance ; vert plein : client arrivé.</li>
+        </ul>
+        <h3>Menu Affichage</h3>
+        <ul>
+          <li>Ordre des chambres : par catégorie, par numéro, bungalows puis chambres, ou les plus occupées de la période d&apos;abord.</li>
+          <li>Lignes confortables ou compactes, texte des réservations (nom du client ou référence), ligne des chambres libres, week-ends teintés, lignes de grille entre les nuits.</li>
+          <li>Replier toutes les catégories, ou tout déplier. Tous ces choix sont gardés sur cet ordinateur.</li>
+        </ul>
         <h3>Bloquer des dates</h3>
         <ul>
-          <li>Utilisez la carte « Bloquer des dates » pour des travaux, une fermeture ou une privatisation : ces nuits ne sont plus proposées sur le site.</li>
+          <li>
+            Utilisez la carte « Bloquer des dates » pour des travaux, une fermeture ou une privatisation : choisissez une ou plusieurs chambres (toute une catégorie, tout
+            l&apos;hôtel) ; ces nuits ne sont plus proposées sur le site.
+          </li>
           <li>Un blocage est refusé s&apos;il chevauche une réservation active.</li>
           <li>Libérez une période depuis la liste « Dates bloquées à venir ».</li>
         </ul>
         <h3>Calendriers Booking.com, Airbnb…</h3>
         <ul>
           <li>
-            Un gérant relie, pour chaque hébergement, le <strong>lien iCal</strong> donné par la plateforme (dans son calendrier : « Exporter » ou « Synchroniser les calendriers »).
+            Un gérant relie, pour chaque chambre (une annonce de la plateforme = une chambre), le <strong>lien iCal</strong> donné par la plateforme (dans son calendrier :
+            « Exporter » ou « Synchroniser les calendriers »).
             Ses réservations ferment alors les dates sur le site et dans le logiciel, avec le nom de la plateforme.
           </li>
           <li>
@@ -339,16 +375,37 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
   {
     id: "chambres",
     titre: "Chambres",
-    resume: "Ménage, maintenance et occupation de chaque hébergement.",
+    resume: "Chambres numérotées de chaque catégorie : ménage, maintenance, ajout et retrait.",
     Icone: BedRegular,
     ecran: { page: "chambres" },
-    motsCles: "chambre bungalow ménage nettoyer propre maintenance état note occupant prochaine arrivée",
+    motsCles: "chambre bungalow numéro ajouter renommer désactiver supprimer catégorie ménage nettoyer propre maintenance état note occupant prochaine arrivée",
     contenu: (
-      <ul>
-        <li>Chaque hébergement est Propre, À nettoyer ou En maintenance, avec une note (« moustiquaire à changer »…).</li>
-        <li>Le départ enregistré d&apos;un client passe automatiquement sa chambre « À nettoyer ».</li>
-        <li>Une pastille orange dans la navigation signale les chambres à nettoyer.</li>
-      </ul>
+      <>
+        <p>
+          Chaque catégorie du site (« Bungalow Océan ») regroupe ses chambres numérotées (« Océan 1 », « Océan 2 »…). Le prix, la capacité et les photos sont ceux de la
+          catégorie ; chaque réservation occupe une chambre précise.
+        </p>
+        <ul>
+          <li>Chaque chambre est Propre, À nettoyer ou En maintenance, avec une note (« moustiquaire à changer »…).</li>
+          <li>Le départ enregistré d&apos;un client passe automatiquement sa chambre « À nettoyer ».</li>
+          <li>Une pastille orange dans la navigation signale les chambres à nettoyer.</li>
+        </ul>
+        <h3>Gérer les chambres (gérants)</h3>
+        <ul>
+          <li>
+            <strong>Ajouter une chambre</strong> : catégorie et numéro (unique dans l&apos;hôtel, proposé à la suite des autres). Elle est vendue sur le site aussitôt.
+          </li>
+          <li>Menu « … » d&apos;une chambre : changer son numéro, la désactiver ou la remettre en vente, la supprimer.</li>
+          <li>
+            <strong>Désactiver</strong> retire la chambre de la vente sans perdre son historique ; refusé tant qu&apos;un séjour à venir y est attribué (changez-le d&apos;abord de
+            chambre).
+          </li>
+          <li>
+            <strong>Supprimer</strong> n&apos;est possible que pour une chambre sans aucune réservation (créée par erreur) ; ses dates bloquées et ses calendriers partent avec
+            elle.
+          </li>
+        </ul>
+      </>
     ),
   },
   {
@@ -505,7 +562,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     titre: "Notifications et suivi en direct",
     resume: "Comment le logiciel vous prévient des nouveautés.",
     Icone: AlertRegular,
-    motsCles: "notification suivi en direct toast alerte nouvelle demande annulation option expirée zone de notification icône horloge windows",
+    motsCles: "notification hors connexion internet coupé connexion perdue suivi en direct toast alerte nouvelle demande annulation option expirée zone de notification icône horloge windows",
     contenu: (
       <ul>
         <li>Le logiciel vérifie les nouveautés toutes les 15 secondes, même fenêtre fermée dans la zone de notification.</li>
@@ -515,6 +572,10 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         </li>
         <li>Si la fenêtre n&apos;est pas au premier plan, une notification Windows s&apos;ajoute (désactivable dans Paramètres) ; un clic ouvre la liste.</li>
         <li>Le titre de la fenêtre affiche le nombre de demandes à traiter, par exemple « (2) Chez L&apos;Avocatier ».</li>
+        <li>
+          Si le serveur ne répond plus (Internet coupé), une pastille « Hors connexion » s&apos;affiche dans la barre de titre avec un bandeau : les modifications ne sont pas
+          enregistrées. Le logiciel réessaie toutes les 5 secondes et vous prévient au retour de la connexion.
+        </li>
       </ul>
     ),
   },
@@ -524,10 +585,14 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     resume: "Préférences de ce poste et de votre compte.",
     Icone: SettingsRegular,
     ecran: { page: "parametres" },
-    motsCles: "paramètres thème clair sombre zoom taille affichage plein écran notifications démarrage windows se souvenir serveur version factures reçus coordonnées nif stat mentions",
+    motsCles: "paramètres devise ariary fmg franc malgache euro monnaie thème clair sombre zoom taille affichage plein écran notifications démarrage windows se souvenir serveur version factures reçus coordonnées nif stat mentions",
     contenu: (
       <ul>
         <li>Thème (comme Windows, clair, sombre), taille de l&apos;affichage (zoom) et plein écran.</li>
+        <li>
+          <strong>Devise des montants</strong> : ariary (par défaut), franc malgache (1 Ar = 5 Fmg), euro, dollar… Les montants du logiciel sont convertis au taux saisi dans
+          Tarifs ; les saisies, factures, reçus et exports Excel restent en euros.
+        </li>
         <li>Notifications de Windows, maintien dans la zone de notification à la fermeture, lancement au démarrage de Windows.</li>
         <li>Se souvenir de moi, adresse du serveur, déconnexion et version du logiciel.</li>
         <li>
@@ -619,7 +684,12 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     contenu: (
       <>
         <h3>« Serveur injoignable » ou « Connexion au serveur perdue »</h3>
-        <p>Vérifiez la connexion Internet, puis cliquez sur Actualiser. Les informations affichées restent visibles mais peuvent dater.</p>
+        <p>
+          Vérifiez la connexion Internet. Le logiciel réessaie seul toutes les 5 secondes (ou cliquez sur Actualiser) ; les informations affichées restent visibles mais peuvent
+          dater.
+        </p>
+        <h3>« Cette fonction n&apos;existe pas encore sur le serveur »</h3>
+        <p>Le site auquel le logiciel est relié n&apos;est pas à jour (par exemple l&apos;édition des factures) : prévenez l&apos;agence pour qu&apos;elle le redéploie.</p>
         <h3>« Session expirée »</h3>
         <p>Votre mot de passe a changé, votre compte a été désactivé ou la session est trop ancienne : reconnectez-vous.</p>
         <h3>« Ces dates ne sont plus disponibles »</h3>

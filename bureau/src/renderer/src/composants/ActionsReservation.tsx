@@ -17,7 +17,7 @@ import {
 import { CheckmarkRegular, DismissCircleRegular, DoorArrowLeftRegular, DoorArrowRightRegular, ProhibitedRegular } from "@fluentui/react-icons"
 import { useState } from "react"
 import type { Reservation, StatutReservation } from "@partage/types"
-import { useDonnees } from "../donnees"
+import { useDonnees, useLectureSeule } from "../donnees"
 import { useActionsStyles } from "./useReservationStyles.styles"
 
 interface ActionsReservationProps {
@@ -32,11 +32,14 @@ interface ActionsReservationProps {
 // Ce que l'équipe peut faire selon le statut : confirmer directement ; refuser ou annuler après confirmation,
 // avec un mot facultatif pour le client (ajouté à son e-mail : raison, autres dates proposées…)
 export default function ActionsReservation({ reservationId, statut, reference, taille = "medium", alignement = "debut" }: ActionsReservationProps) {
+  const lectureSeule = useLectureSeule()
   const styles = useActionsStyles()
   const { donnees, executer } = useDonnees()
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [mot, setMot] = useState("")
+  // Fenêtre de refus / annulation gardée ouverte pendant l'appel, avec le Spinner sur son bouton
+  const [fenetre, setFenetre] = useState(false)
   if (statut !== "option" && statut !== "confirmee") return null
   const clientId = donnees?.reservations.find((r) => r.id === reservationId)?.clientId
   const email = donnees?.clients.find((c) => c.id === clientId)?.email
@@ -49,6 +52,7 @@ export default function ActionsReservation({ reservationId, statut, reference, t
       ...(nouveau !== "confirmee" && { mot }),
     })
     setEnCours(false)
+    setFenetre(false)
     if (!resultat.ok) setErreur(resultat.erreur)
     else setMot("")
   }
@@ -71,7 +75,7 @@ export default function ActionsReservation({ reservationId, statut, reference, t
         }
 
   const confirmer = statut === "option" && (
-    <Button appearance="primary" size={taille} disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : <CheckmarkRegular />} onClick={() => envoyer("confirmee")}>
+    <Button appearance="primary" size={taille} disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <CheckmarkRegular />} onClick={() => envoyer("confirmee")}>
       Confirmer
     </Button>
   )
@@ -80,9 +84,9 @@ export default function ActionsReservation({ reservationId, statut, reference, t
     <div className={styles.pile}>
       <div className={mergeClasses(styles.boutons, alignement === "fin" && styles.fin)}>
         {alignement === "debut" && confirmer}
-        <Dialog modalType="alert">
+        <Dialog modalType="alert" open={fenetre} onOpenChange={(_e, data) => !enCours && setFenetre(data.open)}>
           <DialogTrigger disableButtonEnhancement>
-            <Button size={taille} disabled={enCours} icon={<fermeture.Icone />} appearance={statut === "option" ? "secondary" : "subtle"}>
+            <Button size={taille} disabled={enCours || lectureSeule} icon={enCours && fenetre ? <Spinner size="tiny" /> : <fermeture.Icone />} appearance={statut === "option" ? "secondary" : "subtle"}>
               {fermeture.libelle}
             </Button>
           </DialogTrigger>
@@ -101,13 +105,13 @@ export default function ActionsReservation({ reservationId, statut, reference, t
               </DialogContent>
               <DialogActions>
                 <DialogTrigger disableButtonEnhancement>
-                  <Button appearance="secondary">Retour</Button>
-                </DialogTrigger>
-                <DialogTrigger disableButtonEnhancement>
-                  <Button className={styles.danger} onClick={() => envoyer(fermeture.statut)}>
-                    {fermeture.libelle}
+                  <Button appearance="secondary" disabled={enCours}>
+                    Retour
                   </Button>
                 </DialogTrigger>
+                <Button className={styles.danger} disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : undefined} onClick={() => envoyer(fermeture.statut)}>
+                  {fermeture.libelle}
+                </Button>
               </DialogActions>
             </DialogBody>
           </DialogSurface>
@@ -125,6 +129,7 @@ export default function ActionsReservation({ reservationId, statut, reference, t
 
 // Arrivée puis départ du client, enregistrés par la réception (séjour confirmé du jour ou en cours)
 export function BoutonReception({ reservation: r, aujourdhui, taille = "medium" }: { reservation: Reservation; aujourdhui: string; taille?: "small" | "medium" }) {
+  const lectureSeule = useLectureSeule()
   const { executer } = useDonnees()
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -145,7 +150,7 @@ export function BoutonReception({ reservation: r, aujourdhui, taille = "medium" 
       <Button
         size={taille}
         appearance={arrivee ? "primary" : "secondary"}
-        disabled={enCours}
+        disabled={enCours || lectureSeule}
         icon={enCours ? <Spinner size="tiny" /> : arrivee ? <DoorArrowRightRegular /> : <DoorArrowLeftRegular />}
         onClick={enregistrer}
         title={erreur ?? undefined}

@@ -14,7 +14,7 @@ export const GET = pourLesHotes(async (_requete, membre) => {
     moteur.listerBlocages(),
     moteur.listerReglesSaisons(),
     moteur.reglagesDevises(),
-    gestion.listerChambres(),
+    moteur.listerChambres(),
     gestion.listerPaiements(),
     gerant ? gestion.listerEquipe() : Promise.resolve([]),
     gestion.listerCalendriers(),
@@ -26,11 +26,10 @@ export const GET = pourLesHotes(async (_requete, membre) => {
     aujourdhui: aujourdhuiISO(),
     reservations,
     clients,
-    // Contenu des fiches (textes, photos) inutile au logiciel ; état du ménage en plus
-    hebergements: hebergements.map(({ id, nom, type, capaciteMax, prixNuit, literie, vue }) => {
-      const chambre = chambres.find((c) => c.id === id)
-      return { id, nom, type, capaciteMax, prixNuit, literie, vue, etat: chambre?.etat ?? "propre", noteEtat: chambre?.noteEtat ?? "" }
-    }),
+    // Catégories, sans le contenu des fiches (textes, photos) inutile au logiciel
+    hebergements: hebergements.map(({ id, nom, type, capaciteMax, prixNuit, literie, vue }) => ({ id, nom, type, capaciteMax, prixNuit, literie, vue })),
+    // Chambres numérotées de chaque catégorie, avec leur ménage
+    chambres,
     blocages,
     saisons,
     devises,

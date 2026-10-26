@@ -10,6 +10,7 @@ import {
   DATES_PRISES,
   ETATS_CHAMBRE,
   normaliserFacturation,
+  normaliserNumero,
   saisonsDatees,
   STATUTS_ACTIFS,
 } from "../controles"
@@ -32,10 +33,12 @@ import type {
 } from "../types"
 import { codeErreur, db, lignes, transaction } from "./db"
 import {
+  attribuerChambre,
+  CHAMBRE,
   CLIENT,
-  estOccupe,
   evenement,
   expirerOptions,
+  lireChambres,
   lireHebergements,
   lireReglesSaisons,
   RESERVATION,
@@ -50,7 +53,7 @@ import {
 
 const PAIEMENT = `id, reservation_id as "reservationId", montant, mode, note, le, enregistre_par as "enregistrePar", numero`
 
-const CALENDRIER = `id, hebergement_id as "hebergementId", plateforme, nom, url_import as "urlImport", jeton,
+const CALENDRIER = `id, hebergement_id as "hebergementId", chambre_id as "chambreId", plateforme, nom, url_import as "urlImport", jeton,
   synchronise_le as "synchroniseLe", erreur, cree_le as "creeLe"`
 type LigneCalendrier = Omit<CalendrierExterne, "synchroniseLe" | "creeLe"> & { synchroniseLe: Date | null; creeLe: Date }
 
@@ -59,7 +62,8 @@ function versCalendrier({ synchroniseLe, creeLe, ...reste }: LigneCalendrier): C
 }
 
 const EMAIL_PRIS = "Un compte existe déjà avec cette adresse e-mail."
-const EMAIL_D_UN_AUTRE = "Un autre client a déjà cette adresse e-mail : s'il s'agit de la même personne, fusionnez les deux fiches."
+const NUMERO_PRIS = (numero: string) => `Une autre chambre s'appelle déjà « ${numero} » : choisissez un autre numéro.`
+const EMAIL_D_UN_AUTRE ="Un autre client a déjà cette adresse e-mail : s'il s'agit de la même personne, fusionnez les deux fiches."
 
 // Avant toute saisie des hôtes, les factures portent au moins le nom et l'adresse de l'hôtel
 const FACTURATION_INITIALE: ReglagesFacturation = {
@@ -260,21 +264,23 @@ export const gestionPostgres: GestionHotel = {
 
         const [client] = await lignes<{ telephone: string }>(tx, "select telephone from clients where id = $1 and role = 'client'", [r.clientId])
         if (!client) return { ok: false, erreur: "Ce client n'existe plus." }
-        if (await estOccupe(tx, hebergement.id, r.arrivee, r.depart, { source: r.source })) return { ok: false, erreur: DATES_PRISES }
+        const chambre = await attribuerChambre(tx, hebergement, r.chambreId || null, r.arrivee, r.depart, { source: r.source })
+        if ("erreur" in chambre) return { ok: false, erreur: chambre.erreur }
 
         const saisons = saisonsDatees(await lireReglesSaisons(tx))
         const [{ numero }] = await lignes<{ numero: number }>(tx, "select nextval('reservations_numero')::int as numero")
         const maintenant = new Date()
         const [ligne] = await lignes<LigneReservation>(
           tx,
-          `insert into reservations (reference, client_id, hebergement_id, arrivee, depart, adultes, enfants, navette,
+          `insert into reservations (reference, client_id, hebergement_id, chambre_id, arrivee, depart, adultes, enfants, navette,
              telephone, message, montant_total, statut, source, cree_le, historique)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'confirmee', $12, $13, $14)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'confirmee', $13, $14, $15)
            returning ${RESERVATION}`,
           [
             `AVO-${r.arrivee.slice(0, 4)}-${String(numero).padStart(4, "0")}`,
             r.clientId,
             hebergement.id,
+            chambre.chambreId,
             r.arrivee,
             r.depart,
             r.adultes,
@@ -314,17 +320,31 @@ export const gestionPostgres: GestionHotel = {
         const erreur = controlerModification(avant, m, hebergement, aujourdhuiISO())
         if (erreur || !hebergement) return { ok: false, erreur: erreur ?? "Choisissez un hébergement." }
 
+        // Chambre : celle choisie, sinon l'actuelle (même catégorie) si elle reste libre, sinon une autre libre.
+        // La disponibilité n'est revérifiée que si le séjour change de chambre ou de dates
+        const voulue = m.chambreId || (m.hebergementId === avant.hebergementId ? avant.chambreId : null)
+        let chambreId = avant.chambreId
+        if (voulue !== avant.chambreId || m.arrivee !== avant.arrivee || m.depart !== avant.depart) {
+          const options = { sauf: id, source: avant.source }
+          let attribuee = await attribuerChambre(tx, hebergement, voulue, m.arrivee, m.depart, options)
+          if ("erreur" in attribuee && !m.chambreId && voulue) attribuee = await attribuerChambre(tx, hebergement, null, m.arrivee, m.depart, options)
+          if ("erreur" in attribuee) return { ok: false, erreur: attribuee.erreur }
+          chambreId = attribuee.chambreId
+        }
+
         const montantTotal = m.montantTotal ?? calculerDevis(hebergement, m.arrivee, m.depart, saisonsDatees(await lireReglesSaisons(tx))).total
-        const changements = changementsReservation(avant, { ...m, montantTotal }, (h) => hebergements.find((x) => x.id === h)?.nom ?? h)
+        const chambres = await lireChambres(tx)
+        const changements = changementsReservation(
+          avant,
+          { ...m, chambreId, montantTotal },
+          (h) => hebergements.find((x) => x.id === h)?.nom ?? h,
+          (c) => chambres.find((x) => x.id === c)?.numero ?? c,
+        )
         if (changements.length === 0) return { ok: true, changements }
 
-        const deplacee = avant.hebergementId !== m.hebergementId || avant.arrivee !== m.arrivee || avant.depart !== m.depart
-        if (deplacee && (await estOccupe(tx, hebergement.id, m.arrivee, m.depart, { sauf: id, source: avant.source }))) {
-          return { ok: false, erreur: `${hebergement.nom} n'est pas libre à ces dates : une autre réservation ou des dates bloquées les occupent.` }
-        }
         await tx.query(
-          `update reservations set hebergement_id = $2, arrivee = $3, depart = $4, adultes = $5, enfants = $6, navette = $7,
-             montant_total = $8, historique = historique || $9::jsonb
+          `update reservations set hebergement_id = $2, chambre_id = $10, arrivee = $3, depart = $4, adultes = $5, enfants = $6,
+             navette = $7, montant_total = $8, historique = historique || $9::jsonb
            where id = $1`,
           [
             id,
@@ -336,6 +356,7 @@ export const gestionPostgres: GestionHotel = {
             m.navette,
             montantTotal,
             evenement(avant.statut, `Modifiée par ${auteur} : ${changements.join(" ; ")}`),
+            chambreId,
           ],
         )
         return { ok: true, changements }
@@ -362,26 +383,88 @@ export const gestionPostgres: GestionHotel = {
     } else {
       if (!annuler && !r.arriveeLe) return { ok: false, erreur: "Enregistrez d'abord l'arrivée du client." }
       await transaction(async (tx) => {
-        const [{ hebergementId }] = await lignes<{ hebergementId: string }>(
+        const [{ chambreId }] = await lignes<{ chambreId: string }>(
           tx,
-          `update reservations set depart_le = $2 where id = $1 returning hebergement_id as "hebergementId"`,
+          `update reservations set depart_le = $2 where id = $1 returning chambre_id as "chambreId"`,
           [reservationId, annuler ? null : new Date()],
         )
         // Client parti : la chambre passe au ménage
-        if (!annuler) await tx.query("update hebergements set etat = 'a_nettoyer' where id = $1 and etat = 'propre'", [hebergementId])
+        if (!annuler) await tx.query("update chambres set etat = 'a_nettoyer' where id = $1 and etat = 'propre'", [chambreId])
       })
     }
     return { ok: true }
   },
 
-  async listerChambres() {
-    return lignes<Chambre>(db(), `select id, etat, note_etat as "noteEtat" from hebergements order by ordre, id`)
+  async creerChambre({ hebergementId, numero }) {
+    const lu = normaliserNumero(numero)
+    if ("erreur" in lu) return { ok: false, erreur: lu.erreur }
+    if (!(await lireHebergements(db())).some((h) => h.id === hebergementId)) return { ok: false, erreur: "Choisissez une catégorie d'hébergement." }
+    try {
+      const [chambre] = await lignes<Chambre>(
+        db(),
+        `insert into chambres (hebergement_id, numero) values ($1, $2) returning ${CHAMBRE}`,
+        [hebergementId, lu.numero],
+      )
+      return { ok: true, chambre }
+    } catch (e) {
+      if (codeErreur(e) === "23505") return { ok: false, erreur: NUMERO_PRIS(lu.numero) }
+      throw e
+    }
   },
 
-  async modifierChambre(id, etat, noteEtat) {
-    if (!ETATS_CHAMBRE.includes(etat)) return { ok: false, erreur: "État inconnu." }
-    const resultat = await db().query("update hebergements set etat = $2, note_etat = $3 where id = $1", [id, etat, noteEtat.trim().slice(0, 200)])
-    return (resultat.rowCount ?? 0) > 0 ? { ok: true } : { ok: false, erreur: "Hébergement introuvable." }
+  async modifierChambre(id, { numero, etat, noteEtat, active }) {
+    if (etat !== undefined && !ETATS_CHAMBRE.includes(etat)) return { ok: false, erreur: "État inconnu." }
+    const lu = numero === undefined ? null : normaliserNumero(numero)
+    if (lu && "erreur" in lu) return { ok: false, erreur: lu.erreur }
+    try {
+      return await transaction<ResultatAction>(async (tx) => {
+        const [chambre] = await lignes<Chambre>(tx, `select ${CHAMBRE} from chambres where id = $1`, [id])
+        if (!chambre) return { ok: false, erreur: "Cette chambre n'existe plus." }
+        if (active === false && chambre.active) {
+          // Sous le verrou de la catégorie : aucune réservation ne peut s'y glisser pendant la vérification
+          await verrouiller(tx, chambre.hebergementId)
+          await expirerOptions(tx)
+          const [aVenir] = await lignes<{ reference: string }>(
+            tx,
+            "select reference from reservations where chambre_id = $1 and statut = any($2) and depart > $3 order by arrivee limit 1",
+            [id, STATUTS_ACTIFS, aujourdhuiISO()],
+          )
+          if (aVenir) {
+            return { ok: false, erreur: `La réservation ${aVenir.reference} est attribuée à ${chambre.numero} : changez-la de chambre avant de désactiver celle-ci.` }
+          }
+        }
+        await tx.query(
+          `update chambres set numero = coalesce($2, numero), etat = coalesce($3, etat), note_etat = coalesce($4, note_etat),
+             active = coalesce($5, active)
+           where id = $1`,
+          [id, lu?.numero ?? null, etat ?? null, noteEtat === undefined ? null : noteEtat.trim().slice(0, 200), active ?? null],
+        )
+        return { ok: true }
+      })
+    } catch (e) {
+      if (codeErreur(e) === "23505" && lu) return { ok: false, erreur: NUMERO_PRIS(lu.numero) }
+      throw e
+    }
+  },
+
+  async supprimerChambre(id) {
+    return transaction<ResultatAction>(async (tx) => {
+      const [chambre] = await lignes<Chambre>(tx, `select ${CHAMBRE} from chambres where id = $1`, [id])
+      if (!chambre) return { ok: false, erreur: "Cette chambre a déjà été supprimée." }
+      await verrouiller(tx, chambre.hebergementId)
+      // Les réservations, même passées ou annulées, restent en comptabilité avec leur chambre
+      const [{ reservations }] = await lignes<{ reservations: number }>(
+        tx,
+        "select count(*)::int as reservations from reservations where chambre_id = $1",
+        [id],
+      )
+      if (reservations > 0) {
+        return { ok: false, erreur: `${chambre.numero} a déjà des réservations dans son historique : désactivez-la plutôt, elle ne sera plus proposée.` }
+      }
+      // Ses dates bloquées et ses calendriers de plateforme partent avec elle (clés étrangères en cascade)
+      await tx.query("delete from chambres where id = $1", [id])
+      return { ok: true }
+    })
   },
 
   async listerPaiements() {
@@ -417,15 +500,15 @@ export const gestionPostgres: GestionHotel = {
   },
 
   async creerCalendrier(calendrier) {
-    const hebergement = (await lireHebergements(db())).find((h) => h.id === calendrier.hebergementId)
-    const erreur = controlerCalendrier(calendrier, hebergement)
-    if (erreur) return { ok: false, erreur }
+    const chambre = (await lireChambres(db())).find((c) => c.id === calendrier.chambreId)
+    const erreur = controlerCalendrier(calendrier, chambre)
+    if (erreur || !chambre) return { ok: false, erreur: erreur ?? "Choisissez une chambre." }
     const [ligne] = await lignes<LigneCalendrier>(
       db(),
-      `insert into calendriers_externes (hebergement_id, plateforme, nom, url_import, jeton) values ($1, $2, $3, $4, $5)
+      `insert into calendriers_externes (hebergement_id, chambre_id, plateforme, nom, url_import, jeton) values ($1, $2, $3, $4, $5, $6)
        returning ${CALENDRIER}`,
       // Jeton du lien d'export : impossible à deviner, il ne protège que des dates (aucune donnée client)
-      [calendrier.hebergementId, calendrier.plateforme, calendrier.nom.trim(), calendrier.urlImport.trim(), randomBytes(18).toString("base64url")],
+      [chambre.hebergementId, chambre.id, calendrier.plateforme, calendrier.nom.trim(), calendrier.urlImport.trim(), randomBytes(18).toString("base64url")],
     )
     return { ok: true, calendrier: versCalendrier(ligne) }
   },
@@ -437,9 +520,9 @@ export const gestionPostgres: GestionHotel = {
 
   async remplacerImport(id, periodes) {
     return transaction<BilanSynchronisation>(async (tx) => {
-      const [calendrier] = await lignes<{ hebergementId: string; nom: string }>(
+      const [calendrier] = await lignes<{ hebergementId: string; chambreId: string; nom: string }>(
         tx,
-        `select hebergement_id as "hebergementId", nom from calendriers_externes where id = $1 for update`,
+        `select hebergement_id as "hebergementId", chambre_id as "chambreId", nom from calendriers_externes where id = $1 for update`,
         [id],
       )
       if (!calendrier) return { calendrierId: id, ajoutees: [], retirees: 0, erreur: "Ce calendrier a été supprimé." }
@@ -452,10 +535,10 @@ export const gestionPostgres: GestionHotel = {
       const retirees = await tx.query("delete from blocages where calendrier_id = $1 and not (uid = any($2::text[]))", [id, utiles.map((p) => p.uid)])
       for (const p of utiles) {
         await tx.query(
-          `insert into blocages (hebergement_id, debut, fin, raison, calendrier_id, uid) values ($1, $2, $3, $4, $5, $6)
+          `insert into blocages (hebergement_id, chambre_id, debut, fin, raison, calendrier_id, uid) values ($1, $2, $3, $4, $5, $6, $7)
            on conflict (calendrier_id, uid) where calendrier_id is not null
            do update set debut = excluded.debut, fin = excluded.fin, raison = excluded.raison`,
-          [calendrier.hebergementId, p.debut, p.fin, [calendrier.nom, p.raison].filter(Boolean).join(" · ").slice(0, 120), id, p.uid],
+          [calendrier.hebergementId, calendrier.chambreId, p.debut, p.fin, [calendrier.nom, p.raison].filter(Boolean).join(" · ").slice(0, 120), id, p.uid],
         )
       }
       await tx.query("update calendriers_externes set synchronise_le = now(), erreur = '' where id = $1", [id])
@@ -468,29 +551,30 @@ export const gestionPostgres: GestionHotel = {
   },
 
   async exporterCalendrier(jeton) {
-    const [calendrier] = await lignes<{ id: string; hebergementId: string; plateforme: Plateforme; hebergement: string }>(
+    const [calendrier] = await lignes<{ id: string; chambreId: string; plateforme: Plateforme; hebergement: string; numero: string }>(
       db(),
-      `select c.id, c.hebergement_id as "hebergementId", c.plateforme, h.nom as hebergement
-       from calendriers_externes c join hebergements h on h.id = c.hebergement_id where c.jeton = $1`,
+      `select c.id, c.chambre_id as "chambreId", c.plateforme, h.nom as hebergement, ch.numero
+       from calendriers_externes c join hebergements h on h.id = c.hebergement_id join chambres ch on ch.id = c.chambre_id
+       where c.jeton = $1`,
       [jeton],
     )
     if (!calendrier) return null
     await expirerOptions(db())
-    // Tout ce qui occupe l'hébergement, sauf ce qui vient déjà de cette plateforme : ses propres réservations
+    // Tout ce qui occupe la chambre, sauf ce qui vient déjà de cette plateforme : ses propres réservations
     // (saisies avec cette provenance) et les dates importées de ses calendriers
     const evenements = await lignes<EvenementExporte>(
       db(),
       `select id || '@avocatier' as uid, arrivee as debut, depart as fin, 'Indisponible' as titre from reservations
-       where hebergement_id = $1 and statut = any($3) and depart > $4 and source is distinct from $2
+       where chambre_id = $1 and statut = any($3) and depart > $4 and source is distinct from $2
        union all
        select b.id || '@avocatier', b.debut, b.fin, 'Indisponible' from blocages b
        left join calendriers_externes c on c.id = b.calendrier_id
-       where b.hebergement_id = $1 and b.fin > $4 and b.calendrier_id is distinct from $5
+       where b.chambre_id = $1 and b.fin > $4 and b.calendrier_id is distinct from $5
          and ($2 = 'autre' or c.plateforme is distinct from $2)
        order by 2`,
-      [calendrier.hebergementId, calendrier.plateforme, STATUTS_ACTIFS, aujourdhuiISO(), calendrier.id],
+      [calendrier.chambreId, calendrier.plateforme, STATUTS_ACTIFS, aujourdhuiISO(), calendrier.id],
     )
-    return { nom: `Chez L'Avocatier · ${calendrier.hebergement}`, evenements }
+    return { nom: `Chez L'Avocatier · ${calendrier.hebergement} · ${calendrier.numero}`, evenements }
   },
 
   async reglagesFacturation() {

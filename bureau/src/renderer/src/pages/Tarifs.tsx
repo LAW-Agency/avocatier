@@ -31,7 +31,7 @@ import { chevauchementSaisons, estJourAnnee } from "@partage/regles"
 import { SOURCE_TAUX, type TauxDuJour } from "@partage/tauxDeChange"
 import type { CodeDevise, RegleSaison } from "@partage/types"
 import { Carte, EnTete } from "../composants/commun"
-import { useDonneesChargees } from "../donnees"
+import { useDonneesChargees, useLectureSeule } from "../donnees"
 import { COULEURS_SAISONS, useTarifsStyles } from "./useTarifsStyles.styles"
 
 const SAISONS_MAX = 12
@@ -139,6 +139,7 @@ function ChampJourMois({ label, jour, mois, onJour, onMois }: { label: string; j
 
 // Prix de base et saisons (plages de dates, majoration, séjour minimum) ; aperçu des prix de saison pendant la saisie
 function FormulaireTarifs() {
+  const lectureSeule = useLectureSeule()
   const styles = useTarifsStyles()
   const { d, executer } = useDonneesChargees()
   const [prix, setPrix] = useState(() => Object.fromEntries(d.hebergements.map((h) => [h.id, String(h.prixNuit)])))
@@ -315,7 +316,7 @@ function FormulaireTarifs() {
         </MessageBar>
       )}
       <div className={styles.actions}>
-        <Button type="submit" appearance="primary" disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
+        <Button type="submit" appearance="primary" disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
           Enregistrer les tarifs
         </Button>
       </div>
@@ -328,6 +329,7 @@ const versTextes = (taux: Record<CodeDevise, number>) =>
 
 // Devises proposées dans le pied de page de la vitrine, taux de conversion et devise par défaut
 function FormulaireDevises() {
+  const lectureSeule = useLectureSeule()
   const styles = useTarifsStyles()
   const { d, executer } = useDonneesChargees()
   const reglages = d.devises
@@ -472,10 +474,10 @@ function FormulaireDevises() {
       )}
 
       <div className={styles.actions}>
-        <Button type="submit" appearance="primary" disabled={enCours || chargementTaux} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
+        <Button type="submit" appearance="primary" disabled={enCours || chargementTaux || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
           Enregistrer les devises
         </Button>
-        <Button disabled={enCours || chargementTaux} icon={chargementTaux ? <Spinner size="tiny" /> : <ArrowSyncRegular />} onClick={chargerTaux}>
+        <Button disabled={enCours || chargementTaux || lectureSeule} icon={chargementTaux ? <Spinner size="tiny" /> : <ArrowSyncRegular />} onClick={chargerTaux}>
           Récupérer les taux du jour
         </Button>
       </div>

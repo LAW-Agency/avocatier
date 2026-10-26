@@ -21,13 +21,14 @@ import {
   type FluentIcon,
 } from "@fluentui/react-icons"
 import { forwardRef, type ReactNode } from "react"
-import { formaterPlage, formaterPrix } from "@partage/dates"
+import { formaterPlage } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
-import { PAGES_GERANTS, clientsVisibles, nomDe, useDonnees, type Vue } from "../donnees"
+import { PAGES_GERANTS, chambresTriees, clientsVisibles, nomChambre, nomDe, useDonnees, type Vue } from "../donnees"
 import { numeroRecu } from "../documents"
-import { MODES_PAIEMENT } from "../libelles"
+import { ETATS_CHAMBRE, MODES_PAIEMENT } from "../libelles"
 import { SECTIONS_GUIDE, normaliser } from "../pages/Guide"
 import { useReglages } from "../reglages"
+import { usePrix } from "../montants"
 
 const useStyles = makeStyles({
   champ: { width: "100%", minWidth: 0 },
@@ -65,6 +66,7 @@ export type RechercheGlobaleProps = { className?: string; disabled?: boolean }
 // bloquées, encaissements, saisons et équipe (gérants), sections du guide. Sur l'écran Réservations, la saisie
 // filtre aussi la liste.
 export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobaleProps>(({ className, disabled }, ref) => {
+  const formaterPrix = usePrix()
   const styles = useStyles()
   const { donnees: d, naviguer, recherche, setRecherche, ouvrirNouvelleReservation } = useDonnees()
   const { sombre, modifier } = useReglages()
@@ -83,6 +85,7 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
   if (cherche && d) {
     const clientDe = (id: string) => d.clients.find((c) => c.id === id)
     const hebergementDe = (id: string) => d.hebergements.find((h) => h.id === id)
+    const numeroDe = (id: string) => d.chambres.find((c) => c.id === id)?.numero
 
     groupes.push({
       titre: "Écrans",
@@ -114,13 +117,13 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
       resultats: d.reservations
         .filter((r) => {
           const client = clientDe(r.clientId)
-          return trouve(r.reference, r.factureNumero, nomDe(client), client?.email ?? "", r.telephone, client?.telephone, hebergementDe(r.hebergementId)?.nom)
+          return trouve(r.reference, r.factureNumero, nomDe(client), client?.email ?? "", r.telephone, client?.telephone, hebergementDe(r.hebergementId)?.nom, numeroDe(r.chambreId))
         })
         .sort((a, b) => b.arrivee.localeCompare(a.arrivee))
         .map((r) => ({
           cle: `reservation-${r.id}`,
           libelle: `${r.reference} · ${nomDe(clientDe(r.clientId))}`,
-          detail: `${formaterPlage(r.arrivee, r.depart)} · ${hebergementDe(r.hebergementId)?.nom ?? ""} · ${libelleStatutHote[r.statut]}`,
+          detail: `${formaterPlage(r.arrivee, r.depart)} · ${nomChambre(d, r.chambreId)} · ${libelleStatutHote[r.statut]}`,
           Icone: MailInboxRegular,
           ouvrir: versReservation(r.reference),
         })),
@@ -142,7 +145,7 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
     groupes.push({
       titre: "Hébergements",
       resultats: d.hebergements
-        .filter((h) => trouve(h.nom, h.type, h.literie, h.vue, h.noteEtat))
+        .filter((h) => trouve(h.nom, h.type, h.literie, h.vue))
         .map((h) => ({
           cle: `hebergement-${h.id}`,
           libelle: h.nom,
@@ -153,13 +156,26 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
     })
 
     groupes.push({
+      titre: "Chambres",
+      resultats: chambresTriees(d)
+        .filter((c) => trouve(c.numero, hebergementDe(c.hebergementId)?.nom, c.noteEtat))
+        .map((c) => ({
+          cle: `chambre-${c.id}`,
+          libelle: c.numero,
+          detail: [hebergementDe(c.hebergementId)?.nom, c.active ? ETATS_CHAMBRE[c.etat] : "désactivée", c.noteEtat].filter(Boolean).join(" · "),
+          Icone: BedRegular,
+          ouvrir: aller({ page: "chambres" }),
+        })),
+    })
+
+    groupes.push({
       titre: "Dates bloquées",
       resultats: d.blocages
-        .filter((b) => trouve(b.raison, hebergementDe(b.hebergementId)?.nom, "blocage bloquée fermeture"))
+        .filter((b) => trouve(b.raison, hebergementDe(b.hebergementId)?.nom, numeroDe(b.chambreId), "blocage bloquée fermeture"))
         .map((b) => ({
           cle: `blocage-${b.id}`,
           libelle: b.raison || "Dates bloquées",
-          detail: `${hebergementDe(b.hebergementId)?.nom ?? ""} · ${formaterPlage(b.debut, b.fin)}`,
+          detail: `${nomChambre(d, b.chambreId)} · ${formaterPlage(b.debut, b.fin)}`,
           Icone: CalendarCancelRegular,
           ouvrir: aller({ page: "planning" }),
         })),

@@ -103,6 +103,16 @@ export const reglesSaisonsInitiales: RegleSaison[] = [
   { nom: "Fêtes de fin d'année", debut: "12-20", fin: "01-04", coefficient: 1.3, sejourMin: 5 },
 ]
 
+// Chambres numérotées de chaque catégorie, créées par db:amorcer pour une catégorie qui n'en a encore aucune
+// (ensuite gérées par les hôtes, logiciel, écran Chambres). TODO client : nombre réel de chambres et numéros
+export const chambresInitiales: Record<string, string[]> = {
+  h1: ["Océan 1", "Océan 2", "Océan 3", "Océan 4", "Océan 5"],
+  h2: ["Jardin 1", "Jardin 2", "Jardin 3", "Jardin 4"],
+  h3: ["Famille 1", "Famille 2", "Famille 3"],
+  h4: ["Verte 1", "Verte 2", "Verte 3", "Verte 4", "Verte 5", "Verte 6"],
+  h5: ["Ocre 1", "Ocre 2"],
+}
+
 // Comptes de démonstration (chargés par db:amorcer) : mots de passe connus, à supprimer avant l’ouverture au public
 export const COMPTE_DEMO = { email: "demo@avocatier.test", motDePasse: "vohilava-demo" }
 // Compte hôte : se connecte au logiciel des hôtes (bureau/), jamais au site
@@ -132,7 +142,7 @@ export type Demonstration = {
   reglesSaisons: RegleSaison[]
   clients: Client[]
   reservations: Reservation[]
-  blocages: Blocage[]
+  blocages: Blocage[] // `chambreId` : numéro de la chambre (« Océan 1 »), remplacé par son identifiant en base
   devises: ReglagesDevises
   compteur: number // dernier numéro de référence attribué
 }
@@ -194,6 +204,8 @@ export function creerDemonstration(): Demonstration {
       reference: `AVO-${arrivee.slice(0, 4)}-${String(compteur).padStart(4, "0")}`,
       clientId: demo.id,
       hebergementId,
+      // Numéro de la première chambre de la catégorie, remplacé par son identifiant en base (db:amorcer)
+      chambreId: chambresInitiales[hebergementId][0],
       arrivee,
       depart,
       adultes: 2,
@@ -239,10 +251,12 @@ export function creerDemonstration(): Demonstration {
       }),
     ],
     blocages: [
-      { id: "b1", hebergementId: "h1", debut: jour(5), fin: jour(12), raison: "Réservation Booking.com (import iCal)" },
-      { id: "b2", hebergementId: "h3", debut: jour(8), fin: jour(15), raison: "Réservation WhatsApp saisie par les hôtes" },
+      { id: "b1", hebergementId: "h1", chambreId: "Océan 1", debut: jour(5), fin: jour(12), raison: "Réservation Booking.com (import iCal)" },
+      { id: "b2", hebergementId: "h3", chambreId: "Famille 1", debut: jour(8), fin: jour(15), raison: "Réservation WhatsApp saisie par les hôtes" },
       // Établissement complet : ces nuits apparaissent grisées dans le calendrier
-      ...hebergements.map((h) => ({ id: `b-priv-${h.id}`, hebergementId: h.id, debut: jour(20), fin: jour(23), raison: "Privatisation" })),
+      ...Object.entries(chambresInitiales).flatMap(([hebergementId, numeros]) =>
+        numeros.map((numero) => ({ id: `b-priv-${numero}`, hebergementId, chambreId: numero, debut: jour(20), fin: jour(23), raison: "Privatisation" })),
+      ),
     ],
     devises: reglagesDevisesInitiaux(),
     compteur,

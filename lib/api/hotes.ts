@@ -79,16 +79,21 @@ export function journaliser(
   })
 }
 
-// « AVO-2026-0042 · Joëlle Martin · 12 – 15 nov. » pour le journal
+// « AVO-2026-0042 · Joëlle Martin · Océan 3 · 12 – 15 nov. » pour le journal
 export async function decrireReservation(id: string): Promise<string> {
   const r = await moteur.trouverReservation(id)
   if (!r) return "Réservation supprimée"
-  const client = await comptes.trouverParId(r.clientId)
-  return [r.reference, client && nomDuMembre(client), formaterPlage(r.arrivee, r.depart)].filter(Boolean).join(" · ")
+  const [client, chambres] = await Promise.all([comptes.trouverParId(r.clientId), moteur.listerChambres()])
+  const chambre = chambres.find((c) => c.id === r.chambreId)?.numero
+  return [r.reference, client && nomDuMembre(client), chambre, formaterPlage(r.arrivee, r.depart)].filter(Boolean).join(" · ")
 }
 
-export async function nomHebergement(id: string): Promise<string> {
-  return (await moteur.listerHebergements()).find((h) => h.id === id)?.nom ?? id
+// « Bungalow Océan · Océan 3 » pour le journal
+export async function nomChambre(id: string): Promise<string> {
+  const [chambres, hebergements] = await Promise.all([moteur.listerChambres(), moteur.listerHebergements()])
+  const chambre = chambres.find((c) => c.id === id)
+  if (!chambre) return "Chambre supprimée"
+  return [hebergements.find((h) => h.id === chambre.hebergementId)?.nom, chambre.numero].filter(Boolean).join(" · ")
 }
 
 // Une décision des hôtes change les disponibilités ou les prix : calendrier de réservation, fiches,

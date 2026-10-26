@@ -5,11 +5,24 @@ import {
   Field,
   Input,
   Link,
+  Menu,
+  MenuDivider,
+  MenuGroup,
+  MenuGroupHeader,
+  MenuItem,
+  MenuItemCheckbox,
+  MenuItemRadio,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   MessageBar,
   MessageBarBody,
   MessageBarTitle,
   Option,
+  OptionGroup,
   Spinner,
+  Tab,
+  TabList,
   Table,
   TableBody,
   TableCell,
@@ -17,83 +30,173 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-  Toolbar,
-  ToolbarButton,
   Tooltip,
   mergeClasses,
 } from "@fluentui/react-components"
-import { CalendarAddRegular, CalendarClockRegular, CalendarCancelRegular, ChevronLeftRegular, ChevronRightRegular, LockOpenRegular } from "@fluentui/react-icons"
-import { useState, type CSSProperties, type FormEvent } from "react"
+import {
+  ArrowMaximizeVerticalRegular,
+  ArrowMinimizeVerticalRegular,
+  CalendarAddRegular,
+  CalendarCancelRegular,
+  CalendarClockRegular,
+  ChevronDownRegular,
+  ChevronLeftRegular,
+  ChevronRightRegular,
+  LockOpenRegular,
+  OptionsRegular,
+} from "@fluentui/react-icons"
+import { Fragment, useState, type CSSProperties, type FormEvent } from "react"
 import { ajouterJours, chevauche, formaterDate, formaterPlage, nombreNuits, pluriel, versDate } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
-import type { Blocage, DateISO, Reservation } from "@partage/types"
+import type { Blocage, Chambre, DateISO, Reservation } from "@partage/types"
 import Calendriers from "../composants/Calendriers"
 import ChampDate from "../composants/ChampDate"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
-import { blocageGene, doublesReservations, nomDe, useDonneesChargees } from "../donnees"
+import { blocageGene, chambresTriees, doublesReservations, nomChambre, nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
+import { useReglages } from "../reglages"
+import {
+  DENSITES_PLANNING,
+  LIBELLES_PLANNING,
+  TRIS_PLANNING,
+  VUES_PLANNING,
+  type AffichagePlanning,
+  type DensitePlanning,
+  type LibellePlanning,
+  type TriPlanning,
+  type VuePlanning,
+} from "../../../partage/ipc"
 import { usePlanningStyles } from "./usePlanningStyles.styles"
 
-const JOURS_AFFICHES = 28
+const VUES: Record<VuePlanning, { libelle: string; pas: string }> = {
+  7: { libelle: "1 sem.", pas: "Semaine" },
+  14: { libelle: "2 sem.", pas: "2 semaines" },
+  21: { libelle: "3 sem.", pas: "3 semaines" },
+}
 
+const TRIS: Record<TriPlanning, string> = {
+  site: "Par catégorie",
+  nom: "Par numéro",
+  type: "Bungalows, puis chambres",
+  occupation: "Les plus occupées d'abord",
+}
+
+const DENSITES: Record<DensitePlanning, string> = { confortable: "Confortable", compacte: "Compacte" }
+const LIBELLES: Record<LibellePlanning, string> = { client: "Nom du client", reference: "Référence" }
 
 type Barre = { cle: string; debut: DateISO; fin: DateISO; libelle: string; detail: string; genre: "option" | "confirmee" | "blocage" | "conflit"; reservation?: Reservation }
 
 const estWeekEnd = (jour: DateISO) => [0, 6].includes(versDate(jour).getUTCDay())
 const estActive = (r: Reservation) => r.statut === "option" || r.statut === "confirmee"
 
-// Planning : une ligne par hébergement, une colonne par nuit ; réservations et blocages en barres
+// Planning : une ligne par chambre, regroupées par catégorie (repliables : la catégorie se résume alors à son
+// occupation nuit par nuit), une colonne par nuit ; réservations et blocages en barres. Options d'affichage
+// (menu « Affichage ») gardées sur ce poste.
 export default function Planning() {
+  const lectureSeule = useLectureSeule()
   const styles = usePlanningStyles()
   const { d, clientDe, ouvrirNouvelleReservation } = useDonneesChargees()
+  const { reglages, modifier } = useReglages()
+  const affichage = reglages.affichagePlanning
+  const nbJours = reglages.vuePlanning
   const [debut, setDebut] = useState(d.aujourdhui)
-  const jours = Array.from({ length: JOURS_AFFICHES }, (_, i) => ajouterJours(debut, i))
-  const colonnes: CSSProperties = { gridTemplateColumns: `168px repeat(${JOURS_AFFICHES}, minmax(28px, 1fr))` }
+  // Colonne d'un jour mise en évidence sur toute la hauteur : au survol de son en-tête, ou gardée par un clic dessus
+  const [survole, setSurvole] = useState<DateISO | null>(null)
+  const [epingle, setEpingle] = useState<DateISO | null>(null)
+  const jours = Array.from({ length: nbJours }, (_, i) => ajouterJours(debut, i))
+  const finVue = ajouterJours(debut, nbJours)
+  // Colonne des noms assez large pour le nom complet de la plus longue catégorie (chevron, compteur et marges en
+  // plus) ; nuits à largeur égale
+  const plusLongNom = Math.max(...d.hebergements.map((h) => h.nom.length), ...d.chambres.map((c) => c.numero.length + 4))
+  const colonnes: CSSProperties = { gridTemplateColumns: `max(160px, calc(${plusLongNom}ch + 72px)) repeat(${nbJours}, minmax(26px, 1fr))` }
   const calendrierDe = (b: Blocage) => d.calendriers.find((c) => c.id === b.calendrierId)
   const conflits = doublesReservations(d)
   const enConflit = new Set(conflits.map((c) => c.blocage.id))
+  const changerAffichage = (changement: Partial<AffichagePlanning>) => void modifier({ affichagePlanning: { ...affichage, ...changement } })
 
   // Nuit déjà prise (réservation active ou dates bloquées)
-  const occupee = (hebergementId: string, nuit: DateISO) =>
-    d.reservations.some((r) => r.hebergementId === hebergementId && estActive(r) && r.arrivee <= nuit && r.depart > nuit) ||
-    d.blocages.some((b) => b.hebergementId === hebergementId && b.debut <= nuit && b.fin > nuit)
+  const occupee = (chambreId: string, nuit: DateISO) =>
+    d.reservations.some((r) => r.chambreId === chambreId && estActive(r) && r.arrivee <= nuit && r.depart > nuit) ||
+    d.blocages.some((b) => b.chambreId === chambreId && b.debut <= nuit && b.fin > nuit)
 
-  function barresDe(hebergementId: string): Barre[] {
+  function barresDe(chambreId: string): Barre[] {
     const reservations = d.reservations
-      .filter((r) => r.hebergementId === hebergementId && estActive(r))
+      .filter((r) => r.chambreId === chambreId && estActive(r))
       .map((r): Barre => {
         const nom = clientDe(r) ? nomDe(clientDe(r)) : r.reference
-        return { cle: r.id, debut: r.arrivee, fin: r.depart, libelle: nom, detail: `${nom}, ${formaterPlage(r.arrivee, r.depart)}, ${libelleStatutHote[r.statut]}`, genre: r.statut === "option" ? "option" : "confirmee", reservation: r }
+        return {
+          cle: r.id,
+          debut: r.arrivee,
+          fin: r.depart,
+          libelle: affichage.libelle === "reference" ? r.reference : nom,
+          detail: `${nom} · ${r.reference}\n${formaterPlage(r.arrivee, r.depart)} · ${pluriel(nombreNuits(r.arrivee, r.depart), "nuit")} · ${libelleStatutHote[r.statut]}`,
+          genre: r.statut === "option" ? "option" : "confirmee",
+          reservation: r,
+        }
       })
     const blocages = d.blocages
-      .filter((b) => b.hebergementId === hebergementId)
+      .filter((b) => b.chambreId === chambreId)
       // Réservation Booking.com saisie à la main et la même importée de Booking.com : une seule barre
-      .filter((b) => !b.calendrierId || !d.reservations.some((r) => r.hebergementId === hebergementId && estActive(r) && chevauche(b.debut, b.fin, r.arrivee, r.depart) && !blocageGene(b, r.source, d.calendriers)))
+      .filter((b) => !b.calendrierId || !d.reservations.some((r) => r.chambreId === chambreId && estActive(r) && chevauche(b.debut, b.fin, r.arrivee, r.depart) && !blocageGene(b, r.source, d.calendriers)))
       .map((b): Barre => {
         const libelle = calendrierDe(b)?.nom ?? (b.raison || "Bloqué")
         const conflit = enConflit.has(b.id)
-        return { cle: b.id, debut: b.debut, fin: b.fin, libelle, detail: `${conflit ? "Double réservation : " : ""}${b.raison || "Dates bloquées"}, ${formaterPlage(b.debut, b.fin)}`, genre: conflit ? "conflit" : "blocage" }
+        return { cle: b.id, debut: b.debut, fin: b.fin, libelle, detail: `${conflit ? "Double réservation : " : ""}${b.raison || "Dates bloquées"}\n${formaterPlage(b.debut, b.fin)}`, genre: conflit ? "conflit" : "blocage" }
       })
     return [...reservations, ...blocages]
   }
+
+  // Nuits occupées (réservations actives et dates bloquées) dans la période affichée
+  const nuitsOccupees = (chambreId: string) => jours.filter((j) => occupee(chambreId, j)).length
+  // Chambres actives, et chambres désactivées seulement si la période affichée garde une trace d'elles
+  const chambres = chambresTriees(d).filter((c) => c.active || barresDe(c.id).some((b) => chevauche(b.debut, b.fin, debut, finVue)))
+  const typeDe = (hebergementId: string) => d.hebergements.find((h) => h.id === hebergementId)?.type
+  if (reglages.triPlanning === "nom") chambres.sort((a, b) => a.numero.localeCompare(b.numero, "fr", { numeric: true }))
+  // Tri stable : l'ordre des catégories et des numéros reste à l'intérieur de chaque type
+  else if (reglages.triPlanning === "type") chambres.sort((a, b) => (typeDe(a.hebergementId) === typeDe(b.hebergementId) ? 0 : typeDe(a.hebergementId) === "bungalow" ? -1 : 1))
+  else if (reglages.triPlanning === "occupation") {
+    const nuits = new Map(chambres.map((c) => [c.id, nuitsOccupees(c.id)]))
+    chambres.sort((a, b) => nuits.get(b.id)! - nuits.get(a.id)!)
+  }
+  // Une ligne de titre (repliable) par catégorie quand ses chambres se suivent
+  const parCategorie = reglages.triPlanning === "site" || reglages.triPlanning === "type"
+  const categories = [...new Set(chambres.map((c) => c.hebergementId))]
+  const replie = (hebergementId: string) => parCategorie && affichage.replies.includes(hebergementId)
+  const basculer = (hebergementId: string) =>
+    changerAffichage({ replies: replie(hebergementId) ? affichage.replies.filter((id) => id !== hebergementId) : [...affichage.replies, hebergementId] })
+
+  // Chambres en vente libres chaque nuit (ligne des disponibilités, catégories repliées)
+  const libres = (liste: Chambre[], nuit: DateISO) => liste.filter((c) => c.active && !occupee(c.id, nuit)).length
+  const enVente = chambres.filter((c) => c.active)
+
+  // Position d'aujourd'hui dans la période affichée (-1 : hors période)
+  const colonneAujourdhui = jours.indexOf(d.aujourdhui)
+
+  // Colonne mise en évidence (clic sur l'en-tête : gardée ; survol : passagère)
+  const colonneVue = (j: DateISO) => (j === epingle ? styles.colonneEpinglee : j === survole ? styles.colonneSurvolee : undefined)
+  // Seul l'en-tête du jour déclenche la mise en évidence au survol (pas les cases de la grille)
+  const suivre = (j: DateISO) => ({ onMouseEnter: () => setSurvole(j), onMouseLeave: () => setSurvole(null) })
+
+  // Classes communes d'une case de nuit : week-end teinté (option), aujourd'hui, début de semaine marqué
+  const classesNuit = (j: DateISO) =>
+    mergeClasses(
+      styles.case,
+      styles[affichage.densite],
+      affichage.weekEnds && estWeekEnd(j) && styles.weekEnd,
+      versDate(j).getUTCDay() === 1 && (affichage.grille ? styles.traitLundi : styles.lundi),
+      affichage.grille && styles.trait,
+      colonneVue(j),
+    )
 
   return (
     <>
       <EnTete
         titre="Planning"
-        description={formaterPlage(debut, ajouterJours(debut, JOURS_AFFICHES - 1))}
+        description={`${pluriel(enVente.length, "chambre")} en vente`}
         actions={
           <>
-          <Toolbar aria-label="Période affichée">
-            <Tooltip content="4 semaines avant" relationship="label">
-              <ToolbarButton icon={<ChevronLeftRegular />} onClick={() => setDebut(ajouterJours(debut, -JOURS_AFFICHES))} />
-            </Tooltip>
-            <ToolbarButton onClick={() => setDebut(d.aujourdhui)}>Aujourd&apos;hui</ToolbarButton>
-            <Tooltip content="4 semaines après" relationship="label">
-              <ToolbarButton icon={<ChevronRightRegular />} onClick={() => setDebut(ajouterJours(debut, JOURS_AFFICHES))} />
-            </Tooltip>
-          </Toolbar>
-            <Button appearance="primary" icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation()}>
+            <MenuAffichage parCategorie={parCategorie} categories={categories} />
+            <Button appearance="primary" icon={<CalendarAddRegular />} disabled={lectureSeule} onClick={() => ouvrirNouvelleReservation()}>
               Nouvelle réservation
             </Button>
           </>
@@ -106,7 +209,7 @@ export default function Planning() {
             <MessageBarTitle>{conflits.length > 1 ? `${conflits.length} doubles réservations` : "Double réservation"}</MessageBarTitle>
             {conflits.map(({ blocage: b, reservation: r }) => (
               <div key={`${b.id}-${r.id}`}>
-                {calendrierDe(b)?.nom ?? "Une plateforme"} bloque {d.hebergements.find((h) => h.id === b.hebergementId)?.nom} {formaterPlage(b.debut, b.fin)}, déjà pris par{" "}
+                {calendrierDe(b)?.nom ?? "Une plateforme"} bloque {nomChambre(d, b.chambreId)} {formaterPlage(b.debut, b.fin)}, déjà pris par{" "}
                 <FicheReservation reservation={r} declencheur={<Link>{r.reference} ({nomDe(clientDe(r))})</Link>} />. Déplacez ou annulez l&apos;une des deux réservations.
               </div>
             ))}
@@ -115,66 +218,176 @@ export default function Planning() {
       )}
 
       <div className={styles.cadre}>
+        {/* Barre du calendrier : période affichée et navigation à gauche, date et durée à droite */}
+        <div className={styles.barreOutils}>
+          <div className={styles.periode} role="group" aria-label="Période affichée">
+            <Tooltip content={`${VUES[nbJours].pas} précédente${nbJours > 7 ? "s" : ""}`} relationship="label">
+              <Button appearance="subtle" icon={<ChevronLeftRegular />} onClick={() => setDebut(ajouterJours(debut, -nbJours))} />
+            </Tooltip>
+            <Tooltip content={`${VUES[nbJours].pas} suivante${nbJours > 7 ? "s" : ""}`} relationship="label">
+              <Button appearance="subtle" icon={<ChevronRightRegular />} onClick={() => setDebut(ajouterJours(debut, nbJours))} />
+            </Tooltip>
+            <Button appearance="outline" size="small" onClick={() => setDebut(d.aujourdhui)} disabled={debut === d.aujourdhui}>
+              Aujourd&apos;hui
+            </Button>
+            <span className={styles.plage}>{formaterPlage(debut, ajouterJours(debut, nbJours - 1))}</span>
+          </div>
+          <div className={styles.periode}>
+            {/* Aller directement à une date : elle devient la première colonne */}
+            <ChampDate className={styles.allerA} valeur={debut} onChange={(v) => v && setDebut(v)} />
+            <TabList size="small" selectedValue={String(nbJours)} onTabSelect={(_e, data) => void modifier({ vuePlanning: Number(data.value) as VuePlanning })} aria-label="Durée affichée">
+              {VUES_PLANNING.map((v) => (
+                <Tab key={v} value={String(v)}>
+                  {VUES[v].libelle}
+                </Tab>
+              ))}
+            </TabList>
+          </div>
+        </div>
         <div className={styles.defilement}>
           <div className={styles.grille}>
+            {/* Jours : initiale, numéro (aujourd'hui entouré), mois au 1er et sur la première colonne */}
             <div className={mergeClasses(styles.rangee, styles.enteteRangee)} style={colonnes}>
-              <div className={mergeClasses(styles.nomHebergement, styles.nomEntete)}>Hébergement</div>
-              {jours.map((j) => (
-                <div key={j} className={mergeClasses(styles.jour, estWeekEnd(j) && styles.weekEnd)}>
-                  <Caption1>{formaterDate(j, { weekday: "short", day: undefined, month: undefined, year: undefined }).slice(0, 2)}</Caption1>
+              <div className={mergeClasses(styles.nomHebergement, styles.nomEntete)}>{formaterDate(debut, { weekday: undefined, day: undefined, month: "long" })}</div>
+              {jours.map((j, i) => (
+                <div
+                  key={j}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={j === epingle}
+                  title={j === epingle ? "Cliquer pour ne plus mettre ce jour en évidence" : `Mettre en évidence le ${formaterDate(j, { weekday: "long", year: undefined })}`}
+                  className={mergeClasses(
+                    styles.jour,
+                    affichage.weekEnds && estWeekEnd(j) && styles.weekEnd,
+                    versDate(j).getUTCDay() === 1 && (affichage.grille ? styles.traitLundi : styles.lundi),
+                    affichage.grille && styles.trait,
+                    colonneVue(j),
+                  )}
+                  onClick={() => setEpingle(j === epingle ? null : j)}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setEpingle(j === epingle ? null : j))}
+                  {...suivre(j)}
+                >
+                  {/* Initiale du jour ; au 1er du mois (hors première colonne), le mois à la place */}
+                  <span className={mergeClasses(styles.initiale, i > 0 && j.endsWith("-01") && styles.nouveauMois)}>
+                    {i > 0 && j.endsWith("-01")
+                      ? formaterDate(j, { weekday: undefined, day: undefined, month: "short", year: undefined })
+                      : formaterDate(j, { weekday: "short", day: undefined, month: undefined, year: undefined }).slice(0, nbJours === 21 ? 1 : 3)}
+                  </span>
                   <span className={mergeClasses(styles.numero, j === d.aujourdhui && styles.numeroAujourdhui)}>{Number(j.slice(8))}</span>
                 </div>
               ))}
             </div>
 
-            {d.hebergements.map((h) => (
-              <div key={h.id} className={styles.rangee} style={colonnes}>
-                <div className={styles.nomHebergement} style={{ gridRow: 1 }}>
-                  {h.nom}
-                </div>
-                {jours.map((j, i) => {
-                  const classes = mergeClasses(styles.case, estWeekEnd(j) && styles.weekEnd, j === d.aujourdhui && styles.aujourdhui)
-                  const style = { gridColumn: i + 2, gridRow: 1 }
-                  // Nuit libre à partir d'aujourd'hui : un clic ouvre la réservation préremplie
-                  return j >= d.aujourdhui && !occupee(h.id, j) ? (
-                    <button
-                      key={j}
-                      type="button"
-                      style={style}
-                      className={mergeClasses(classes, styles.caseLibre)}
-                      title={`Réserver ${h.nom} à partir du ${formaterDate(j, { weekday: "long", year: undefined })}`}
-                      aria-label={`Réserver ${h.nom} à partir du ${formaterDate(j, { year: undefined })}`}
-                      onClick={() => ouvrirNouvelleReservation({ hebergementId: h.id, arrivee: j })}
-                    />
-                  ) : (
-                    <div key={j} aria-hidden style={style} className={classes} />
-                  )
-                })}
-                {barresDe(h.id).map((b) => {
-                  // Barre limitée à la fenêtre affichée ; une case par nuit occupée [début, fin[
-                  const debutCol = Math.max(0, nombreNuits(debut, b.debut))
-                  const finCol = Math.min(JOURS_AFFICHES, nombreNuits(debut, b.fin))
-                  if (finCol <= debutCol) return null
-                  const style = { gridColumn: `${debutCol + 2} / ${finCol + 2}`, gridRow: 1 }
-                  const classes = mergeClasses(styles.barre, styles[b.genre], b.reservation?.arriveeLe && !b.reservation.departLe && styles.surPlace)
-                  return b.reservation ? (
-                    <FicheReservation
-                      key={b.cle}
-                      reservation={b.reservation}
-                      declencheur={
-                        <button type="button" title={b.detail} style={style} className={classes}>
-                          {b.libelle}
-                        </button>
-                      }
-                    />
-                  ) : (
-                    <div key={b.cle} title={b.detail} style={style} className={classes}>
-                      {b.libelle}
-                    </div>
+            {affichage.disponibilites && (
+              <div className={mergeClasses(styles.rangee, styles.rangeeDisponibles)} style={colonnes}>
+                <div className={mergeClasses(styles.nomHebergement, styles.nomDisponibles)}>Chambres libres</div>
+                {jours.map((j) => {
+                  const n = libres(enVente, j)
+                  return (
+                    <Tooltip key={j} content={`${formaterDate(j, { weekday: "long", year: undefined })} : ${n} libre${n > 1 ? "s" : ""} sur ${enVente.length}`} relationship="description">
+                      <div className={mergeClasses(styles.disponible, affichage.grille && styles.trait, colonneVue(j), n === 0 && styles.complet, n > 0 && n <= Math.ceil(enVente.length / 5) && styles.presqueComplet)}>{n}</div>
+                    </Tooltip>
                   )
                 })}
               </div>
-            ))}
+            )}
+
+            {chambres.map((c, rang) => {
+              const nouvelleCategorie = parCategorie && c.hebergementId !== chambres[rang - 1]?.hebergementId
+              const ferme = replie(c.hebergementId)
+              const dansCategorie = chambres.filter((x) => x.hebergementId === c.hebergementId)
+              const nom = d.hebergements.find((h) => h.id === c.hebergementId)?.nom
+              return (
+                <Fragment key={c.id}>
+                  {nouvelleCategorie && (
+                    // Toute la ligne replie ou déplie la catégorie (le bouton, pour le clavier, fait de même)
+                    <div className={mergeClasses(styles.rangee, styles.rangeeCategorie)} style={colonnes} onClick={() => basculer(c.hebergementId)}>
+                      <button type="button" className={styles.nomCategorie} aria-expanded={!ferme} title={ferme ? `Déplier ${nom}` : `Replier ${nom}`}>
+                        {ferme ? <ChevronRightRegular /> : <ChevronDownRegular />}
+                        <span className={styles.texteCategorie}>{nom}</span>
+                        <Caption1 className={styles.compteCategorie}>{dansCategorie.filter((x) => x.active).length}</Caption1>
+                      </button>
+                      {/* Repliée : occupation de la catégorie nuit par nuit (part des chambres prises) */}
+                      {jours.map((j) => {
+                        if (!ferme) return <div key={j} {...suivre(j)} className={mergeClasses(styles.caseCategorie, affichage.weekEnds && estWeekEnd(j) && styles.weekEnd, affichage.grille && styles.trait, colonneVue(j))} />
+                        const total = dansCategorie.filter((x) => x.active).length
+                        const prises = total - libres(dansCategorie, j)
+                        return (
+                          <Tooltip key={j} content={`${formaterDate(j, { weekday: "long", year: undefined })} : ${prises} prise${prises > 1 ? "s" : ""} sur ${total}`} relationship="description">
+                            <div className={mergeClasses(styles.caseCategorie, affichage.weekEnds && estWeekEnd(j) && styles.weekEnd, affichage.grille && styles.trait, colonneVue(j))}>
+                              <span className={styles.jauge}>
+                                <span className={mergeClasses(styles.remplissage, prises === total && total > 0 && styles.remplissagePlein)} style={{ width: `${total ? (prises / total) * 100 : 0}%` }} />
+                              </span>
+                            </div>
+                          </Tooltip>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {!ferme && (
+                    <div className={styles.rangee} style={colonnes}>
+                      <div className={mergeClasses(styles.nomHebergement, parCategorie && styles.nomChambre)} style={{ gridRow: 1 }} title={nomChambre(d, c.id)}>
+                        <span className={styles.texteCategorie}>{c.numero}</span>
+                        {!c.active && <Caption1 className={styles.desactivee}>désactivée</Caption1>}
+                        {c.active && c.etat !== "propre" && (
+                          <span className={mergeClasses(styles.pointEtat, styles[c.etat])} title={c.etat === "a_nettoyer" ? "À nettoyer" : "En maintenance"} />
+                        )}
+                      </div>
+                      {jours.map((j, i) => {
+                        const style = { gridColumn: i + 2, gridRow: 1 }
+                        // Nuit libre à partir d'aujourd'hui : un clic ouvre la réservation préremplie, sur cette chambre
+                        return c.active && j >= d.aujourdhui && !occupee(c.id, j) ? (
+                          <button
+                            key={j}
+                            type="button"
+                            style={style}
+                            className={mergeClasses(classesNuit(j), styles.caseLibre)}
+                            title={`Réserver ${c.numero} à partir du ${formaterDate(j, { weekday: "long", year: undefined })}`}
+                            aria-label={`Réserver ${nomChambre(d, c.id)} à partir du ${formaterDate(j, { year: undefined })}`}
+                            onClick={() => ouvrirNouvelleReservation({ hebergementId: c.hebergementId, chambreId: c.id, arrivee: j })}
+                          />
+                        ) : (
+                          <div key={j} aria-hidden style={style} className={classesNuit(j)} />
+                        )
+                      })}
+                      {barresDe(c.id).map((b) => {
+                        // Barre limitée à la fenêtre affichée ; une case par nuit occupée [début, fin[. Bord droit ou
+                        // gauche coupé quand le séjour continue hors de la période
+                        const debutCol = Math.max(0, nombreNuits(debut, b.debut))
+                        const finCol = Math.min(nbJours, nombreNuits(debut, b.fin))
+                        if (finCol <= debutCol) return null
+                        const style = { gridColumn: `${debutCol + 2} / ${finCol + 2}`, gridRow: 1 }
+                        const classes = mergeClasses(
+                          styles.barre,
+                          styles[`barre_${affichage.densite}`],
+                          styles[b.genre],
+                          b.reservation?.arriveeLe && !b.reservation.departLe && styles.surPlace,
+                          b.debut < debut && styles.coupeGauche,
+                          b.fin > finVue && styles.coupeDroite,
+                        )
+                        return b.reservation ? (
+                          <FicheReservation
+                            key={b.cle}
+                            reservation={b.reservation}
+                            declencheur={
+                              <button type="button" title={b.detail} style={style} className={classes}>
+                                <span className={styles.texteBarre}>{b.libelle}</span>
+                              </button>
+                            }
+                          />
+                        ) : (
+                          <div key={b.cle} title={b.detail} style={style} className={classes}>
+                            <span className={styles.texteBarre}>{b.libelle}</span>
+                          </div>
+                        )
+                      })}
+                      {/* Trait d'aujourd'hui au-dessus des barres (sans gêner les clics) */}
+                      {colonneAujourdhui >= 0 && <div aria-hidden className={styles.traitAujourdhui} style={{ gridColumn: colonneAujourdhui + 2, gridRow: 1 }} />}
+                    </div>
+                  )}
+                </Fragment>
+              )
+            })}
           </div>
         </div>
         <div className={styles.legende}>
@@ -182,16 +395,20 @@ export default function Planning() {
             <span className={mergeClasses(styles.pastille, styles.confirmee)} /> Confirmée
           </Caption1>
           <Caption1>
+            <span className={mergeClasses(styles.pastille, styles.surPlace)} /> Client sur place
+          </Caption1>
+          <Caption1>
             <span className={mergeClasses(styles.pastille, styles.option)} /> Demande à traiter
           </Caption1>
           <Caption1>
-            <span className={mergeClasses(styles.pastille, styles.blocage)} /> Dates bloquées (ou importées d&apos;une plateforme)
+            <span className={mergeClasses(styles.pastille, styles.blocage)} /> Dates bloquées ou plateforme
           </Caption1>
           {conflits.length > 0 && (
             <Caption1>
               <span className={mergeClasses(styles.pastille, styles.conflit)} /> Double réservation
             </Caption1>
           )}
+          <Caption1 className={styles.astuce}>Cliquez une nuit libre pour réserver, un nom de catégorie pour la replier.</Caption1>
         </div>
       </div>
 
@@ -207,10 +424,85 @@ export default function Planning() {
   )
 }
 
+// Menu « Affichage » : ordre des chambres, densité, texte des barres, ligne des chambres libres, week-ends,
+// tout replier ou déplier ; chaque choix est gardé sur ce poste
+function MenuAffichage({ parCategorie, categories }: { parCategorie: boolean; categories: string[] }) {
+  const { reglages, modifier } = useReglages()
+  const affichage = reglages.affichagePlanning
+  const changer = (changement: Partial<AffichagePlanning>) => void modifier({ affichagePlanning: { ...affichage, ...changement } })
+  const options = [affichage.disponibilites && "disponibilites", affichage.weekEnds && "weekEnds", affichage.grille && "grille"].filter((o): o is string => Boolean(o))
+
+  return (
+    <Menu
+      checkedValues={{ tri: [reglages.triPlanning], densite: [affichage.densite], libelle: [affichage.libelle], options }}
+      onCheckedValueChange={(_e, { name, checkedItems }) => {
+        if (name === "tri") void modifier({ triPlanning: checkedItems[0] as TriPlanning })
+        else if (name === "densite") changer({ densite: checkedItems[0] as DensitePlanning })
+        else if (name === "libelle") changer({ libelle: checkedItems[0] as LibellePlanning })
+        else if (name === "options") changer({ disponibilites: checkedItems.includes("disponibilites"), weekEnds: checkedItems.includes("weekEnds"), grille: checkedItems.includes("grille") })
+      }}
+    >
+      <MenuTrigger disableButtonEnhancement>
+        <Button icon={<OptionsRegular />}>Affichage</Button>
+      </MenuTrigger>
+      <MenuPopover>
+        <MenuList>
+          <MenuGroup>
+            <MenuGroupHeader>Ordre des chambres</MenuGroupHeader>
+            {TRIS_PLANNING.map((t) => (
+              <MenuItemRadio key={t} name="tri" value={t}>
+                {TRIS[t]}
+              </MenuItemRadio>
+            ))}
+          </MenuGroup>
+          <MenuDivider />
+          <MenuGroup>
+            <MenuGroupHeader>Lignes</MenuGroupHeader>
+            {DENSITES_PLANNING.map((v) => (
+              <MenuItemRadio key={v} name="densite" value={v}>
+                {DENSITES[v]}
+              </MenuItemRadio>
+            ))}
+          </MenuGroup>
+          <MenuDivider />
+          <MenuGroup>
+            <MenuGroupHeader>Texte des réservations</MenuGroupHeader>
+            {LIBELLES_PLANNING.map((v) => (
+              <MenuItemRadio key={v} name="libelle" value={v}>
+                {LIBELLES[v]}
+              </MenuItemRadio>
+            ))}
+          </MenuGroup>
+          <MenuDivider />
+          <MenuItemCheckbox name="options" value="disponibilites">
+            Ligne des chambres libres
+          </MenuItemCheckbox>
+          <MenuItemCheckbox name="options" value="weekEnds">
+            Week-ends teintés
+          </MenuItemCheckbox>
+          <MenuItemCheckbox name="options" value="grille">
+            Lignes de grille entre les nuits
+          </MenuItemCheckbox>
+          <MenuDivider />
+          <MenuItem icon={<ArrowMinimizeVerticalRegular />} disabled={!parCategorie} onClick={() => changer({ replies: categories })}>
+            Replier toutes les catégories
+          </MenuItem>
+          <MenuItem icon={<ArrowMaximizeVerticalRegular />} disabled={!parCategorie || affichage.replies.length === 0} onClick={() => changer({ replies: [] })}>
+            Tout déplier
+          </MenuItem>
+        </MenuList>
+      </MenuPopover>
+    </Menu>
+  )
+}
+
+// Dates fermées sur une ou plusieurs chambres à la fois (toute une catégorie, tout l'hôtel pour une privatisation)
 function FormulaireBlocage() {
+  const lectureSeule = useLectureSeule()
   const styles = usePlanningStyles()
   const { d, executer } = useDonneesChargees()
-  const [hebergementId, setHebergementId] = useState(d.hebergements[0]?.id ?? "")
+  const [chambreIds, setChambreIds] = useState<string[]>([])
+  const actives = chambresTriees(d).filter((c) => c.active)
   const [debut, setDebut] = useState<DateISO | "">("")
   const [fin, setFin] = useState<DateISO | "">("")
   const [raison, setRaison] = useState("")
@@ -220,10 +512,11 @@ function FormulaireBlocage() {
   async function envoyer(e: FormEvent) {
     e.preventDefault()
     setEnCours(true)
-    const resultat = await executer("POST", "/api/hotes/blocages", { hebergementId, debut, fin, raison })
+    const resultat = await executer("POST", "/api/hotes/blocages", { chambreIds, debut, fin, raison })
     setEnCours(false)
     if (!resultat.ok) return setEtat({ erreur: resultat.erreur })
     setEtat({ ok: true })
+    setChambreIds([])
     setDebut("")
     setFin("")
     setRaison("")
@@ -231,18 +524,33 @@ function FormulaireBlocage() {
 
   return (
     <form className={styles.formulaire} onSubmit={envoyer}>
-      <Field label="Hébergement" required className={styles.pleineLargeur}>
+      <Field label="Chambres" required className={styles.pleineLargeur} hint="Plusieurs chambres possibles : toute une catégorie, ou tout l'hôtel.">
         <Dropdown
+          multiselect
           className={styles.champ}
-          value={d.hebergements.find((h) => h.id === hebergementId)?.nom ?? ""}
-          selectedOptions={[hebergementId]}
-          onOptionSelect={(_e, data) => setHebergementId(data.optionValue ?? "")}
+          placeholder="Choisir les chambres"
+          value={
+            chambreIds.length === actives.length && actives.length > 1
+              ? "Toutes les chambres"
+              : actives.filter((c) => chambreIds.includes(c.id)).map((c) => c.numero).join(", ")
+          }
+          selectedOptions={chambreIds}
+          onOptionSelect={(_e, data) => setChambreIds(data.selectedOptions)}
         >
-          {d.hebergements.map((h) => (
-            <Option key={h.id} value={h.id}>
-              {h.nom}
-            </Option>
-          ))}
+          {d.hebergements.map((h) => {
+            const chambres = actives.filter((c) => c.hebergementId === h.id)
+            return (
+              chambres.length > 0 && (
+                <OptionGroup key={h.id} label={h.nom}>
+                  {chambres.map((c) => (
+                    <Option key={c.id} value={c.id}>
+                      {c.numero}
+                    </Option>
+                  ))}
+                </OptionGroup>
+              )
+            )
+          })}
         </Dropdown>
       </Field>
       <Field label="Première nuit" required>
@@ -264,7 +572,13 @@ function FormulaireBlocage() {
           <MessageBarBody>Dates bloquées : elles ne sont plus réservables sur le site.</MessageBarBody>
         </MessageBar>
       )}
-      <Button type="submit" appearance="primary" disabled={enCours || !debut || !fin} icon={enCours ? <Spinner size="tiny" /> : <CalendarCancelRegular />} className={styles.envoi}>
+      <Button
+        type="submit"
+        appearance="primary"
+        disabled={enCours || lectureSeule || chambreIds.length === 0 || !debut || !fin}
+        icon={enCours ? <Spinner size="tiny" /> : <CalendarCancelRegular />}
+        className={styles.envoi}
+      >
         Bloquer ces dates
       </Button>
     </form>
@@ -272,14 +586,18 @@ function FormulaireBlocage() {
 }
 
 function BlocagesAVenir() {
+  const lectureSeule = useLectureSeule()
   const styles = usePlanningStyles()
   const { d, executer } = useDonneesChargees()
   const [erreur, setErreur] = useState<string | null>(null)
+  const [enCours, setEnCours] = useState<string | null>(null) // blocage en cours de libération
   // Dates fermées à la main ; celles des plateformes se gèrent dans la carte des calendriers
   const blocages = d.blocages.filter((b) => !b.calendrierId && b.fin > d.aujourdhui).sort((a, b) => a.debut.localeCompare(b.debut))
 
   async function liberer(id: string) {
+    setEnCours(id)
     const resultat = await executer("DELETE", `/api/hotes/blocages/${encodeURIComponent(id)}`)
+    setEnCours(null)
     setErreur(resultat.ok ? null : resultat.erreur)
   }
 
@@ -291,12 +609,12 @@ function BlocagesAVenir() {
         </MessageBar>
       )}
       {blocages.length === 0 ? (
-        <Vide Icone={CalendarClockRegular} titre="Aucune date bloquée" texte="Tous les hébergements sont ouverts à la réservation en ligne." />
+        <Vide Icone={CalendarClockRegular} titre="Aucune date bloquée" texte="Toutes les chambres sont ouvertes à la réservation en ligne." />
       ) : (
         <Table size="small" aria-label="Dates bloquées">
           <TableHeader>
             <TableRow>
-              <TableHeaderCell>Hébergement</TableHeaderCell>
+              <TableHeaderCell>Chambre</TableHeaderCell>
               <TableHeaderCell>Période</TableHeaderCell>
               <TableHeaderCell>Raison</TableHeaderCell>
               <TableHeaderCell style={{ width: "120px" }} aria-label="Actions" />
@@ -306,7 +624,9 @@ function BlocagesAVenir() {
             {blocages.map((b) => (
               <TableRow key={b.id}>
                 <TableCell>
-                  <TableCellLayout truncate>{d.hebergements.find((h) => h.id === b.hebergementId)?.nom}</TableCellLayout>
+                  <TableCellLayout truncate description={d.hebergements.find((h) => h.id === b.hebergementId)?.nom}>
+                    {d.chambres.find((c) => c.id === b.chambreId)?.numero}
+                  </TableCellLayout>
                 </TableCell>
                 <TableCell>
                   <TableCellLayout className={styles.surUneLigne} description={pluriel(nombreNuits(b.debut, b.fin), "nuit")}>
@@ -317,7 +637,13 @@ function BlocagesAVenir() {
                   <TableCellLayout truncate>{b.raison || "—"}</TableCellLayout>
                 </TableCell>
                 <TableCell>
-                  <Button appearance="subtle" size="small" icon={<LockOpenRegular />} onClick={() => liberer(b.id)}>
+                  <Button
+                    appearance="subtle"
+                    size="small"
+                    disabled={enCours === b.id || lectureSeule}
+                    icon={enCours === b.id ? <Spinner size="tiny" /> : <LockOpenRegular />}
+                    onClick={() => liberer(b.id)}
+                  >
                     Libérer
                   </Button>
                 </TableCell>

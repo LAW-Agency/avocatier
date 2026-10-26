@@ -16,6 +16,7 @@ import {
   MessageBar,
   MessageBarBody,
   Option,
+  OptionGroup,
   Spinner,
   Table,
   TableBody,
@@ -32,7 +33,7 @@ import { ArrowSyncRegular, CalendarSyncRegular, CopyRegular, DeleteRegular, Link
 import { useState, type FormEvent } from "react"
 import { formaterHeure, pluriel } from "@partage/dates"
 import type { BilanSynchronisation, Plateforme } from "@partage/types"
-import { useDonneesChargees, type Calendrier } from "../donnees"
+import { chambresTriees, nomChambre, useDonneesChargees, useLectureSeule, type Calendrier } from "../donnees"
 import { PLATEFORMES } from "../libelles"
 import { useAnnoncer } from "../toasts"
 import { Carte, Vide } from "./commun"
@@ -60,13 +61,15 @@ const useStyles = makeStyles({
 // toutes les 10 minutes tant que le logiciel tourne, chaque nuit par le serveur, et juste avant chaque demande
 // du site. Ajout et retrait réservés aux gérants ; synchronisation à la demande pour toute l'équipe.
 export default function Calendriers() {
+  const lectureSeule = useLectureSeule()
   const styles = useStyles()
   const { d, gerant, executer } = useDonneesChargees()
   const { annoncer } = useAnnoncer()
   const [enCours, setEnCours] = useState<string | null>(null)
-  const nomHebergement = (id: string) => d.hebergements.find((h) => h.id === id)?.nom ?? id
   const importees = (c: Calendrier) => d.blocages.filter((b) => b.calendrierId === c.id && b.fin > d.aujourdhui).length
-  const calendriers = [...d.calendriers].sort((a, b) => nomHebergement(a.hebergementId).localeCompare(nomHebergement(b.hebergementId)) || a.nom.localeCompare(b.nom))
+  // Dans l'ordre des chambres, puis des plateformes
+  const ordre = chambresTriees(d).map((c) => c.id)
+  const calendriers = [...d.calendriers].sort((a, b) => ordre.indexOf(a.chambreId) - ordre.indexOf(b.chambreId) || a.nom.localeCompare(b.nom))
 
   async function synchroniser(c: Calendrier) {
     setEnCours(c.id)
@@ -96,13 +99,13 @@ export default function Calendriers() {
           <Vide
             Icone={CalendarSyncRegular}
             titre="Aucun calendrier relié"
-            texte={gerant ? "Ajoutez le lien iCal donné par Booking.com ou Airbnb pour chaque hébergement." : "Un gérant peut relier les calendriers de Booking.com ou Airbnb."}
+            texte={gerant ? "Ajoutez le lien iCal donné par Booking.com ou Airbnb pour chaque chambre (une annonce = une chambre)." : "Un gérant peut relier les calendriers de Booking.com ou Airbnb."}
           />
         ) : (
           <Table size="small" aria-label="Calendriers des plateformes">
             <TableHeader>
               <TableRow>
-                <TableHeaderCell>Hébergement</TableHeaderCell>
+                <TableHeaderCell>Chambre</TableHeaderCell>
                 <TableHeaderCell>Plateforme</TableHeaderCell>
                 <TableHeaderCell>Importation</TableHeaderCell>
                 <TableHeaderCell style={{ width: gerant ? "190px" : "150px" }} aria-label="Actions" />
@@ -112,7 +115,9 @@ export default function Calendriers() {
               {calendriers.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <TableCellLayout truncate>{nomHebergement(c.hebergementId)}</TableCellLayout>
+                    <TableCellLayout truncate description={d.hebergements.find((h) => h.id === c.hebergementId)?.nom}>
+                      {d.chambres.find((x) => x.id === c.chambreId)?.numero}
+                    </TableCellLayout>
                   </TableCell>
                   <TableCell>
                     <TableCellLayout truncate description={PLATEFORMES[c.plateforme]}>
@@ -144,13 +149,13 @@ export default function Calendriers() {
                           <Button
                             appearance="subtle"
                             size="small"
-                            disabled={enCours === c.id}
+                            disabled={enCours === c.id || lectureSeule}
                             icon={enCours === c.id ? <Spinner size="tiny" /> : <ArrowSyncRegular />}
                             onClick={() => synchroniser(c)}
                           />
                         </Tooltip>
                       )}
-                      {gerant && <RetirerCalendrier calendrier={c} hebergement={nomHebergement(c.hebergementId)} />}
+                      {gerant && <RetirerCalendrier calendrier={c} hebergement={nomChambre(d, c.chambreId)} />}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -165,14 +170,17 @@ export default function Calendriers() {
 }
 
 function RetirerCalendrier({ calendrier, hebergement }: { calendrier: Calendrier; hebergement: string }) {
+  const lectureSeule = useLectureSeule()
   const actions = useActionsStyles()
   const { executer } = useDonneesChargees()
   const [erreur, setErreur] = useState<string | null>(null)
+  const [enCours, setEnCours] = useState(false)
+  const [ouvert, setOuvert] = useState(false)
   return (
-    <Dialog modalType="alert">
+    <Dialog modalType="alert" open={ouvert} onOpenChange={(_e, data) => !enCours && setOuvert(data.open)}>
       <DialogTrigger disableButtonEnhancement>
         <Tooltip content="Retirer ce calendrier" relationship="label">
-          <Button appearance="subtle" size="small" icon={<DeleteRegular />} />
+          <Button appearance="subtle" size="small" disabled={lectureSeule} icon={<DeleteRegular />} />
         </Tooltip>
       </DialogTrigger>
       <DialogSurface>
@@ -190,12 +198,16 @@ function RetirerCalendrier({ calendrier, hebergement }: { calendrier: Calendrier
           </DialogContent>
           <DialogActions>
             <DialogTrigger disableButtonEnhancement>
-              <Button>Retour</Button>
+              <Button disabled={enCours}>Retour</Button>
             </DialogTrigger>
             <Button
               className={actions.danger}
+              disabled={enCours || lectureSeule}
+              icon={enCours ? <Spinner size="tiny" /> : undefined}
               onClick={async () => {
+                setEnCours(true)
                 const resultat = await executer("DELETE", `/api/hotes/calendriers/${encodeURIComponent(calendrier.id)}`)
+                setEnCours(false)
                 if (!resultat.ok) setErreur(resultat.erreur)
               }}
             >
@@ -209,10 +221,12 @@ function RetirerCalendrier({ calendrier, hebergement }: { calendrier: Calendrier
 }
 
 function AjouterCalendrier() {
+  const lectureSeule = useLectureSeule()
   const styles = useStyles()
   const { d, executer } = useDonneesChargees()
   const { annoncer } = useAnnoncer()
-  const [hebergementId, setHebergementId] = useState(d.hebergements[0]?.id ?? "")
+  const chambres = chambresTriees(d).filter((c) => c.active)
+  const [chambreId, setChambreId] = useState(chambres[0]?.id ?? "")
   const [plateforme, setPlateforme] = useState<Plateforme>("booking")
   const [nom, setNom] = useState(PLATEFORMES.booking)
   const [urlImport, setUrlImport] = useState("")
@@ -223,7 +237,7 @@ function AjouterCalendrier() {
     e.preventDefault()
     setEnCours(true)
     setErreur(null)
-    const resultat = await executer<{ calendrier: Calendrier; bilan: BilanSynchronisation }>("POST", "/api/hotes/calendriers", { hebergementId, plateforme, nom, urlImport })
+    const resultat = await executer<{ calendrier: Calendrier; bilan: BilanSynchronisation }>("POST", "/api/hotes/calendriers", { chambreId, plateforme, nom, urlImport })
     setEnCours(false)
     if (!resultat.ok) return setErreur(resultat.erreur)
     const { bilan } = resultat.donnees
@@ -240,13 +254,22 @@ function AjouterCalendrier() {
 
   return (
     <form className={styles.formulaire} onSubmit={envoyer}>
-      <Field label="Hébergement" required>
-        <Dropdown className={styles.champ} value={d.hebergements.find((h) => h.id === hebergementId)?.nom ?? ""} selectedOptions={[hebergementId]} onOptionSelect={(_e, data) => setHebergementId(data.optionValue ?? "")}>
-          {d.hebergements.map((h) => (
-            <Option key={h.id} value={h.id}>
-              {h.nom}
-            </Option>
-          ))}
+      <Field label="Chambre" required>
+        <Dropdown className={styles.champ} value={chambreId ? nomChambre(d, chambreId) : ""} selectedOptions={[chambreId]} onOptionSelect={(_e, data) => setChambreId(data.optionValue ?? "")}>
+          {d.hebergements.map((h) => {
+            const dansCategorie = chambres.filter((c) => c.hebergementId === h.id)
+            return (
+              dansCategorie.length > 0 && (
+                <OptionGroup key={h.id} label={h.nom}>
+                  {dansCategorie.map((c) => (
+                    <Option key={c.id} value={c.id} text={nomChambre(d, c.id)}>
+                      {c.numero}
+                    </Option>
+                  ))}
+                </OptionGroup>
+              )
+            )
+          })}
         </Dropdown>
       </Field>
       <Field label="Plateforme" required>
@@ -283,7 +306,7 @@ function AjouterCalendrier() {
           <MessageBarBody>{erreur}</MessageBarBody>
         </MessageBar>
       )}
-      <Button type="submit" appearance="primary" className={styles.envoi} disabled={enCours || !hebergementId || !nom.trim()} icon={enCours ? <Spinner size="tiny" /> : <LinkAddRegular />}>
+      <Button type="submit" appearance="primary" className={styles.envoi} disabled={enCours || lectureSeule || !chambreId || !nom.trim()} icon={enCours ? <Spinner size="tiny" /> : <LinkAddRegular />}>
         Relier ce calendrier
       </Button>
     </form>

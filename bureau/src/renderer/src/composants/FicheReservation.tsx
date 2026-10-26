@@ -18,10 +18,10 @@ import {
 } from "@fluentui/react-components"
 import { CallRegular, ChatRegular, DismissRegular, DocumentPdfRegular, MailRegular, VehicleBusRegular } from "@fluentui/react-icons"
 import { useState, type ReactElement, type ReactNode } from "react"
-import { formaterHeure, formaterPlage, formaterPrix, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
+import { formaterHeure, formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
 import { libelleEvenement } from "@partage/statuts"
 import type { Reservation } from "@partage/types"
-import { estTermine, nomDe, useDonneesChargees } from "../donnees"
+import { estTermine, nomChambre, nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFichiers } from "../fichiers"
 import { SOURCES } from "../libelles"
 import ActionsReservation, { BoutonReception } from "./ActionsReservation"
@@ -29,9 +29,11 @@ import { BadgeStatut } from "./commun"
 import Encaissements from "./Encaissements"
 import ModifierReservation from "./ModifierReservation"
 import { useFicheStyles } from "./useReservationStyles.styles"
+import { usePrix } from "../montants"
 
 // Facture PDF d'un séjour confirmé (numéro attribué à la première édition)
 function BoutonFacture({ reservation: r }: { reservation: Reservation }) {
+  const lectureSeule = useLectureSeule()
   const { imprimerFacture } = useFichiers()
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -39,7 +41,7 @@ function BoutonFacture({ reservation: r }: { reservation: Reservation }) {
     <Tooltip content={erreur ?? (r.factureNumero ? `Facture ${r.factureNumero}, éditée le ${formaterHeure(r.factureLe ?? r.creeLe)}` : "Attribue un numéro de facture et enregistre le PDF")} relationship="description">
       <Button
         icon={enCours ? <Spinner size="tiny" /> : <DocumentPdfRegular />}
-        disabled={enCours}
+        disabled={enCours || lectureSeule}
         onClick={async () => {
           setEnCours(true)
           setErreur(await imprimerFacture(r))
@@ -74,8 +76,9 @@ interface FicheReservationProps {
 // Fenêtre de détail : à gauche le séjour, le message et les encaissements ; à droite, en panneau, qui joindre,
 // l'accueil (arrivée, départ) et ce qui s'est passé ; décision en pied
 export default function FicheReservation({ reservation, declencheur }: FicheReservationProps) {
+  const formaterPrix = usePrix()
   const styles = useFicheStyles()
-  const { d, clientDe, hebergementDe, naviguer } = useDonneesChargees()
+  const { d, clientDe, naviguer } = useDonneesChargees()
   // Données rechargées après une action : la fiche suit la version à jour de la réservation
   const r = d.reservations.find((x) => x.id === reservation.id) ?? reservation
   const [ouverte, setOuverte] = useState(false)
@@ -86,6 +89,8 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
   // Le jour du départ, un séjour se prolonge encore (pas une fois le départ enregistré)
   const modifiable = (r.statut === "option" || r.statut === "confirmee") && !r.departLe && r.depart >= d.aujourdhui
   const facturable = r.statut === "confirmee"
+  // Autres chambres de la même demande (site, plusieurs chambres en une fois), mêmes dates
+  const groupe = r.groupe ? d.reservations.filter((x) => x.groupe === r.groupe) : [r]
   const telephone = r.telephone || client?.telephone
 
   return (
@@ -119,7 +124,15 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
           <DialogContent className={styles.contenu}>
             <div className={styles.principal}>
               <dl className={styles.faits}>
-                <Fait titre="Hébergement">{hebergementDe(r)?.nom ?? "Inconnu"}</Fait>
+                <Fait titre="Hébergement">
+                  {nomChambre(d, r.chambreId)}
+                  {groupe.length > 1 && (
+                    // Demande de plusieurs chambres : confirmée ou refusée en entier
+                    <Caption1 block className={styles.description}>
+                      Demande de {groupe.length} chambres avec {groupe.filter((x) => x.id !== r.id).map((x) => x.reference).join(", ")}
+                    </Caption1>
+                  )}
+                </Fait>
                 <Fait titre="Voyageurs">
                   {pluriel(r.adultes, "adulte")}
                   {r.enfants > 0 && `, ${pluriel(r.enfants, "enfant")}`}

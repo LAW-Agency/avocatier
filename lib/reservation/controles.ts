@@ -1,8 +1,8 @@
 import { ajouterJours, aujourdhuiISO, estDateISO, formaterPlage, formaterPrix, nombreNuits, pluriel } from "./dates"
 import { CODES_DEVISES, DEVISE_REFERENCE } from "./devises"
-import { chevauchementSaisons, deplierSaisons, estJourAnnee, NUITS_MAX, verifierDates } from "./regles"
+import { CHAMBRES_PAR_DEMANDE_MAX, chevauchementSaisons, deplierSaisons, estJourAnnee, NUITS_MAX, verifierDates } from "./regles"
 import type {
-  Blocage,
+  Chambre,
   DateISO,
   ModificationClient,
   ModificationReservation,
@@ -11,6 +11,7 @@ import type {
   ReglagesFacturation,
   EtatChambre,
   ModePaiement,
+  NouveauBlocage,
   NouveauClientLocal,
   ReservationDirecte,
   DemandeReservation,
@@ -57,16 +58,22 @@ export function saisonsDatees(regles: RegleSaison[]): Saison[] {
 export function controlerDemande(demande: DemandeReservation, hebergement: Hebergement | undefined, saisons: Saison[]): string | null {
   if (!hebergement) return "Cet hébergement n'existe pas."
 
-  const { arrivee, depart, adultes, enfants } = demande
+  const { arrivee, depart, adultes, enfants, chambres } = demande
   if (!estDateISO(arrivee) || !estDateISO(depart)) return "Dates invalides."
   const erreurDates = verifierDates(arrivee, depart, aujourdhuiISO(), saisons)
   if (erreurDates) return erreurDates
 
+  if (!Number.isInteger(chambres) || chambres < 1 || chambres > CHAMBRES_PAR_DEMANDE_MAX) {
+    return `De 1 à ${CHAMBRES_PAR_DEMANDE_MAX} chambres par demande : pour un groupe plus grand, contactez-nous directement.`
+  }
   if (!Number.isInteger(adultes) || !Number.isInteger(enfants) || adultes < 1 || enfants < 0) {
     return "Nombre de voyageurs invalide."
   }
-  if (adultes + enfants > hebergement.capaciteMax) {
-    return `${hebergement.nom} accueille ${hebergement.capaciteMax} personnes au maximum.`
+  if (adultes < chambres) return "Il faut au moins un adulte par chambre."
+  if (adultes + enfants > hebergement.capaciteMax * chambres) {
+    return chambres === 1
+      ? `${hebergement.nom} accueille ${hebergement.capaciteMax} personnes au maximum.`
+      : `${pluriel(chambres, "chambre")} ${hebergement.nom} accueillent ${hebergement.capaciteMax * chambres} personnes au maximum.`
   }
   return null
 }
@@ -85,17 +92,35 @@ export function controlerChangementStatut(
   return null
 }
 
-// Tout sauf le chevauchement avec une réservation active (voir blocageEnConflit)
-export function controlerBlocage(blocage: Omit<Blocage, "id">, hebergement: Hebergement | undefined): string | null {
-  if (!hebergement) return "Choisissez un hébergement."
+// Tout sauf le chevauchement avec une réservation active (voir blocageEnConflit). `trouvees` : chambres
+// demandées qui existent
+export function controlerBlocage(blocage: NouveauBlocage, trouvees: Chambre[]): string | null {
+  if (blocage.chambreIds.length === 0) return "Choisissez au moins une chambre."
+  if (trouvees.length !== new Set(blocage.chambreIds).size) return "Une des chambres choisies n'existe plus."
   if (!estDateISO(blocage.debut) || !estDateISO(blocage.fin)) return "Dates invalides."
   if (blocage.fin <= blocage.debut) return "La fin doit suivre le début."
   return null
 }
 
-export function blocageEnConflit(reference: string, hebergement: Hebergement): string {
-  return `Ces dates chevauchent la réservation ${reference} de ${hebergement.nom}.`
+export function blocageEnConflit(reference: string, chambre: string): string {
+  return `Ces dates chevauchent la réservation ${reference} (${chambre}).`
 }
+
+// --- Chambres ---
+
+const NUMERO_MAX = 30
+
+// Numéro saisi par l'équipe, nettoyé (« Océan 3 »), ou l'erreur à afficher
+export function normaliserNumero(numero: unknown): { numero: string } | { erreur: string } {
+  const propre = String(numero ?? "").replace(/\s+/g, " ").trim()
+  if (!propre) return { erreur: "Donnez un numéro à la chambre (par exemple « Océan 3 »)." }
+  if (propre.length > NUMERO_MAX) return { erreur: `Numéro de ${NUMERO_MAX} caractères au plus.` }
+  return { numero: propre }
+}
+
+// Ordre naturel des numéros : « Océan 2 » avant « Océan 10 »
+export const comparerNumeros = (a: Pick<Chambre, "numero">, b: Pick<Chambre, "numero">) =>
+  a.numero.localeCompare(b.numero, "fr", { numeric: true, sensitivity: "base" })
 
 // Tout vérifier avant d'écrire : pas de modification à moitié appliquée
 export function controlerTarifs({ prix, saisons }: ModificationTarifs, hebergements: Hebergement[]): string | null {
@@ -202,15 +227,18 @@ export function controlerModification(
 
 const voyageurs = (adultes: number, enfants: number) => [pluriel(adultes, "adulte"), enfants ? pluriel(enfants, "enfant") : ""].filter(Boolean).join(", ")
 
-// Ce qui change, en clair, pour l'historique, le journal et l'e-mail au client (vide : rien ne change)
+// Ce qui change, en clair, pour l'historique, le journal et l'e-mail au client (vide : rien ne change).
+// `apres.chambreId` : chambre finalement attribuée
 export function changementsReservation(
   avant: Reservation,
-  apres: Omit<ModificationReservation, "montantTotal"> & { montantTotal: number },
+  apres: Omit<ModificationReservation, "montantTotal" | "chambreId"> & { montantTotal: number; chambreId: string },
   nomHebergement: (id: string) => string,
+  numeroChambre: (id: string) => string,
 ): string[] {
   const navette = (oui: boolean) => (oui ? "demandée" : "non demandée")
   return [
     avant.hebergementId !== apres.hebergementId && `Hébergement : ${nomHebergement(avant.hebergementId)} → ${nomHebergement(apres.hebergementId)}`,
+    avant.chambreId !== apres.chambreId && `Chambre : ${numeroChambre(avant.chambreId)} → ${numeroChambre(apres.chambreId)}`,
     (avant.arrivee !== apres.arrivee || avant.depart !== apres.depart) &&
       `Dates : ${formaterPlage(avant.arrivee, avant.depart)} → ${formaterPlage(apres.arrivee, apres.depart)}`,
     (avant.adultes !== apres.adultes || avant.enfants !== apres.enfants) &&
@@ -247,8 +275,8 @@ export function controlerModificationClient(c: ModificationClient, compteDuSite:
 export const PLATEFORMES: Plateforme[] = ["booking", "airbnb", "autre"]
 const NOM_CALENDRIER_MAX = 40
 
-export function controlerCalendrier(c: NouveauCalendrier, hebergement: Hebergement | undefined): string | null {
-  if (!hebergement) return "Choisissez un hébergement."
+export function controlerCalendrier(c: NouveauCalendrier, chambre: Chambre | undefined): string | null {
+  if (!chambre) return "Choisissez une chambre."
   if (!PLATEFORMES.includes(c.plateforme)) return "Choisissez la plateforme."
   if (!c.nom.trim() || c.nom.length > NOM_CALENDRIER_MAX) return `Donnez au calendrier un nom de ${NOM_CALENDRIER_MAX} caractères au plus.`
   if (c.urlImport) {

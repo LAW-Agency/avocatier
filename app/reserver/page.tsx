@@ -17,9 +17,10 @@ export default async function ReserverPage({
 }: {
   searchParams: Promise<{ [cle: string]: string | string[] | undefined }>
 }) {
-  const [params, hebergements, saisons, periodes, client] = await Promise.all([
+  const [params, hebergements, chambres, saisons, periodes, client] = await Promise.all([
     searchParams,
     moteur.listerHebergements(),
+    moteur.listerChambres(),
     moteur.listerSaisons(),
     moteur.periodesOccupees(),
     clientConnecte(),
@@ -28,6 +29,8 @@ export default async function ReserverPage({
   return (
     <ParcoursReservation
       hebergements={hebergements}
+      // Chambres vendues : seulement leur catégorie (ni numéro, ni état)
+      chambres={chambres.filter((c) => c.active).map(({ id, hebergementId }) => ({ id, hebergementId }))}
       saisons={saisons}
       periodes={periodes}
       client={client}

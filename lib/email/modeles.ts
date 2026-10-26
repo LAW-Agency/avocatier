@@ -147,21 +147,29 @@ ${NOM} · ${contact.address.locality}, ${contact.address.island}, ${contact.addr
 
 // --- Réservations ---
 
-export type Sejour = { reservation: Reservation; client: ClientPublic; hebergement: Hebergement }
+// `groupe` : toutes les chambres concernées par l'e-mail (la réservation seule, ou toutes celles d'une demande de
+// plusieurs chambres), mêmes dates et même statut
+export type Sejour = { reservation: Reservation; client: ClientPublic; hebergement: Hebergement; groupe: Reservation[] }
 
-const voyageurs = (r: Reservation) => [pluriel(r.adultes, "adulte"), r.enfants ? pluriel(r.enfants, "enfant") : ""].filter(Boolean).join(", ")
+const somme = (s: Sejour, champ: "adultes" | "enfants" | "montantTotal") => s.groupe.reduce((total, r) => total + r[champ], 0)
+const voyageurs = (s: Sejour) =>
+  [pluriel(somme(s, "adultes"), "adulte"), somme(s, "enfants") ? pluriel(somme(s, "enfants"), "enfant") : ""].filter(Boolean).join(", ")
+const references = (s: Sejour) => s.groupe.map((r) => r.reference).join(", ")
+// « Bungalow Océan » ou « 2 × Bungalow Océan »
+const hebergementDe = (s: Sejour) => (s.groupe.length > 1 ? `${s.groupe.length} × ${s.hebergement.nom}` : s.hebergement.nom)
 const plage = (r: Reservation) => formaterPlage(r.arrivee, r.depart)
 const nomComplet = (c: ClientPublic) => [c.prenom, c.nom].filter(Boolean).join(" ")
 
-function recapitulatif({ reservation: r, hebergement: h }: Sejour): Ligne[] {
+function recapitulatif(s: Sejour): Ligne[] {
+  const r = s.reservation
   return [
-    ["Référence", r.reference],
-    ["Hébergement", h.nom],
+    [s.groupe.length > 1 ? "Références" : "Référence", references(s)],
+    ["Hébergement", hebergementDe(s)],
     ["Dates", `${plage(r)} · ${pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}`],
-    ["Voyageurs", voyageurs(r)],
+    ["Voyageurs", voyageurs(s)],
     ["Navette aéroport", r.navette ? "Demandée" : "Non demandée"],
     // Comme « Mon compte » : montant estimé tant que le séjour n'est pas confirmé
-    [r.statut === "confirmee" ? "Montant total" : "Montant estimé", formaterPrix(r.montantTotal), true],
+    [r.statut === "confirmee" ? "Montant total" : "Montant estimé", formaterPrix(somme(s, "montantTotal")), true],
   ]
 }
 
@@ -173,7 +181,7 @@ const avant = (r: Reservation) => (r.expireLe ? `avant le ${formaterHeure(r.expi
 
 export function accuseDeReception(s: Sejour): Message {
   const r = s.reservation
-  return message(`Demande reçue : ${s.hebergement.nom}, ${plage(r)}`, {
+  return message(`Demande reçue : ${hebergementDe(s)}, ${plage(r)}`, {
     apercu: `Vos dates sont bloquées le temps que ${HOTES} confirment votre séjour.`,
     titre: "Votre demande est bien arrivée",
     paragraphes: [
@@ -189,11 +197,12 @@ export function accuseDeReception(s: Sejour): Message {
 
 export function alerteNouvelleDemande(s: Sejour): Message {
   const { reservation: r, client: c } = s
-  return message(`Nouvelle demande : ${s.hebergement.nom}, ${plage(r)} (${nomComplet(c)})`, {
-    apercu: `${r.reference} · ${formaterPrix(r.montantTotal)} · à traiter ${avant(r)}`,
+  return message(`Nouvelle demande : ${hebergementDe(s)}, ${plage(r)} (${nomComplet(c)})`, {
+    apercu: `${references(s)} · ${formaterPrix(somme(s, "montantTotal"))} · à traiter ${avant(r)}`,
     titre: "Nouvelle demande de réservation",
     paragraphes: [
-      `${nomComplet(c)} demande ${s.hebergement.nom} pour ${voyageurs(r)}. Les dates restent bloquées ${jusqua(r)} : sans réponse, la demande expire.`,
+      `${nomComplet(c)} demande ${hebergementDe(s)} pour ${voyageurs(s)}. Les dates restent bloquées ${jusqua(r)} : sans réponse, la demande expire.`,
+      ...(s.groupe.length > 1 ? ["Les chambres ont été attribuées automatiquement ; la demande se confirme ou se refuse en entier."] : []),
     ],
     sections: [
       { titre: "Séjour", lignes: recapitulatif(s) },
@@ -218,7 +227,7 @@ export function decisionDesHotes(s: Sejour, statut: "confirmee" | "refusee" | "a
   const r = s.reservation
   const bonjour = `Bonjour ${s.client.prenom},`
   if (statut === "confirmee") {
-    return message(`Séjour confirmé : ${s.hebergement.nom}, ${plage(r)}`, {
+    return message(`Séjour confirmé : ${hebergementDe(s)}, ${plage(r)}`, {
       apercu: `${HOTES} vous attendent ${plage(r)}.`,
       titre: "Votre séjour est confirmé",
       paragraphes: [
@@ -232,7 +241,7 @@ export function decisionDesHotes(s: Sejour, statut: "confirmee" | "refusee" | "a
     })
   }
   if (statut === "refusee") {
-    return message(`Votre demande ${r.reference} n’a pas pu être acceptée`, {
+    return message(`Votre demande ${references(s)} n’a pas pu être acceptée`, {
       apercu: "Vos dates sont libérées, aucun paiement n’a été demandé.",
       titre: "Votre demande n’a pas pu être acceptée",
       paragraphes: [
@@ -245,7 +254,7 @@ export function decisionDesHotes(s: Sejour, statut: "confirmee" | "refusee" | "a
       bouton: { libelle: "Choisir d’autres dates", url: urlDuSite("/reserver") },
     })
   }
-  return message(`Réservation annulée : ${s.hebergement.nom}, ${plage(r)}`, {
+  return message(`Réservation annulée : ${hebergementDe(s)}, ${plage(r)}`, {
     apercu: `Votre réservation ${r.reference} est annulée.`,
     titre: "Votre réservation est annulée",
     paragraphes: [
@@ -288,10 +297,10 @@ export function modificationParLesHotes(s: Sejour, changements: string[], mot?: 
 
 export function annulationParLeClient(s: Sejour): Message {
   const r = s.reservation
-  return message(`Demande annulée par le client : ${s.hebergement.nom}, ${plage(r)}`, {
-    apercu: `${nomComplet(s.client)} a annulé sa demande ${r.reference}.`,
+  return message(`Demande annulée par le client : ${hebergementDe(s)}, ${plage(r)}`, {
+    apercu: `${nomComplet(s.client)} a annulé sa demande ${references(s)}.`,
     titre: "Demande annulée par le client",
-    paragraphes: [`${nomComplet(s.client)} a annulé sa demande ${r.reference}. Les dates sont de nouveau libres.`],
+    paragraphes: [`${nomComplet(s.client)} a annulé sa demande ${references(s)}. Les dates sont de nouveau libres.`],
     sections: [{ titre: "Séjour", lignes: recapitulatif(s) }],
   })
 }

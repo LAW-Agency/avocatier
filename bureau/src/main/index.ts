@@ -4,9 +4,10 @@ import { app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, Notificati
 import iconeIco from "../../resources/icon.ico?asset"
 import icone from "../../resources/icon.png?asset"
 import { NIVEAUX_ZOOM, type Annonce, type Hote, type Methode, type Reglages } from "../partage/ipc"
-import { appeler, quandJetonRefuse } from "./api"
+import { appeler, estEnLigne, quandConnexionChange, quandJetonRefuse } from "./api"
 import { lireEtatFenetre, suivreEtatFenetre } from "./fenetre"
-import { enregistrerCsv, enregistrerPdf } from "./fichiers"
+import { estClasseur } from "./classeur"
+import { enregistrerPdf, enregistrerXlsx } from "./fichiers"
 import { lireReglages, modifierReglages } from "./reglages"
 import { fermer, memoriser, ouvrir, SERVEUR_PAR_DEFAUT, sessionActive } from "./session"
 import { arreterSuivi, demarrerSuivi } from "./suivi"
@@ -251,12 +252,14 @@ ipcMain.handle("session:deconnexion", () => {
 
 ipcMain.handle("api", (_e, methode: Methode, chemin: string, corps?: unknown) => appeler(methode, chemin, corps))
 
+ipcMain.handle("connexion:etat", () => estEnLigne())
+
 ipcMain.handle("lien:ouvrir", (_e, url: string) => {
   if (/^(https?:|mailto:|tel:)/.test(url)) return shell.openExternal(url)
 })
 
-ipcMain.handle("fichier:csv", (_e, nom: unknown, contenu: unknown) =>
-  typeof nom === "string" && typeof contenu === "string" ? enregistrerCsv(fenetre, nom, contenu) : { erreur: "Export invalide." },
+ipcMain.handle("fichier:xlsx", (_e, nom: unknown, classeur: unknown) =>
+  typeof nom === "string" && estClasseur(classeur) ? enregistrerXlsx(fenetre, nom, classeur) : { erreur: "Export invalide." },
 )
 ipcMain.handle("fichier:pdf", (_e, nom: unknown, html: unknown) =>
   typeof nom === "string" && typeof html === "string" ? enregistrerPdf(fenetre, nom, html) : { erreur: "Document invalide." },
@@ -302,6 +305,13 @@ if (!app.requestSingleInstanceLock()) {
     quandJetonRefuse(() => {
       deconnecter()
       fenetre?.webContents.send("session:expiree")
+    })
+
+    // Serveur perdu ou retrouvé : bandeau de l'interface ; au retour, nouvelle vérification tout de suite
+    quandConnexionChange((enLigne) => {
+      fenetre?.webContents.send("connexion", enLigne)
+      zone?.setToolTip(enLigne ? NOM : `${NOM} : connexion au serveur perdue`)
+      if (enLigne) relancerSuivi?.()
     })
 
     creerFenetre()

@@ -1,14 +1,15 @@
-import { FluentProvider, Spinner, Toaster, tokens } from "@fluentui/react-components"
+import { FluentProvider, Toaster, tokens } from "@fluentui/react-components"
 import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react"
 import type { Reglages, Session } from "../../partage/ipc"
 import Connexion from "./Connexion"
 import Coquille from "./Coquille"
+import { ChargementLogo } from "./composants/commun"
 import { FournisseurDonnees } from "./donnees"
 import { ROLES } from "./libelles"
 import { ContexteReglages } from "./reglages"
 import { themeClair, themeSombre } from "./theme"
 import { TOASTER, useAnnoncer } from "./toasts"
-import { useAppStyles, useBarresDeDefilement } from "./useAppStyles.styles"
+import { useBarresDeDefilement, useFenetresLimitees } from "./useAppStyles.styles"
 
 // Fenêtre avec Mica (Windows 11) : voir MICA dans src/main/index.ts
 const MICA = new URLSearchParams(window.location.search).get("mica") === "1"
@@ -28,8 +29,8 @@ function useSombre() {
 type Etat = { chargement: true } | { chargement: false; session: Session | null; serveurParDefaut: string; expiree?: boolean }
 
 export default function App() {
-  const styles = useAppStyles()
   useBarresDeDefilement()
+  useFenetresLimitees()
   const systemeSombre = useSombre()
   const [etat, setEtat] = useState<Etat>({ chargement: true })
   const [reglages, setReglages] = useState<Reglages | null>(null)
@@ -98,14 +99,14 @@ export default function App() {
     <FluentProvider theme={sombre ? themeSombre : themeClair} style={{ height: "100%", backgroundColor: MICA ? "transparent" : tokens.colorNeutralBackground3 }}>
       <ContexteReglages value={{ reglages, sombre, modifier: (m) => window.avocatier.modifierReglages(m).then(setReglages) }}>
         {etat.chargement || !reglages ? (
-          <div className={styles.attente}>
-            <Spinner size="large" />
-          </div>
+          <ChargementLogo texte="Un instant…" />
         ) : etat.session ? (
           <FournisseurDonnees key={etat.session.hote.email}>
             <Coquille
               onDeconnexion={async () => {
                 const prenom = etat.session?.hote.prenom
+                // Écran d'attente (Spinner) le temps de fermer la session
+                setEtat({ chargement: true })
                 await window.avocatier.deconnexion()
                 setEtat({ ...etat, session: null, expiree: false })
                 annoncer({ titre: "Vous êtes déconnecté", texte: `À bientôt${prenom ? `, ${prenom}` : ""}. Les nouvelles demandes ne sont plus suivies sur cet ordinateur.` })

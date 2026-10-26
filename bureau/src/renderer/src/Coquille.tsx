@@ -15,6 +15,7 @@ import {
   MessageBar,
   MessageBarActions,
   MessageBarBody,
+  MessageBarTitle,
   NavDrawer,
   NavDrawerBody,
   NavDrawerFooter,
@@ -25,6 +26,7 @@ import {
   Text,
   Skeleton,
   SkeletonItem,
+  Spinner,
   Tooltip,
   mergeClasses,
 } from "@fluentui/react-components"
@@ -57,16 +59,18 @@ import {
   SignOutRegular,
   TagFilled,
   TagRegular,
+  WifiWarningRegular,
   bundleIcon,
   type FluentIcon,
 } from "@fluentui/react-icons"
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
 import { pluriel } from "@partage/dates"
 import type { Annonce, Destination } from "../../partage/ipc"
-import embleme from "./assets/embleme-blanc.svg"
 import { BarreTitre } from "./composants/BarreTitre"
+import { ChargementLogo } from "./composants/commun"
 import NouvelleReservation from "./composants/NouvelleReservation"
 import { RechercheGlobale } from "./composants/RechercheGlobale"
+import { useApparitionStyles } from "./composants/useCommunStyles.styles"
 import { PAGES_GERANTS, useDonnees, type Vue } from "./donnees"
 import { ROLES } from "./libelles"
 import Aujourdhui from "./pages/Aujourdhui"
@@ -160,7 +164,8 @@ const PARAMETRES: Rubrique = {
 // Fenêtre principale une fois connecté : barre de titre avec recherche, navigation à gauche, écran courant
 export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void }) {
   const styles = useCoquilleStyles()
-  const { donnees, erreur, recharger, vue, naviguer, ouvrirNouvelleReservation } = useDonnees()
+  const apparition = useApparitionStyles()
+  const { donnees, erreur, recharger, vue, naviguer, changementEcran, enLigne, setEnLigne, ouvrirNouvelleReservation } = useDonnees()
   const [navOuverte, setNavOuverte] = useState(true)
   const champRecherche = useRef<HTMLInputElement>(null)
   const { annoncer } = useAnnoncer()
@@ -184,6 +189,17 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
     }
   })
   const surNavigation = useEffectEvent((vers: Destination) => naviguer(vers))
+  // Serveur injoignable (Internet coupé, site arrêté) : bandeau et pastille tant que ça dure, données
+  // rechargées dès le retour
+  const surConnexion = useEffectEvent((valeur: boolean) => {
+    setEnLigne(valeur)
+    if (valeur) {
+      void recharger()
+      annoncer({ id: "connexion", titre: "Connexion rétablie", texte: "Les informations sont de nouveau à jour.", intent: "success" })
+    } else {
+      annoncer({ id: "connexion", titre: "Connexion au serveur perdue", texte: "Lecture seule en attendant : vérifiez la connexion Internet. Le logiciel réessaie toutes les 5 secondes.", intent: "warning", duree: 10_000 })
+    }
+  })
   // Raccourcis de l'interface (zoom et plein écran : processus principal) : Ctrl + F recherche, Ctrl + N
   // nouvelle réservation, F1 guide
   const surTouche = useEffectEvent((e: KeyboardEvent) => {
@@ -204,10 +220,13 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   useEffect(() => {
     const finActivite = window.avocatier.surActivite(surActivite)
     const finNavigation = window.avocatier.surNavigation(surNavigation)
+    const finConnexion = window.avocatier.surConnexion(surConnexion)
+    void window.avocatier.etatConnexion().then((valeur) => !valeur && surConnexion(false))
     window.addEventListener("keydown", surTouche)
     return () => {
       finActivite()
       finNavigation()
+      finConnexion()
       window.removeEventListener("keydown", surTouche)
     }
   }, [])
@@ -215,6 +234,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const rubriques = [...ACTIVITE, ...(gerant ? GESTION : [])]
   const rubriqueActive: PageNav = vue.page === "client" ? "clients" : vue.page
   const situation = donnees ? situationDuJour(donnees, donnees.aujourdhui) : null
+  const cleEcran = vue.page === "client" ? `client-${vue.id}` : vue.page === "guide" ? `guide-${vue.section ?? ""}` : vue.page
   const lienNav = (page: PageNav) => mergeClasses(styles.lienNav, rubriqueActive === page && styles.lienNavActif)
 
   let ecran: ReactNode
@@ -223,16 +243,11 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
       <MessageBar intent="error">
         <MessageBarBody>{erreur}</MessageBarBody>
         <MessageBarActions>
-          <Button onClick={recharger} icon={<ArrowSyncRegular />}>
-            Réessayer
-          </Button>
+          <BoutonRecharger libelle="Réessayer" />
         </MessageBarActions>
       </MessageBar>
     ) : (
-      <div className={styles.attente} role="status">
-        <span aria-hidden className={styles.emblemeSquelette} style={{ maskImage: `url("${embleme}")` }} />
-        <Caption1 className={styles.texteAttente}>Chargement des réservations…</Caption1>
-      </div>
+      <ChargementLogo texte="Chargement des réservations…" />
     )
   } else if (!gerant && PAGES_GERANTS.includes(vue.page)) ecran = <Aujourdhui />
   else if (vue.page === "aujourdhui") ecran = <Aujourdhui />
@@ -256,9 +271,18 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
           <RechercheGlobale ref={champRecherche} className={styles.recherche} disabled={!donnees} />
         }
         actions={
-          <Tooltip content="Nouvelle réservation (Ctrl + N)" relationship="label">
-            <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees} onClick={() => ouvrirNouvelleReservation()} />
-          </Tooltip>
+          <>
+            {!enLigne && (
+              <Tooltip content="Le serveur ne répond pas : lecture seule, les informations affichées peuvent dater. Nouvel essai automatique." relationship="description">
+                <Badge appearance="tint" color="danger" size="large" icon={<WifiWarningRegular />} className={styles.horsLigne}>
+                  Hors connexion
+                </Badge>
+              </Tooltip>
+            )}
+            <Tooltip content="Nouvelle réservation (Ctrl + N)" relationship="label">
+              <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees || !enLigne} onClick={() => ouvrirNouvelleReservation()} />
+            </Tooltip>
+          </>
         }
       />
 
@@ -275,8 +299,16 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
               {ACTIVITE.map(({ page, libelle, Icone }) => (
                 <NavItem key={page} value={page} icon={<Icone className={styles.iconeNav} />} className={lienNav(page)}>
                   <span className={styles.libelleNav}>{libelle}</span>
-                  {page === "reservations" && aTraiter > 0 && <CounterBadge count={aTraiter} size="small" />}
-                  {page === "chambres" && donnees?.hebergements.some((h) => h.etat === "a_nettoyer") && <Badge size="extra-small" color="warning" aria-label="Chambres à nettoyer" className={styles.pastilleNav} />}
+                  {page === "reservations" && aTraiter > 0 && (
+                    <span className={styles.pastilleNav}>
+                      <CounterBadge count={aTraiter} size="small" />
+                    </span>
+                  )}
+                  {page === "chambres" && donnees?.chambres.some((c) => c.active && c.etat === "a_nettoyer") && (
+                    <span className={styles.pastilleNav}>
+                      <Badge size="extra-small" color="warning" aria-label="Chambres à nettoyer" />
+                    </span>
+                  )}
                 </NavItem>
               ))}
               {!donnees && (
@@ -314,7 +346,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
                 <div className={styles.ceSoir}>
                   <Caption1>Ce soir</Caption1>
                   <Text weight="semibold">
-                    {situation.occupes} sur {situation.total} occupés
+                    {situation.occupes} sur {situation.total} occupées
                   </Text>
                   <ProgressBar value={situation.total ? situation.occupes / situation.total : 0} thickness="large" />
                   <Caption1>
@@ -367,6 +399,14 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
                 ))}
               </Skeleton>
             )}
+            <div className={styles.railEspace} />
+            {donnees ? (
+              <MenuCompte prenom={donnees.hote.prenom} nom={donnees.hote.nom} role={ROLES[donnees.hote.role]} onDeconnexion={onDeconnexion} compact />
+            ) : (
+              <Skeleton aria-label="Chargement du compte">
+                <SkeletonItem shape="circle" size={32} />
+              </Skeleton>
+            )}
           </nav>
         )}
 
@@ -374,19 +414,27 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
           {!donnees && !erreur ? (
             ecran
           ) : (
-            <div className={styles.page}>
-              {donnees && erreur && (
-                <MessageBar intent="warning">
-                  <MessageBarBody>Connexion au serveur perdue : les informations affichées peuvent dater. {erreur}</MessageBarBody>
-                  <MessageBarActions>
-                    <Button onClick={recharger} icon={<ArrowSyncRegular />}>
-                      Actualiser
-                    </Button>
-                  </MessageBarActions>
-                </MessageBar>
-              )}
-              {ecran}
-            </div>
+            <>
+              <div aria-hidden className={styles.masqueHaut} />
+              <div className={styles.page}>
+                {donnees && (erreur || !enLigne) && (
+                  <MessageBar intent="warning">
+                    <MessageBarBody>
+                      <MessageBarTitle>Hors connexion : lecture seule</MessageBarTitle>
+                      Les informations affichées peuvent dater ; les boutons qui enregistrent sont désactivés jusqu&apos;au retour de la connexion.{" "}
+                      {erreur ?? "Nouvel essai automatique toutes les 5 secondes."}
+                    </MessageBarBody>
+                    <MessageBarActions>
+                      <BoutonRecharger libelle="Actualiser" />
+                    </MessageBarActions>
+                  </MessageBar>
+                )}
+                {/* Clé par écran : le nouvel écran apparaît en fondu ; l'ancien s'atténue pendant que le suivant se prépare */}
+                <div key={cleEcran} className={mergeClasses(styles.ecran, apparition.root, changementEcran && styles.ecranSuivant)}>
+                  {ecran}
+                </div>
+              </div>
+            </>
           )}
         </main>
       </div>
@@ -396,22 +444,53 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   )
 }
 
-function MenuCompte({ prenom, nom, role, onDeconnexion }: { prenom: string; nom: string; role: string; onDeconnexion: () => void }) {
+// Nouvel essai de chargement des données, avec un Spinner jusqu'à la réponse
+function BoutonRecharger({ libelle }: { libelle: string }) {
+  const { recharger } = useDonnees()
+  const [enCours, setEnCours] = useState(false)
+  return (
+    <Button
+      disabled={enCours}
+      icon={enCours ? <Spinner size="tiny" /> : <ArrowSyncRegular />}
+      onClick={async () => {
+        setEnCours(true)
+        await recharger()
+        setEnCours(false)
+      }}
+    >
+      {libelle}
+    </Button>
+  )
+}
+
+// Compte connecté en bas de la navigation ; `compact` : avatar seul (navigation réduite), nom et rôle en info-bulle
+function MenuCompte({ prenom, nom, role, onDeconnexion, compact = false }: { prenom: string; nom: string; role: string; onDeconnexion: () => void; compact?: boolean }) {
   const styles = useCoquilleStyles()
   const nomComplet = `${prenom} ${nom}`.trim()
+  const avatar = <Avatar name={nomComplet} color="brand" size={32} />
   return (
-    <Menu positioning="above-start">
-      <MenuTrigger disableButtonEnhancement>
-        <Button appearance="subtle" className={styles.compte}>
-          <Avatar name={nomComplet} color="brand" size={32} />
-          <span className={styles.compteTexte}>
-            <Text weight="semibold" className={styles.tronque}>
-              {nomComplet}
-            </Text>
-            <Caption1 className={styles.tronque}>{role}</Caption1>
-          </span>
-        </Button>
-      </MenuTrigger>
+    <Menu positioning={compact ? "after-bottom" : "above-start"}>
+      {compact ? (
+        <Tooltip content={`${nomComplet} · ${role}`} relationship="label" positioning="after">
+          <MenuTrigger disableButtonEnhancement>
+            <Button appearance="subtle" aria-label={`Compte de ${nomComplet}`} className={styles.compteRail}>
+              {avatar}
+            </Button>
+          </MenuTrigger>
+        </Tooltip>
+      ) : (
+        <MenuTrigger disableButtonEnhancement>
+          <Button appearance="subtle" className={styles.compte}>
+            {avatar}
+            <span className={styles.compteTexte}>
+              <Text weight="semibold" className={styles.tronque}>
+                {nomComplet}
+              </Text>
+              <Caption1 className={styles.tronque}>{role}</Caption1>
+            </span>
+          </Button>
+        </MenuTrigger>
+      )}
       <MenuPopover>
         <MenuList>
           <MenuItem

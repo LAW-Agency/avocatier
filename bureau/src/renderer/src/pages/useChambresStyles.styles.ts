@@ -3,6 +3,9 @@ import { makeStyles, tokens } from "@fluentui/react-components"
 export const useChambresStyles = makeStyles({
   resume: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
   grille: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
+  // Une catégorie (« Bungalow Océan ») et ses chambres
+  categorie: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },
+  enteteCategorie: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", columnGap: tokens.spacingHorizontalM },
   carte: {
     display: "flex",
     flexDirection: "column",
@@ -17,6 +20,9 @@ export const useChambresStyles = makeStyles({
   propre: { borderTopColor: tokens.colorPaletteGreenBorderActive },
   a_nettoyer: { borderTopColor: tokens.colorPaletteMarigoldBorderActive },
   maintenance: { borderTopColor: tokens.colorPaletteRedBorderActive },
+  // Chambre retirée de la vente : estompée
+  desactivee: { borderTopColor: tokens.colorNeutralStroke1, backgroundColor: tokens.colorNeutralBackground2 },
+  enteteDroite: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalXS, flexShrink: 0 },
   entete: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", columnGap: tokens.spacingHorizontalM },
   titre: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXXS, minWidth: 0 },
   nom: { margin: 0 },

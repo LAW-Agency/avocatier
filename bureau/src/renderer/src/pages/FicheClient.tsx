@@ -35,17 +35,20 @@ import {
   SaveRegular,
 } from "@fluentui/react-icons"
 import { useState } from "react"
-import { formaterHeure, formaterPrix, nombreNuits } from "@partage/dates"
+import { formaterHeure, nombreNuits } from "@partage/dates"
 import type { ClientPublic } from "@partage/types"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import { FenetresClient, type FenetreClient } from "../composants/GestionClient"
 import TableReservations from "../composants/TableReservations"
-import { nomDe, soldeDe, useDonneesChargees } from "../donnees"
+import { nomDe, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFicheClientStyles } from "./useClientsStyles.styles"
+import { usePrix } from "../montants"
 
 // Fiche d'un client : coordonnées, chiffres et note interne, puis ses séjours à venir et passés. Coordonnées
 // modifiables par toute l'équipe ; fusion de deux fiches et effacement (RGPD) réservés aux gérants
 export default function FicheClient({ id }: { id: string }) {
+  const lectureSeule = useLectureSeule()
+  const formaterPrix = usePrix()
   const styles = useFicheClientStyles()
   const { d, gerant, naviguer, ouvrirNouvelleReservation } = useDonneesChargees()
   const [fenetre, setFenetre] = useState<FenetreClient | null>(null)
@@ -116,14 +119,14 @@ export default function FicheClient({ id }: { id: string }) {
                 Écrire
               </Button>
             )}
-            <Button icon={<EditRegular />} onClick={() => setFenetre("coordonnees")}>
+            <Button icon={<EditRegular />} disabled={lectureSeule} onClick={() => setFenetre("coordonnees")}>
               Modifier
             </Button>
             {gerant && (
               <Menu>
                 <MenuTrigger disableButtonEnhancement>
                   <Tooltip content="Autres actions" relationship="label">
-                    <Button icon={<MoreHorizontalRegular />} />
+                    <Button icon={<MoreHorizontalRegular />} disabled={lectureSeule} />
                   </Tooltip>
                 </MenuTrigger>
                 <MenuPopover>
@@ -138,7 +141,7 @@ export default function FicheClient({ id }: { id: string }) {
                 </MenuPopover>
               </Menu>
             )}
-            <Button appearance="primary" icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation({ clientId: client.id })}>
+            <Button appearance="primary" icon={<CalendarAddRegular />} disabled={lectureSeule} onClick={() => ouvrirNouvelleReservation({ clientId: client.id })}>
               Nouvelle réservation
             </Button>
           </>
@@ -187,7 +190,7 @@ export default function FicheClient({ id }: { id: string }) {
             titre: "Aucun séjour à venir",
             texte: "Ce client n'a pas de demande ni de réservation en cours.",
             action: (
-              <Button icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation({ clientId: client.id })}>
+              <Button icon={<CalendarAddRegular />} disabled={lectureSeule} onClick={() => ouvrirNouvelleReservation({ clientId: client.id })}>
                 Créer une réservation
               </Button>
             ),
@@ -207,6 +210,7 @@ export default function FicheClient({ id }: { id: string }) {
 
 // Note de l'équipe sur le client (préférences, allergies, pièce d'identité vue…), jamais montrée au client
 function NoteInterne({ client }: { client: ClientPublic }) {
+  const lectureSeule = useLectureSeule()
   const styles = useFicheClientStyles()
   const { executer } = useDonneesChargees()
   const [note, setNote] = useState(client.note)
@@ -234,7 +238,7 @@ function NoteInterne({ client }: { client: ClientPublic }) {
           aria-label="Note interne"
         />
         <div className={styles.actionsNote}>
-          <Button disabled={enCours || note === client.note} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />} onClick={enregistrer}>
+          <Button disabled={enCours || lectureSeule || note === client.note} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />} onClick={enregistrer}>
             Enregistrer la note
           </Button>
           {etat.ok && <Caption1>Note enregistrée.</Caption1>}

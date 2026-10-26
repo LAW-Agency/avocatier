@@ -25,7 +25,15 @@ export type Annonce = { id: string; titre: string; detail: string; vers: Destina
 // Fichier enregistré par le logiciel (export, facture) : chemin choisi, ou null si l'enregistrement est abandonné
 export type ResultatFichier = { chemin: string } | { erreur: string } | null
 
-export type Theme = "systeme" | "clair" | "sombre"
+// Classeur Excel préparé par l'interface (données seules) ; mise en forme dans src/main/classeur.ts.
+// Dates « AAAA-MM-JJ », dates-heures ISO (affichées à l'heure de Sainte-Marie), montants en euros
+export type FormatColonne = "texte" | "entier" | "euros" | "date" | "dateHeure"
+export type ColonneClasseur = { titre: string; format: FormatColonne; total?: boolean; largeur?: number }
+export type ValeurCellule = string | number | null
+export type FeuilleClasseur = { nom: string; titre: string; sousTitre: string; colonnes: ColonneClasseur[]; lignes: ValeurCellule[][] }
+export type Classeur = { feuilles: FeuilleClasseur[] }
+
+export type Theme ="systeme" | "clair" | "sombre"
 
 // Tableau de bord « Aujourd'hui » : widgets affichés, dans l'ordre, avec leur largeur (colonnes sur 4)
 export type TailleWidget = 1 | 2 | 3 | 4
@@ -33,6 +41,32 @@ export type PlaceWidget = { id: string; taille: TailleWidget }
 
 // Zoom de l'interface (Ctrl + / Ctrl - / Ctrl 0, Ctrl + molette) : facteurs proposés, comme dans un navigateur
 export const NIVEAUX_ZOOM = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const
+
+// Planning : nombre de nuits affichées (une, deux ou trois semaines) et ordre des hébergements
+export const VUES_PLANNING = [7, 14, 21] as const
+export type VuePlanning = (typeof VUES_PLANNING)[number]
+export const TRIS_PLANNING = ["site", "nom", "type", "occupation"] as const
+export type TriPlanning = (typeof TRIS_PLANNING)[number]
+
+// Affichage du planning (menu « Affichage ») : hauteur des lignes, texte des barres, ligne des chambres libres,
+// week-ends teintés, lignes de grille entre les nuits et catégories repliées (identifiants des hébergements)
+export const DENSITES_PLANNING = ["confortable", "compacte"] as const
+export type DensitePlanning = (typeof DENSITES_PLANNING)[number]
+export const LIBELLES_PLANNING = ["client", "reference"] as const
+export type LibellePlanning = (typeof LIBELLES_PLANNING)[number]
+export type AffichagePlanning = {
+  densite: DensitePlanning
+  libelle: LibellePlanning
+  disponibilites: boolean
+  weekEnds: boolean
+  grille: boolean
+  replies: string[]
+}
+
+// Devise des montants affichés par le logiciel : les tarifs et les encaissements restent enregistrés en euros,
+// convertis au taux saisi dans Tarifs. FMG (franc malgache) : 5 FMG pour 1 ariary
+export const DEVISES_LOGICIEL = ["MGA", "FMG", "EUR", "USD", "GBP", "CHF", "CAD"] as const
+export type DeviseLogiciel = (typeof DEVISES_LOGICIEL)[number]
 
 // Préférences du poste, gardées par le processus principal (fichier reglages.json du dossier utilisateur)
 export type Reglages = {
@@ -44,6 +78,10 @@ export type Reglages = {
   dernierEmail: string // proposé à l'écran de connexion (si seSouvenir)
   zoom: number // facteur de NIVEAUX_ZOOM
   tableau: PlaceWidget[] | null // null : disposition d'origine
+  vuePlanning: VuePlanning
+  triPlanning: TriPlanning
+  affichagePlanning: AffichagePlanning
+  devise: DeviseLogiciel
 }
 
 export type InfosLogiciel = { version: string; installe: boolean }
@@ -59,14 +97,17 @@ export interface PontAvocatier {
   ouvrirLien(url: string): Promise<void>
   // Nombre de demandes à traiter : titre de la fenêtre et info-bulle de l'icône de notification
   signalerATraiter(nombre: number): void
-  // Export pour un tableur : CSV en UTF-8 (avec BOM, pour Excel), à l'endroit choisi dans « Enregistrer sous »
-  enregistrerCsv(nom: string, contenu: string): Promise<ResultatFichier>
+  // Export pour Excel : classeur .xlsx mis en forme par le processus principal, à l'endroit choisi dans
+  // « Enregistrer sous »
+  enregistrerXlsx(nom: string, classeur: Classeur): Promise<ResultatFichier>
   // Facture ou reçu : page HTML complète mise en PDF A4, enregistrée puis ouverte
   enregistrerPdf(nom: string, html: string): Promise<ResultatFichier>
 
   reglages(): Promise<Reglages>
   modifierReglages(modification: Partial<Reglages>): Promise<Reglages>
   infos(): Promise<InfosLogiciel>
+  // Serveur joignable lors du dernier appel (suivi en direct compris, toutes les 15 s)
+  etatConnexion(): Promise<boolean>
 
   // Premier écran peint avec le bon thème : la fenêtre s'affiche à ce moment-là (src/main/index.ts)
   signalerPrete(): void
@@ -88,4 +129,6 @@ export interface PontAvocatier {
   // Zoom changé (facteur) et passage en plein écran : annoncés par l'interface
   surZoom(rappel: (facteur: number) => void): () => void
   surPleinEcran(rappel: (pleinEcran: boolean) => void): () => void
+  // Connexion au serveur perdue (false) ou retrouvée (true)
+  surConnexion(rappel: (enLigne: boolean) => void): () => void
 }

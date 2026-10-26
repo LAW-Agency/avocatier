@@ -7,6 +7,7 @@ import {
   ZoomOutRegular,
   ArrowExitRegular,
   BrightnessHighRegular,
+  CurrencyDollarEuroRegular,
   DesktopRegular,
   GlobeRegular,
   InfoRegular,
@@ -17,10 +18,11 @@ import {
 } from "@fluentui/react-icons"
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import type { ReglagesFacturation } from "@partage/types"
-import { NIVEAUX_ZOOM, type InfosLogiciel, type Theme } from "../../../partage/ipc"
+import { DEVISES_LOGICIEL, NIVEAUX_ZOOM, type DeviseLogiciel, type InfosLogiciel, type Theme } from "../../../partage/ipc"
 import { EnTete } from "../composants/commun"
-import { nomDe, useDonneesChargees } from "../donnees"
+import { nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { ROLES } from "../libelles"
+import { DEVISES_AFFICHAGE, formaterEn } from "../montants"
 import { useReglages } from "../reglages"
 import { useParametresStyles } from "./useParametresStyles.styles"
 
@@ -55,6 +57,7 @@ function Groupe({ titre, children }: { titre: string; children: ReactNode }) {
 // Coordonnées de l'hôtel imprimées sur les factures et les reçus (gérants), communes à toute l'équipe : gardées
 // sur le serveur, pas sur ce poste
 function Facturation({ initiales }: { initiales: ReglagesFacturation }) {
+  const lectureSeule = useLectureSeule()
   const styles = useParametresStyles()
   const { executer } = useDonneesChargees()
   const [valeurs, setValeurs] = useState(initiales)
@@ -107,7 +110,7 @@ function Facturation({ initiales }: { initiales: ReglagesFacturation }) {
         </MessageBar>
       )}
       <div className={mergeClasses(styles.commande, styles.pleine)}>
-        <Button type="submit" appearance="primary" disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
+        <Button type="submit" appearance="primary" disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
           Enregistrer
         </Button>
         {etat.ok && <Caption1>Enregistré : les prochaines factures et les prochains reçus en tiendront compte.</Caption1>}
@@ -138,6 +141,24 @@ export default function Parametres({ onDeconnexion }: { onDeconnexion: () => voi
             {(Object.keys(THEMES) as Theme[]).map((t) => (
               <Option key={t} value={t}>
                 {THEMES[t]}
+              </Option>
+            ))}
+          </Dropdown>
+        </Ligne>
+        <Ligne
+          Icone={CurrencyDollarEuroRegular}
+          titre="Devise des montants"
+          explication={`Montants du logiciel convertis au taux saisi dans Tarifs (exemple : 100 € = ${formaterEn(100, reglages.devise, d.devises.taux)}). Saisies, factures et reçus restent en euros.`}
+        >
+          <Dropdown
+            className={styles.choix}
+            value={`${DEVISES_AFFICHAGE[reglages.devise].nom} (${DEVISES_AFFICHAGE[reglages.devise].symbole})`}
+            selectedOptions={[reglages.devise]}
+            onOptionSelect={(_e, data) => modifier({ devise: data.optionValue as DeviseLogiciel })}
+          >
+            {DEVISES_LOGICIEL.map((code) => (
+              <Option key={code} value={code} text={`${DEVISES_AFFICHAGE[code].nom} (${DEVISES_AFFICHAGE[code].symbole})`}>
+                {`${DEVISES_AFFICHAGE[code].nom} (${DEVISES_AFFICHAGE[code].symbole})`}
               </Option>
             ))}
           </Dropdown>

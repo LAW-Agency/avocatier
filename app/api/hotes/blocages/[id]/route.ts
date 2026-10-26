@@ -1,4 +1,4 @@
-import { journaliser, json, nomHebergement, pourLesHotes, rafraichirSite } from "@/lib/api/hotes"
+import { journaliser, json, nomChambre, pourLesHotes, rafraichirSite } from "@/lib/api/hotes"
 import { formaterPlage } from "@/lib/reservation/dates"
 import { moteur } from "@/lib/reservation"
 
@@ -12,7 +12,7 @@ export const DELETE = pourLesHotes(async (_requete, membre, contexte: RouteConte
   }
   if (!blocage || !(await moteur.supprimerBlocage(id))) return json({ erreur: "Ces dates ont déjà été libérées." }, 404)
   journaliser(membre, "planning", "Dates libérées", async () =>
-    [await nomHebergement(blocage.hebergementId), formaterPlage(blocage.debut, blocage.fin), blocage.raison].filter(Boolean).join(" · "),
+    [await nomChambre(blocage.chambreId), formaterPlage(blocage.debut, blocage.fin), blocage.raison].filter(Boolean).join(" · "),
   )
   rafraichirSite()
   return json({ ok: true })

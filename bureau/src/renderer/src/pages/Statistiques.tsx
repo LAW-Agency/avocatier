@@ -10,7 +10,7 @@ import {
   TagRegular,
 } from "@fluentui/react-icons"
 import { useState } from "react"
-import { formaterPlage, formaterPrix, pluriel } from "@partage/dates"
+import { formaterPlage, pluriel } from "@partage/dates"
 import type { Reservation } from "@partage/types"
 import { Carte, EnTete } from "../composants/commun"
 import { Histogramme, Indicateur, Repartition } from "../composants/graphiques"
@@ -31,12 +31,14 @@ import {
   type ChoixPeriode,
 } from "../statistiques"
 import { useGestionStyles } from "./useGestionStyles.styles"
+import { usePrix } from "../montants"
 
 const unChiffre = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 })
 
 // Tableau de bord (gérants) : occupation, prix moyen, RevPAR, durée des séjours, annulations, provenance,
 // avec l'évolution en % par rapport à la période précédente de même durée
 export default function Statistiques() {
+  const formaterPrix = usePrix()
   const styles = useGestionStyles()
   const { d } = useDonneesChargees()
   const [choix, setChoix] = useState<ChoixPeriode>("mois")

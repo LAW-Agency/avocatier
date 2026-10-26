@@ -24,12 +24,20 @@ function hotes(): string[] {
     .filter(Boolean)
 }
 
-async function sejour(reservationId: string): Promise<Sejour | null> {
+// `toutLeGroupe` : demande de plusieurs chambres traitée en entier (nouvelle demande, décision sur la demande,
+// annulation par le client) : un seul e-mail pour toutes ses chambres, de même statut
+async function sejour(reservationId: string, toutLeGroupe = false): Promise<Sejour | null> {
   const reservation = await moteur.trouverReservation(reservationId)
   if (!reservation) return null
-  const [client, hebergements] = await Promise.all([comptes.trouverParId(reservation.clientId), moteur.listerHebergements()])
+  const [client, hebergements, duClient] = await Promise.all([
+    comptes.trouverParId(reservation.clientId),
+    moteur.listerHebergements(),
+    toutLeGroupe && reservation.groupe ? moteur.reservationsDuClient(reservation.clientId) : Promise.resolve([]),
+  ])
   const hebergement = hebergements.find((h) => h.id === reservation.hebergementId)
-  return client && hebergement ? { reservation, client, hebergement } : null
+  const autres = duClient.filter((r) => r.id !== reservation.id && r.groupe === reservation.groupe && r.statut === reservation.statut)
+  const groupe = [reservation, ...autres].sort((a, b) => a.reference.localeCompare(b.reference))
+  return client && hebergement ? { reservation, client, hebergement, groupe } : null
 }
 
 async function sansErreur(quoi: string, travail: () => Promise<void>) {
@@ -42,7 +50,7 @@ async function sansErreur(quoi: string, travail: () => Promise<void>) {
 
 export function notifierNouvelleDemande(reservationId: string) {
   return sansErreur("nouvelle demande", async () => {
-    const s = await sejour(reservationId)
+    const s = await sejour(reservationId, true)
     if (!s) return
     if (hotes().length === 0) console.warn("[e-mail] EMAIL_HOTES non défini : les hôtes ne sont pas prévenus des nouvelles demandes.")
     await Promise.all([
@@ -52,10 +60,11 @@ export function notifierNouvelleDemande(reservationId: string) {
   })
 }
 
-// `mot` : message écrit par les hôtes au moment de refuser ou d'annuler (facultatif)
+// `mot` : message écrit par les hôtes au moment de refuser ou d'annuler (facultatif). Confirmer ou refuser porte
+// sur toute la demande ; annuler, sur cette chambre seule
 export function notifierDecisionDesHotes(reservationId: string, statut: "confirmee" | "refusee" | "annulee", mot?: string) {
   return sansErreur("décision des hôtes", async () => {
-    const s = await sejour(reservationId)
+    const s = await sejour(reservationId, statut !== "annulee")
     // Client de la réception sans adresse : rien à envoyer
     if (s?.client.email) await envoyerEmail({ a: s.client.email, repondreA: hotes()[0], ...decisionDesHotes(s, statut, mot) })
   })
@@ -70,7 +79,7 @@ export function notifierModificationParLesHotes(reservationId: string, changemen
 
 export function notifierAnnulationParLeClient(reservationId: string) {
   return sansErreur("annulation par le client", async () => {
-    const s = await sejour(reservationId)
+    const s = await sejour(reservationId, true)
     if (s) await envoyerEmail({ a: hotes(), repondreA: s.client.email, ...annulationParLeClient(s) })
   })
 }

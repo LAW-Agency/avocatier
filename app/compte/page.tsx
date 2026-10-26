@@ -6,6 +6,7 @@ import { BedDouble, CalendarPlus, Clock, LogOut, Mail, MapPin, Navigation, Phone
 import type { ReactNode } from "react"
 import { annulerReservation, deconnexion } from "@/app/compte/actions"
 import ButtonLink from "@/components/ButtonLink"
+import { BoutonEnvoi } from "@/components/Chargement"
 import { Prix } from "@/components/Devise"
 import { HORAIRES } from "@/components/hebergements/sejour"
 import { contact } from "@/data/contact"
@@ -310,22 +311,23 @@ function CarteSejour({ reservation: r, hebergement: h, aujourdhui }: { reservati
           <BedDouble className="h-4 w-4 text-primary-dark" aria-hidden="true" />
           {h.type === "bungalow" ? "Voir le bungalow" : "Voir la chambre"}
         </Link>
-        {r.statut === "option" && <BoutonAnnuler reservationId={r.id} className="sm:ml-auto" />}
+        {r.statut === "option" && <BoutonAnnuler reservation={r} className="sm:ml-auto" />}
       </div>
     </article>
   )
 }
 
-function BoutonAnnuler({ reservationId, className = "" }: { reservationId: string; className?: string }) {
+// Une demande de plusieurs chambres s'annule en entier
+function BoutonAnnuler({ reservation: r, className = "" }: { reservation: Reservation; className?: string }) {
   return (
     <form action={annulerReservation} className={className}>
-      <input type="hidden" name="reservationId" value={reservationId} />
-      <button
-        type="submit"
-        className="text-sm font-medium text-primary-accent underline decoration-primary-accent/30 underline-offset-4 transition-colors hover:decoration-primary-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-accent"
+      <input type="hidden" name="reservationId" value={r.id} />
+      <BoutonEnvoi
+        enCours="Annulation…"
+        className="inline-flex items-center gap-2 text-sm font-medium text-primary-accent underline decoration-primary-accent/30 underline-offset-4 transition-colors hover:decoration-primary-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-accent"
       >
-        Annuler la demande
-      </button>
+        {r.groupe ? "Annuler la demande (toutes ses chambres)" : "Annuler la demande"}
+      </BoutonEnvoi>
     </form>
   )
 }
@@ -411,10 +413,10 @@ function VotreCompte({ client }: { client: ClientPublic }) {
       <div className="mt-6 flex flex-col gap-4 border-t border-ink/10 pt-6">
         <ButtonLink href="/reserver">Nouvelle réservation</ButtonLink>
         <form action={deconnexion} className="self-center">
-          <button type="submit" className={`${lienAction} text-ink/70`}>
+          <BoutonEnvoi enCours="Déconnexion…" className={`${lienAction} text-ink/70`}>
             <LogOut className="h-4 w-4" aria-hidden="true" />
             Se déconnecter
-          </button>
+          </BoutonEnvoi>
         </form>
       </div>
     </section>
@@ -470,7 +472,7 @@ function ListeSejours({ titre, reservations, hebergementDe, aujourdhui }: ListeS
               </div>
               <div className="col-start-2 flex flex-wrap items-center gap-5 sm:col-start-auto sm:flex-col sm:items-end sm:gap-2.5">
                 <Statut statut={statut} />
-                {r.statut === "option" && <BoutonAnnuler reservationId={r.id} />}
+                {r.statut === "option" && <BoutonAnnuler reservation={r} />}
               </div>
             </li>
           )

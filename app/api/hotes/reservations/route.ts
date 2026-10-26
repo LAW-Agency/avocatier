@@ -12,6 +12,7 @@ export const POST = pourLesHotes(async (requete, membre) => {
   const reservation: ReservationDirecte = {
     clientId: texte("clientId"),
     hebergementId: texte("hebergementId"),
+    chambreId: texte("chambreId") || null, // vide : première chambre libre
     arrivee: texte("arrivee"),
     depart: texte("depart"),
     adultes: Number(c?.adultes),

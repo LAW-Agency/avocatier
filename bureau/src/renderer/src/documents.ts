@@ -20,7 +20,10 @@ const jourLong = (iso: string) => formaterDate(iso, { weekday: undefined, month:
 
 export const numeroRecu = (p: Pick<Paiement, "numero">) => `RE-${String(p.numero).padStart(6, "0")}`
 
-type Contexte = { facturation: ReglagesFacturation; client?: ClientPublic; hebergement?: HebergementCourt }
+type Contexte = { facturation: ReglagesFacturation; client?: ClientPublic; hebergement?: HebergementCourt; chambre?: string }
+
+// « Bungalow Océan (Océan 3) »
+const sejourDe = ({ hebergement, chambre }: Contexte) => `${hebergement?.nom ?? "Hébergement"}${chambre ? ` (${chambre})` : ""}`
 
 function page(titre: string, corps: string): string {
   return `<!doctype html>
@@ -81,7 +84,8 @@ function destinataire(libelle: string, client?: ClientPublic): string {
 const voyageurs = (r: Reservation) => [pluriel(r.adultes, "adulte"), r.enfants ? pluriel(r.enfants, "enfant") : ""].filter(Boolean).join(", ")
 
 // Facture d'un séjour confirmé : le séjour, les encaissements déjà reçus et ce qui reste à payer
-export function facture(r: Reservation, paiements: Paiement[], numero: string, le: string, { facturation, client, hebergement }: Contexte): string {
+export function facture(r: Reservation, paiements: Paiement[], numero: string, le: string, contexte: Contexte): string {
+  const { facturation, client } = contexte
   const nuits = nombreNuits(r.arrivee, r.depart)
   const regle = paiements.reduce((t, p) => t + p.montant, 0)
   const reste = r.montantTotal - regle
@@ -93,7 +97,7 @@ ${destinataire("Facturé à", client)}
   <thead><tr><th>Désignation</th><th class="droite">Quantité</th><th class="droite">Montant</th></tr></thead>
   <tbody>
     <tr>
-      <td>Séjour · ${echapper(hebergement?.nom ?? "Hébergement")}<br>
+      <td>Séjour · ${echapper(sejourDe(contexte))}<br>
         <span class="detail">Du ${echapper(jourLong(r.arrivee))} au ${echapper(jourLong(r.depart))} · ${echapper(voyageurs(r))}${r.navette ? " · navette aéroport" : ""}</span></td>
       <td class="droite">${echapper(pluriel(nuits, "nuit"))}</td>
       <td class="droite">${echapper(formaterPrix(r.montantTotal))}</td>
@@ -125,7 +129,8 @@ ${
 }
 
 // Reçu d'un encaissement (ou d'un remboursement, montant négatif), avec où en est le paiement du séjour
-export function recu(p: Paiement, r: Reservation, paiements: Paiement[], auteur: string | undefined, { facturation, client, hebergement }: Contexte): string {
+export function recu(p: Paiement, r: Reservation, paiements: Paiement[], auteur: string | undefined, contexte: Contexte): string {
+  const { facturation, client } = contexte
   const remboursement = p.montant < 0
   // Situation au moment de ce reçu : encaissements enregistrés jusqu'à lui
   const regle = paiements.filter((x) => x.le <= p.le).reduce((t, x) => t + x.montant, 0)
@@ -137,7 +142,7 @@ ${destinataire(remboursement ? "Remboursé à" : "Reçu de", client)}
 <p class="montant">${echapper(formaterPrix(Math.abs(p.montant)))}</p>
 <div class="grille">
   <div><p class="etiquette">Mode de paiement</p>${echapper(MODES_PAIEMENT[p.mode])}${p.note ? `<br><span class="detail">${echapper(p.note)}</span>` : ""}</div>
-  <div><p class="etiquette">Pour le séjour</p>${echapper(hebergement?.nom ?? "Hébergement")}<br><span class="detail">${echapper(formaterPlage(r.arrivee, r.depart))} · ${echapper(pluriel(nombreNuits(r.arrivee, r.depart), "nuit"))}</span></div>
+  <div><p class="etiquette">Pour le séjour</p>${echapper(sejourDe(contexte))}<br><span class="detail">${echapper(formaterPlage(r.arrivee, r.depart))} · ${echapper(pluriel(nombreNuits(r.arrivee, r.depart), "nuit"))}</span></div>
 </div>
 <h2>Situation du séjour à cette date</h2>
 <table class="totaux" style="margin-left:0;width:60%">
