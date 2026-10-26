@@ -6,6 +6,7 @@ import {
   ZoomInRegular,
   ZoomOutRegular,
   ArrowExitRegular,
+  ArrowSyncRegular,
   BrightnessHighRegular,
   CurrencyDollarEuroRegular,
   DesktopRegular,
@@ -18,7 +19,7 @@ import {
 } from "@fluentui/react-icons"
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import type { ReglagesFacturation } from "@partage/types"
-import { DEVISES_LOGICIEL, NIVEAUX_ZOOM, type DeviseLogiciel, type InfosLogiciel, type Theme } from "../../../partage/ipc"
+import { DEVISES_LOGICIEL, NIVEAUX_ZOOM, type DeviseLogiciel, type EtatMiseAJour, type InfosLogiciel, type Theme } from "../../../partage/ipc"
 import { EnTete } from "../composants/commun"
 import { nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { ROLES } from "../libelles"
@@ -116,6 +117,54 @@ function Facturation({ initiales }: { initiales: ReglagesFacturation }) {
         {etat.ok && <Caption1>Enregistré : les prochaines factures et les prochains reçus en tiendront compte.</Caption1>}
       </div>
     </form>
+  )
+}
+
+const HEURE = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" })
+
+function explicationMiseAJour(etat: EtatMiseAJour | null): string {
+  switch (etat?.etat) {
+    case undefined:
+      return "…"
+    case "indisponible":
+      return "Disponible une fois le logiciel installé."
+    case "a-jour":
+      return etat.verifieLe ? `Le logiciel est à jour (vérifié le ${HEURE.format(new Date(etat.verifieLe))}).` : "Recherche automatique au lancement puis toutes les 4 heures."
+    case "recherche":
+      return "Recherche d'une nouvelle version…"
+    case "telechargement":
+      return `Téléchargement de la version ${etat.version} : ${etat.pourcent} %`
+    case "prete":
+      return `Version ${etat.version} téléchargée : redémarrez pour l'installer (sinon, à la prochaine fermeture).`
+    case "erreur":
+      return etat.message
+  }
+}
+
+// Mises à jour automatiques (src/main/misesAJour.ts) : état suivi en direct, recherche et installation à la demande
+function MiseAJour() {
+  const [etat, setEtat] = useState<EtatMiseAJour | null>(null)
+  useEffect(() => {
+    void window.avocatier.etatMiseAJour().then(setEtat)
+    return window.avocatier.surMiseAJour(setEtat)
+  }, [])
+  const occupe = etat?.etat === "recherche" || etat?.etat === "telechargement"
+  return (
+    <Ligne Icone={ArrowSyncRegular} titre="Mises à jour" explication={explicationMiseAJour(etat)}>
+      {etat?.etat === "prete" ? (
+        <Button appearance="primary" icon={<ArrowSyncRegular />} onClick={() => window.avocatier.installerMiseAJour()}>
+          Redémarrer et installer
+        </Button>
+      ) : (
+        <Button
+          disabled={!etat || etat.etat === "indisponible" || occupe}
+          icon={occupe ? <Spinner size="tiny" /> : <ArrowSyncRegular />}
+          onClick={() => window.avocatier.rechercherMiseAJour()}
+        >
+          Rechercher
+        </Button>
+      )}
+    </Ligne>
   )
 }
 
@@ -218,6 +267,7 @@ export default function Parametres({ onDeconnexion }: { onDeconnexion: () => voi
 
       <Groupe titre="À propos">
         <Ligne Icone={InfoRegular} titre="Chez L'Avocatier, logiciel des hôtes" explication={`Version ${infos?.version ?? "…"} · LAW Agency`} />
+        <MiseAJour />
       </Groupe>
     </div>
   )

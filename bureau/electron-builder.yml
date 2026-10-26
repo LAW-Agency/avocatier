@@ -13,6 +13,14 @@ extraResources:
 win:
   icon: resources/icon.ico
   target: nsis
+# Mises à jour automatiques (src/main/misesAJour.ts) : le logiciel lit latest.yml dans la dernière version publiée
+# de ce dépôt public, qui ne contient que les installateurs (le code reste dans le dépôt privé). Publication :
+# GH_TOKEN=… npm run publier (crée un brouillon de version à valider sur GitHub)
+publish:
+  provider: github
+  owner: LAW-Agency
+  repo: avocatier-versions
+  releaseType: draft
 # Images de l'installateur : resources/installerSidebar.bmp et installerHeader.bmp (trouvées d'office dans
 # buildResources), tirées de resources/installation.png par scripts/images-installateur.mjs
 nsis:

@@ -86,6 +86,15 @@ export type Reglages = {
 
 export type InfosLogiciel = { version: string; installe: boolean }
 
+// Mises à jour automatiques (src/main/misesAJour.ts) : indisponible en développement ; verifieLe en ISO
+export type EtatMiseAJour =
+  | { etat: "indisponible" }
+  | { etat: "a-jour"; verifieLe?: string }
+  | { etat: "recherche" }
+  | { etat: "telechargement"; version: string; pourcent: number }
+  | { etat: "prete"; version: string }
+  | { etat: "erreur"; message: string }
+
 export interface PontAvocatier {
   // Session gardée depuis la dernière connexion, et adresse du serveur proposée à l'écran de connexion
   session(): Promise<{ session: Session | null; serveurParDefaut: string }>
@@ -108,6 +117,10 @@ export interface PontAvocatier {
   infos(): Promise<InfosLogiciel>
   // Serveur joignable lors du dernier appel (suivi en direct compris, toutes les 15 s)
   etatConnexion(): Promise<boolean>
+  // Mises à jour : état actuel, recherche demandée par les hôtes, redémarrage pour installer une version téléchargée
+  etatMiseAJour(): Promise<EtatMiseAJour>
+  rechercherMiseAJour(): void
+  installerMiseAJour(): void
 
   // Premier écran peint avec le bon thème : la fenêtre s'affiche à ce moment-là (src/main/index.ts)
   signalerPrete(): void
@@ -131,4 +144,5 @@ export interface PontAvocatier {
   surPleinEcran(rappel: (pleinEcran: boolean) => void): () => void
   // Connexion au serveur perdue (false) ou retrouvée (true)
   surConnexion(rappel: (enLigne: boolean) => void): () => void
+  surMiseAJour(rappel: (etat: EtatMiseAJour) => void): () => void
 }
