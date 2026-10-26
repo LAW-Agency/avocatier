@@ -65,9 +65,10 @@ import {
 } from "@fluentui/react-icons"
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
 import { pluriel } from "@partage/dates"
-import type { Annonce, Destination, EtatMiseAJour } from "../../partage/ipc"
+import type { Annonce, Destination } from "../../partage/ipc"
 import { BarreTitre } from "./composants/BarreTitre"
 import { ChargementLogo } from "./composants/commun"
+import FenetreMiseAJour from "./composants/FenetreMiseAJour"
 import NouvelleReservation from "./composants/NouvelleReservation"
 import { RechercheGlobale } from "./composants/RechercheGlobale"
 import { useApparitionStyles } from "./composants/useCommunStyles.styles"
@@ -200,18 +201,6 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
       annoncer({ id: "connexion", titre: "Connexion au serveur perdue", texte: "Lecture seule en attendant : vérifiez la connexion Internet. Le logiciel réessaie toutes les 5 secondes.", intent: "warning", duree: 10_000 })
     }
   })
-  // Nouvelle version téléchargée : proposée jusqu'à ce qu'on ferme l'annonce (sinon installée à la fermeture)
-  const surMiseAJour = useEffectEvent((etat: EtatMiseAJour) => {
-    if (etat.etat !== "prete") return
-    annoncer({
-      id: "mise-a-jour",
-      titre: `Version ${etat.version} prête`,
-      texte: "Redémarrez le logiciel pour l'installer (quelques secondes).",
-      lien: <Link onClick={() => window.avocatier.installerMiseAJour()}>Redémarrer maintenant</Link>,
-      intent: "success",
-      duree: -1,
-    })
-  })
   // Raccourcis de l'interface (zoom et plein écran : processus principal) : Ctrl + F recherche, Ctrl + N
   // nouvelle réservation, F1 guide
   const surTouche = useEffectEvent((e: KeyboardEvent) => {
@@ -233,15 +222,12 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
     const finActivite = window.avocatier.surActivite(surActivite)
     const finNavigation = window.avocatier.surNavigation(surNavigation)
     const finConnexion = window.avocatier.surConnexion(surConnexion)
-    const finMiseAJour = window.avocatier.surMiseAJour(surMiseAJour)
     void window.avocatier.etatConnexion().then((valeur) => !valeur && surConnexion(false))
-    void window.avocatier.etatMiseAJour().then(surMiseAJour)
     window.addEventListener("keydown", surTouche)
     return () => {
       finActivite()
       finNavigation()
       finConnexion()
-      finMiseAJour()
       window.removeEventListener("keydown", surTouche)
     }
   }, [])
@@ -430,7 +416,6 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
             ecran
           ) : (
             <>
-              <div aria-hidden className={styles.masqueHaut} />
               <div className={styles.page}>
                 {donnees && (erreur || !enLigne) && (
                   <MessageBar intent="warning">
@@ -455,6 +440,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
       </div>
 
       {donnees && <NouvelleReservation />}
+      <FenetreMiseAJour />
     </div>
   )
 }

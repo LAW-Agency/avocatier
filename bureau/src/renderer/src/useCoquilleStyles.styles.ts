@@ -54,18 +54,6 @@ export const useCoquilleStyles = makeStyles({
     backgroundColor: tokens.colorNeutralBackground2,
     border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
   },
-  // Bande collée en haut de la zone qui défile, de la hauteur de la marge de l'écran et de la couleur du fond : ce
-  // qui défile y disparaît, les en-têtes collés (tableaux, sommaire du Guide) gardent leur espace au-dessus.
-  // Marge négative : elle ne décale pas la page
-  masqueHaut: {
-    position: "sticky",
-    top: 0,
-    // Au-dessus des colonnes collées du planning (2) et des en-têtes de tableau (1)
-    zIndex: 3,
-    height: tokens.spacingVerticalXXL,
-    marginBottom: `calc(-1 * ${tokens.spacingVerticalXXL})`,
-    backgroundColor: tokens.colorNeutralBackground2,
-  },
   page: {
     padding: `${tokens.spacingVerticalXXL} ${tokens.spacingHorizontalXXXL} ${tokens.spacingVerticalXXXL}`,
     display: "flex",

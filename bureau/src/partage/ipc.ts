@@ -86,11 +86,13 @@ export type Reglages = {
 
 export type InfosLogiciel = { version: string; installe: boolean }
 
-// Mises à jour automatiques (src/main/misesAJour.ts) : indisponible en développement ; verifieLe en ISO
+// Mises à jour (src/main/misesAJour.ts) : indisponible en développement ; verifieLe en ISO ; « disponible » attend
+// l'accord des hôtes (notes : texte de la version publiée sur GitHub, sans balises)
 export type EtatMiseAJour =
   | { etat: "indisponible" }
   | { etat: "a-jour"; verifieLe?: string }
   | { etat: "recherche" }
+  | { etat: "disponible"; version: string; notes: string | null }
   | { etat: "telechargement"; version: string; pourcent: number }
   | { etat: "prete"; version: string }
   | { etat: "erreur"; message: string }
@@ -117,9 +119,11 @@ export interface PontAvocatier {
   infos(): Promise<InfosLogiciel>
   // Serveur joignable lors du dernier appel (suivi en direct compris, toutes les 15 s)
   etatConnexion(): Promise<boolean>
-  // Mises à jour : état actuel, recherche demandée par les hôtes, redémarrage pour installer une version téléchargée
+  // Mises à jour : état actuel, recherche demandée par les hôtes, mise à jour acceptée (téléchargement puis
+  // redémarrage et installation), redémarrage pour installer une version déjà téléchargée
   etatMiseAJour(): Promise<EtatMiseAJour>
   rechercherMiseAJour(): void
+  mettreAJour(): void
   installerMiseAJour(): void
 
   // Premier écran peint avec le bon thème : la fenêtre s'affiche à ce moment-là (src/main/index.ts)

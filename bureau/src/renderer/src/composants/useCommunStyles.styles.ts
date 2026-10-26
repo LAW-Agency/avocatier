@@ -105,8 +105,8 @@ export const useCadreTableStyles = makeStyles({
     overflowY: "auto",
     "& > table > thead": { top: 0 },
   },
-  // En-tête collé sous la bande de 24 px qui masque le haut de la zone de défilement (voir `masqueHaut`, coquille)
-  entete: { position: "sticky", top: tokens.spacingVerticalXXL, zIndex: 1, backgroundColor: tokens.colorNeutralBackground3 },
+  // En-tête collé en haut de la zone de défilement
+  entete: { position: "sticky", top: 0, zIndex: 1, backgroundColor: tokens.colorNeutralBackground3 },
   premiere: { paddingLeft: tokens.spacingHorizontalL },
   derniere: { paddingRight: tokens.spacingHorizontalL },
   nombre: { fontVariantNumeric: "tabular-nums" },

@@ -596,8 +596,8 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <li>Notifications de Windows, maintien dans la zone de notification à la fermeture, lancement au démarrage de Windows.</li>
         <li>Se souvenir de moi, adresse du serveur, déconnexion et version du logiciel.</li>
         <li>
-          <strong>Mises à jour</strong> : le logiciel cherche une nouvelle version au lancement puis toutes les 4 heures, la télécharge tout seul et propose de redémarrer
-          pour l&apos;installer (sinon, elle s&apos;installe à la prochaine fermeture). Le bouton « Rechercher » de la section À propos vérifie tout de suite.
+          <strong>Mises à jour</strong> : le logiciel cherche une nouvelle version au lancement puis toutes les 4 heures et l&apos;annonce dans une fenêtre. « Mettre à
+          jour » la télécharge (barre de progression) puis redémarre le logiciel pour l&apos;installer ; « Plus tard » la laisse proposée ici. Le bouton « Rechercher » de la section À propos vérifie tout de suite.
         </li>
         <li>
           <strong>Factures et reçus</strong> (gérants) : nom de l&apos;établissement, adresse, contacts, identifiants légaux (NIF, STAT…) et mentions du bas des factures. Ces
