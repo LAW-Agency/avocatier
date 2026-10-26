@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import {
   blocageEnConflit,
   controlerBlocage,
@@ -13,10 +14,11 @@ import {
 import { reglagesDevisesInitiaux } from "../devises"
 import { hebergements as contenuDesFiches } from "../donnees"
 import type { DepotComptes, MoteurReservation } from "../moteur"
-import { calculerDevis } from "../regles"
+import { calculerDevis, repartirVoyageurs } from "../regles"
 import type {
   ActiviteReservation,
   Blocage,
+  Chambre,
   Client,
   ClientPublic,
   CodeDevise,
@@ -26,7 +28,7 @@ import type {
   RegleSaison,
   Reservation,
   ResultatAction,
-  ResultatDemande,
+  ResultatDemandeSite,
   SourceReservation,
   StatutReservation,
 } from "../types"
@@ -38,7 +40,8 @@ import { codeErreur, db, lignes, transaction, type Executant } from "./db"
 const HEBERGEMENT = `id, slug, nom, type, description, image, capacite_max as "capaciteMax", literie, vue,
   prix_nuit as "prixNuit", presentation, galerie, salle_de_bains as "salleDeBains", equipements`
 
-export const RESERVATION = `id, reference, client_id as "clientId", hebergement_id as "hebergementId", arrivee, depart,
+export const RESERVATION = `id, reference, client_id as "clientId", hebergement_id as "hebergementId", chambre_id as "chambreId",
+  groupe, arrivee, depart,
   adultes, enfants, navette, telephone, message, montant_total as "montantTotal", statut, source,
   cree_le as "creeLe", expire_le as "expireLe", historique, arrivee_le as "arriveeLe", depart_le as "departLe",
   facture_numero as "factureNumero", facture_le as "factureLe"`
@@ -48,7 +51,8 @@ export const CLIENT = `id, role, coalesce(email, '') as email, prenom, nom, tele
   sessions_valides_depuis as "sessionsValidesDepuis", actif, origine, note, efface_le as "effaceLe"`
 
 // Horodatages rendus par pg en Date : convertis en texte ISO comme dans le reste du code
-export type LigneReservation = Omit<Reservation, "creeLe" | "expireLe" | "arriveeLe" | "departLe" | "factureNumero" | "factureLe"> & {
+export type LigneReservation = Omit<Reservation, "groupe" | "creeLe" | "expireLe" | "arriveeLe" | "departLe" | "factureNumero" | "factureLe"> & {
+  groupe: string | null
   creeLe: Date
   expireLe: Date | null
   arriveeLe: Date | null
@@ -62,9 +66,10 @@ export type LigneClient = Omit<ClientPublic, "creeLe" | "sessionsValidesDepuis" 
   effaceLe: Date | null
 }
 
-export function versReservation({ creeLe, expireLe, arriveeLe, departLe, factureNumero, factureLe, ...reste }: LigneReservation): Reservation {
+export function versReservation({ groupe, creeLe, expireLe, arriveeLe, departLe, factureNumero, factureLe, ...reste }: LigneReservation): Reservation {
   return {
     ...reste,
+    ...(groupe && { groupe }),
     creeLe: creeLe.toISOString(),
     ...(expireLe && { expireLe: expireLe.toISOString() }),
     ...(arriveeLe && { arriveeLe: arriveeLe.toISOString() }),
@@ -102,6 +107,15 @@ export async function lireHebergements(ex: Executant): Promise<Hebergement[]> {
   return liste.map(avecContenuDuCode)
 }
 
+export const CHAMBRE = `id, hebergement_id as "hebergementId", numero, etat, note_etat as "noteEtat", active`
+
+// Ordre d'attribution et d'affichage : « Océan 2 » avant « Océan 10 »
+export const ORDRE_CHAMBRES = "hebergement_id, length(numero), numero"
+
+export async function lireChambres(ex: Executant): Promise<Chambre[]> {
+  return lignes<Chambre>(ex, `select ${CHAMBRE} from chambres order by ${ORDRE_CHAMBRES}`)
+}
+
 export async function lireReglesSaisons(ex: Executant): Promise<RegleSaison[]> {
   return lignes<RegleSaison>(ex, `select nom, debut, fin, coefficient, sejour_min as "sejourMin" from regles_saisons order by debut`)
 }
@@ -115,40 +129,73 @@ export async function expirerOptions(ex: Executant) {
   )
 }
 
-// Verrou de transaction par hébergement : deux écritures sur le même hébergement (demandes, blocages)
-// passent l'une après l'autre, la vérification des dates ne peut pas se croiser avec une insertion
+// Verrou de transaction par hébergement (catégorie) : deux écritures sur ses chambres (demandes, blocages,
+// attribution d'une chambre libre) passent l'une après l'autre, la vérification des dates ne peut pas se croiser
+// avec une insertion
 export async function verrouiller(tx: Executant, hebergementId: string) {
   await tx.query("select pg_advisory_xact_lock(hashtext($1))", [hebergementId])
 }
 
-// `sauf` : réservation modifiée, qui ne se gêne pas elle-même. `source` : provenance de la réservation
-// (saisie ou modifiée par l'équipe) ; les dates importées du calendrier de cette même plateforme sont les siennes
-// (réservation Booking.com déjà importée de Booking.com) et ne la bloquent pas
-export async function estOccupe(
+// Chambres actives de la catégorie libres sur tout le séjour, dans l'ordre d'attribution (à appeler sous le verrou
+// de la catégorie). `sauf` : réservation modifiée, qui ne se gêne pas elle-même. `source` : provenance de la
+// réservation (saisie ou modifiée par l'équipe) ; les dates importées du calendrier de cette même plateforme sont
+// les siennes (réservation Booking.com déjà importée de Booking.com) et ne la bloquent pas
+export async function chambresLibres(
   ex: Executant,
   hebergementId: string,
   debut: DateISO,
   fin: DateISO,
   { sauf, source }: { sauf?: string; source?: SourceReservation } = {},
-): Promise<boolean> {
-  const occupees = await lignes(
+): Promise<string[]> {
+  const libres = await lignes<{ id: string }>(
     ex,
-    `select 1 from reservations
-     where hebergement_id = $1 and statut = any($4) and daterange(arrivee, depart) && daterange($2::date, $3::date)
-       and id is distinct from $5
-     union all
-     select 1 from blocages b left join calendriers_externes c on c.id = b.calendrier_id
-     where b.hebergement_id = $1 and daterange(b.debut, b.fin) && daterange($2::date, $3::date)
-       and ($6::text is null or c.plateforme is distinct from $6)
-     limit 1`,
+    `select c.id from chambres c
+     where c.hebergement_id = $1 and c.active
+       and not exists (
+         select 1 from reservations r
+         where r.chambre_id = c.id and r.statut = any($4) and daterange(r.arrivee, r.depart) && daterange($2::date, $3::date)
+           and r.id is distinct from $5)
+       and not exists (
+         select 1 from blocages b left join calendriers_externes k on k.id = b.calendrier_id
+         where b.chambre_id = c.id and daterange(b.debut, b.fin) && daterange($2::date, $3::date)
+           and ($6::text is null or k.plateforme is distinct from $6))
+     order by ${ORDRE_CHAMBRES}`,
     [hebergementId, debut, fin, STATUTS_ACTIFS, sauf ?? null, source ?? null],
   )
-  return occupees.length > 0
+  return libres.map((c) => c.id)
+}
+
+// Chambre choisie par l'équipe (`chambreId`), sinon la première libre ; l'erreur à afficher si ce n'est pas possible
+export async function attribuerChambre(
+  ex: Executant,
+  hebergement: Pick<Hebergement, "id" | "nom">,
+  chambreId: string | null,
+  debut: DateISO,
+  fin: DateISO,
+  options: { sauf?: string; source?: SourceReservation } = {},
+): Promise<{ chambreId: string } | { erreur: string }> {
+  const libres = await chambresLibres(ex, hebergement.id, debut, fin, options)
+  if (!chambreId) return libres[0] ? { chambreId: libres[0] } : { erreur: `Aucune chambre ${hebergement.nom} n'est libre à ces dates.` }
+  const [chambre] = await lignes<Pick<Chambre, "numero" | "hebergementId" | "active">>(
+    ex,
+    `select numero, hebergement_id as "hebergementId", active from chambres where id = $1`,
+    [chambreId],
+  )
+  if (!chambre || chambre.hebergementId !== hebergement.id) return { erreur: `Choisissez une chambre ${hebergement.nom}.` }
+  if (!chambre.active) return { erreur: `La chambre ${chambre.numero} est désactivée.` }
+  if (!libres.includes(chambreId)) {
+    return { erreur: `La chambre ${chambre.numero} n'est pas libre à ces dates : une autre réservation ou des dates bloquées les occupent.` }
+  }
+  return { chambreId }
 }
 
 export const moteurPostgres: MoteurReservation = {
   async listerHebergements() {
     return lireHebergements(db())
+  },
+
+  async listerChambres() {
+    return lireChambres(db())
   },
 
   async listerSaisons() {
@@ -164,16 +211,17 @@ export const moteurPostgres: MoteurReservation = {
     await expirerOptions(ex)
     return lignes<PeriodeOccupee>(
       ex,
-      `select hebergement_id as "hebergementId", arrivee as debut, depart as fin from reservations where statut = any($1)
+      `select hebergement_id as "hebergementId", chambre_id as "chambreId", arrivee as debut, depart as fin
+       from reservations where statut = any($1)
        union all
-       select hebergement_id, debut, fin from blocages`,
+       select hebergement_id, chambre_id, debut, fin from blocages`,
       [STATUTS_ACTIFS],
     )
   },
 
   async creerDemande(clientId, demande) {
     try {
-      return await transaction<ResultatDemande>(async (tx) => {
+      return await transaction<ResultatDemandeSite>(async (tx) => {
         await verrouiller(tx, demande.hebergementId)
         await expirerOptions(tx)
         const hebergement = (await lireHebergements(tx)).find((h) => h.id === demande.hebergementId)
@@ -181,36 +229,54 @@ export const moteurPostgres: MoteurReservation = {
         const erreur = controlerDemande(demande, hebergement, saisons)
         if (erreur || !hebergement) return { ok: false, erreur: erreur ?? "Cet hébergement n'existe pas." }
 
-        const { arrivee, depart, adultes, enfants, navette, telephone, message } = demande
-        if (await estOccupe(tx, hebergement.id, arrivee, depart)) return { ok: false, erreur: DATES_PRISES }
-
-        const [{ numero }] = await lignes<{ numero: number }>(tx, "select nextval('reservations_numero')::int as numero")
+        const { arrivee, depart, adultes, enfants, chambres, navette, telephone, message } = demande
+        const libres = await chambresLibres(tx, hebergement.id, arrivee, depart)
+        if (libres.length === 0) return { ok: false, erreur: DATES_PRISES }
+        if (libres.length < chambres) {
+          return {
+            ok: false,
+            erreur: `Il ne reste que ${libres.length} ${hebergement.nom} libre${libres.length > 1 ? "s" : ""} à ces dates : réduisez le nombre de chambres ou choisissez d'autres dates.`,
+          }
+        }
+        // Capacité déjà contrôlée (controlerDemande) : la répartition existe
+        const repartition = repartirVoyageurs(adultes, enfants, chambres, hebergement.capaciteMax)!
+        const montant = calculerDevis(hebergement, arrivee, depart, saisons).total
+        const groupe = chambres > 1 ? randomUUID() : null
         const maintenant = new Date()
-        const [ligne] = await lignes<LigneReservation>(
-          tx,
-          `insert into reservations (reference, client_id, hebergement_id, arrivee, depart, adultes, enfants, navette,
-             telephone, message, montant_total, statut, source, cree_le, expire_le, historique)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'option', 'site', $12, $13, $14)
-           returning ${RESERVATION}`,
-          [
-            `AVO-${arrivee.slice(0, 4)}-${String(numero).padStart(4, "0")}`,
-            clientId,
-            hebergement.id,
-            arrivee,
-            depart,
-            adultes,
-            enfants,
-            navette,
-            telephone,
-            message,
-            calculerDevis(hebergement, arrivee, depart, saisons).total,
-            maintenant,
-            new Date(maintenant.getTime() + DUREE_OPTION_MS),
-            JSON.stringify([{ statut: "option", le: maintenant.toISOString() }]),
-          ],
-        )
+
+        // Une réservation par chambre, chacune avec sa référence, ses voyageurs et son montant
+        const reservations: Reservation[] = []
+        for (const [i, voyageurs] of repartition.entries()) {
+          const [{ numero }] = await lignes<{ numero: number }>(tx, "select nextval('reservations_numero')::int as numero")
+          const [ligne] = await lignes<LigneReservation>(
+            tx,
+            `insert into reservations (reference, client_id, hebergement_id, chambre_id, groupe, arrivee, depart, adultes,
+               enfants, navette, telephone, message, montant_total, statut, source, cree_le, expire_le, historique)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'option', 'site', $14, $15, $16)
+             returning ${RESERVATION}`,
+            [
+              `AVO-${arrivee.slice(0, 4)}-${String(numero).padStart(4, "0")}`,
+              clientId,
+              hebergement.id,
+              libres[i],
+              groupe,
+              arrivee,
+              depart,
+              voyageurs.adultes,
+              voyageurs.enfants,
+              navette,
+              telephone,
+              message,
+              montant,
+              maintenant,
+              new Date(maintenant.getTime() + DUREE_OPTION_MS),
+              JSON.stringify([{ statut: "option", le: maintenant.toISOString() }]),
+            ],
+          )
+          reservations.push(versReservation(ligne))
+        }
         // E-mails envoyés par l'action (app/reserver/actions.ts), une fois la transaction validée
-        return { ok: true, reservation: versReservation(ligne) }
+        return { ok: true, reservations }
       })
     } catch (erreur) {
       // Filet de sécurité : la contrainte d'exclusion a refusé une nuit déjà prise
@@ -233,9 +299,11 @@ export const moteurPostgres: MoteurReservation = {
   async annulerDemande(clientId, reservationId) {
     const ex = db()
     await expirerOptions(ex)
+    // Toutes les chambres de la demande : le client annule sa demande, pas une chambre
     const resultat = await ex.query(
       `update reservations set statut = 'annulee', historique = historique || $3::jsonb
-       where id = $1 and client_id = $2 and statut = 'option'`,
+       where client_id = $2 and statut = 'option'
+         and (id = $1 or groupe = (select groupe from reservations where id = $1 and client_id = $2))`,
       [reservationId, clientId, evenement("annulee", "Annulée par le client")],
     )
     return (resultat.rowCount ?? 0) > 0
@@ -268,11 +336,12 @@ export const moteurPostgres: MoteurReservation = {
     const evenements = await lignes<Omit<ActiviteReservation, "le"> & { le: Date }>(
       ex,
       `select r.id as "reservationId", r.reference, e.statut, e.le, e.note,
-         trim(c.prenom || ' ' || c.nom) as client, h.nom as hebergement, r.arrivee, r.depart
+         trim(c.prenom || ' ' || c.nom) as client, h.nom || ' · ' || ch.numero as hebergement, r.arrivee, r.depart
        from reservations r
        cross join lateral jsonb_to_recordset(r.historique) as e(statut text, le timestamptz, note text)
        join clients c on c.id = r.client_id
        join hebergements h on h.id = r.hebergement_id
+       join chambres ch on ch.id = r.chambre_id
        where e.le > $1::timestamptz and e.le <= $2::timestamptz
        order by e.le
        limit 20`,
@@ -288,17 +357,20 @@ export const moteurPostgres: MoteurReservation = {
   async changerStatut(reservationId, statut, note) {
     return transaction<ResultatAction>(async (tx) => {
       await expirerOptions(tx)
-      const [reservation] = await lignes<Pick<Reservation, "statut" | "depart">>(
+      const [reservation] = await lignes<Pick<Reservation, "statut" | "depart"> & { groupe: string | null }>(
         tx,
-        "select statut, depart from reservations where id = $1 for update",
+        "select statut, depart, groupe from reservations where id = $1 for update",
         [reservationId],
       )
       const erreur = controlerChangementStatut(reservation, statut)
       if (erreur) return { ok: false, erreur }
-      // Les hôtes ne remettent jamais en option : l'échéance disparaît
+      // Les hôtes ne remettent jamais en option : l'échéance disparaît. Une demande de plusieurs chambres se
+      // confirme ou se refuse en entier ; un séjour confirmé s'annule chambre par chambre
+      const groupe = reservation.statut === "option" ? reservation.groupe : null
       await tx.query(
-        "update reservations set statut = $2, expire_le = null, historique = historique || $3::jsonb where id = $1",
-        [reservationId, statut, evenement(statut, note)],
+        `update reservations set statut = $2, expire_le = null, historique = historique || $3::jsonb
+         where id = $1 or ($4::text is not null and groupe = $4 and statut = 'option')`,
+        [reservationId, statut, evenement(statut, note), groupe],
       )
       // E-mail au client envoyé par la route de l'API (app/api/hotes/reservations/[id]), une fois la transaction validée
       return { ok: true }
@@ -308,34 +380,39 @@ export const moteurPostgres: MoteurReservation = {
   async listerBlocages() {
     const liste = await lignes<Omit<Blocage, "calendrierId"> & { calendrierId: string | null }>(
       db(),
-      `select id, hebergement_id as "hebergementId", debut, fin, raison, calendrier_id as "calendrierId" from blocages order by debut`,
+      `select id, hebergement_id as "hebergementId", chambre_id as "chambreId", debut, fin, raison, calendrier_id as "calendrierId"
+       from blocages order by debut`,
     )
     return liste.map(({ calendrierId, ...reste }) => ({ ...reste, ...(calendrierId && { calendrierId }) }))
   },
 
   async ajouterBlocage(blocage) {
     return transaction<ResultatAction>(async (tx) => {
-      await verrouiller(tx, blocage.hebergementId)
+      const chambres = (await lireChambres(tx)).filter((c) => blocage.chambreIds.includes(c.id))
+      const erreur = controlerBlocage(blocage, chambres)
+      if (erreur) return { ok: false, erreur }
+      // Verrous des catégories concernées, toujours dans le même ordre (pas d'interblocage)
+      for (const hebergementId of [...new Set(chambres.map((c) => c.hebergementId))].sort()) await verrouiller(tx, hebergementId)
       await expirerOptions(tx)
-      const hebergement = (await lireHebergements(tx)).find((h) => h.id === blocage.hebergementId)
-      const erreur = controlerBlocage(blocage, hebergement)
-      if (erreur || !hebergement) return { ok: false, erreur: erreur ?? "Choisissez un hébergement." }
 
-      const [conflit] = await lignes<{ reference: string }>(
+      const [conflit] = await lignes<{ reference: string; chambre: string }>(
         tx,
-        `select reference from reservations
-         where hebergement_id = $1 and statut = any($4) and daterange(arrivee, depart) && daterange($2::date, $3::date)
-         order by arrivee limit 1`,
-        [hebergement.id, blocage.debut, blocage.fin, STATUTS_ACTIFS],
+        `select r.reference, c.numero as chambre from reservations r join chambres c on c.id = r.chambre_id
+         where r.chambre_id = any($1) and r.statut = any($4) and daterange(r.arrivee, r.depart) && daterange($2::date, $3::date)
+         order by r.arrivee limit 1`,
+        [chambres.map((c) => c.id), blocage.debut, blocage.fin, STATUTS_ACTIFS],
       )
-      if (conflit) return { ok: false, erreur: blocageEnConflit(conflit.reference, hebergement) }
+      if (conflit) return { ok: false, erreur: blocageEnConflit(conflit.reference, conflit.chambre) }
 
-      await tx.query("insert into blocages (hebergement_id, debut, fin, raison) values ($1, $2, $3, $4)", [
-        hebergement.id,
-        blocage.debut,
-        blocage.fin,
-        blocage.raison || "Indisponible",
-      ])
+      for (const chambre of chambres) {
+        await tx.query("insert into blocages (hebergement_id, chambre_id, debut, fin, raison) values ($1, $2, $3, $4, $5)", [
+          chambre.hebergementId,
+          chambre.id,
+          blocage.debut,
+          blocage.fin,
+          blocage.raison || "Indisponible",
+        ])
+      }
       return { ok: true }
     })
   },

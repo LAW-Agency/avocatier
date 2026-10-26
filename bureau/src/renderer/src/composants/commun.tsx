@@ -1,4 +1,4 @@
-import { Badge, Body1, Subtitle2, Title2, mergeClasses, type BadgeProps } from "@fluentui/react-components"
+import { Badge, Body1, Button, Caption1, Subtitle2, Title2, mergeClasses, type BadgeProps } from "@fluentui/react-components"
 import {
   CheckmarkRegular,
   ClockRegular,
@@ -13,7 +13,38 @@ import {
 import { forwardRef, type HTMLAttributes, type ReactNode } from "react"
 import { libelleStatutHote } from "@partage/statuts"
 import type { Reservation } from "@partage/types"
-import { useCarteStyles, useEnTeteStyles, useVideStyles } from "./useCommunStyles.styles"
+import embleme from "../assets/embleme-blanc.svg"
+import { useAfficherPlusStyles, useCarteStyles, useChargementStyles, useEnTeteStyles, useVideStyles } from "./useCommunStyles.styles"
+
+// Attente de données : emblème en squelette et une ligne d'explication (annoncée aux lecteurs d'écran)
+export function ChargementLogo({ texte, taille = "grand" }: { texte: string; taille?: "grand" | "moyen" }) {
+  const styles = useChargementStyles()
+  return (
+    <div className={mergeClasses(styles.root, taille === "grand" ? styles.grand : styles.moyen)} role="status">
+      <span aria-hidden className={mergeClasses(styles.embleme, taille === "grand" ? styles.emblemeGrand : styles.emblemeMoyen)} style={{ maskImage: `url("${embleme}")` }} />
+      <Caption1 className={styles.texte}>{texte}</Caption1>
+    </div>
+  )
+}
+
+// Longues listes affichées par paquets (centaines de lignes Fluent = logiciel figé) : bouton pour la suite
+export const PAR_PAQUET = 50
+
+export function AfficherPlus({ affichees, total, unite, onPlus }: { affichees: number; total: number; unite: [string, string]; onPlus: () => void }) {
+  const styles = useAfficherPlusStyles()
+  if (total <= affichees) return null
+  const suivantes = Math.min(PAR_PAQUET, total - affichees)
+  return (
+    <div className={styles.root}>
+      <Caption1 className={styles.compte}>
+        {affichees} sur {total} {unite[1]}
+      </Caption1>
+      <Button onClick={onPlus}>
+        Afficher {suivantes} {suivantes > 1 ? unite[1] : unite[0]} de plus
+      </Button>
+    </div>
+  )
+}
 
 export type EnTeteProps = Omit<HTMLAttributes<HTMLDivElement>, "title"> & { titre: ReactNode; description?: ReactNode; actions?: ReactNode }
 
@@ -51,7 +82,7 @@ export const Carte = forwardRef<HTMLElement, CarteProps>(({ titre, description, 
             )}
             {description && <Body1 className={styles.description}>{description}</Body1>}
           </div>
-          {action}
+          {action && <div className={styles.action}>{action}</div>}
         </div>
       )}
       {children}

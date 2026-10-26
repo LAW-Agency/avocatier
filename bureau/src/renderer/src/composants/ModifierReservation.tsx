@@ -25,25 +25,30 @@ import {
 import { EditRegular, SaveRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import { changementsReservation } from "@partage/controles"
-import { ajouterJours, chevauche, formaterPrix, nombreNuits, pluriel } from "@partage/dates"
+import { ajouterJours, nombreNuits, pluriel } from "@partage/dates"
 import { calculerDevis, deplierSaisons } from "@partage/regles"
 import type { Reservation } from "@partage/types"
-import { blocageGene, useDonneesChargees } from "../donnees"
+import { chambresPrises, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useAnnoncer } from "../toasts"
 import ChampDate from "./ChampDate"
+import ChoixChambre, { CHAMBRE_AUTO } from "./ChoixChambre"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
+import { usePrix } from "../montants"
 
 const lireMontant = (texte: string) => Number(texte.replace(/\s/g, "").replace(",", "."))
 
 // Modifier une demande ou un séjour confirmé : dates (l'arrivée est figée une fois le client arrivé), hébergement,
-// voyageurs, navette et montant. Ce qui change est résumé avant d'enregistrer ; le client peut être prévenu par
+// chambre, voyageurs, navette et montant. Ce qui change est résumé avant d'enregistrer ; le client peut être prévenu par
 // e-mail, avec un mot des hôtes.
 export default function ModifierReservation({ reservation }: { reservation: Reservation }) {
+  const lectureSeule = useLectureSeule()
   const [ouverte, setOuverte] = useState(false)
   return (
     <Dialog open={ouverte} onOpenChange={(_e, data) => setOuverte(data.open)}>
       <DialogTrigger disableButtonEnhancement>
-        <Button icon={<EditRegular />}>Modifier</Button>
+        <Button icon={<EditRegular />} disabled={lectureSeule}>
+          Modifier
+        </Button>
       </DialogTrigger>
       {/* Surface démontée à la fermeture : le formulaire repart de la réservation à jour à chaque ouverture */}
       <Formulaire r={reservation} onFin={() => setOuverte(false)} />
@@ -52,11 +57,14 @@ export default function ModifierReservation({ reservation }: { reservation: Rese
 }
 
 function Formulaire({ r, onFin }: { r: Reservation; onFin: () => void }) {
+  const lectureSeule = useLectureSeule()
+  const formaterPrix = usePrix()
   const styles = useFormulairesStyles()
   const { d, executer, clientDe } = useDonneesChargees()
   const { annoncer } = useAnnoncer()
   const client = clientDe(r)
   const [hebergementId, setHebergementId] = useState(r.hebergementId)
+  const [chambreId, setChambreId] = useState(r.chambreId)
   const [arrivee, setArrivee] = useState(r.arrivee)
   const [depart, setDepart] = useState(r.depart)
   const [adultes, setAdultes] = useState(r.adultes)
@@ -74,30 +82,35 @@ function Formulaire({ r, onFin }: { r: Reservation; onFin: () => void }) {
   const hebergement = d.hebergements.find((h) => h.id === hebergementId)
   const tarif = hebergement && nuits ? calculerDevis(hebergement, arrivee, depart, deplierSaisons(d.saisons, [annee - 1, annee, annee + 1, annee + 2])).total : null
 
-  // Hébergements pris aux nouvelles dates, sans compter cette réservation elle-même
-  const occupes = new Set(
-    nuits
-      ? [
-          ...d.reservations
-            .filter((x) => x.id !== r.id && (x.statut === "option" || x.statut === "confirmee") && chevauche(arrivee, depart, x.arrivee, x.depart))
-            .map((x) => x.hebergementId),
-          ...d.blocages.filter((b) => chevauche(arrivee, depart, b.debut, b.fin) && blocageGene(b, r.source, d.calendriers)).map((b) => b.hebergementId),
-        ]
-      : [],
-  )
+  // Chambres prises aux nouvelles dates, sans compter cette réservation elle-même
+  const prises = chambresPrises(d, arrivee, depart, { sauf: r.id, source: r.source })
+  const libresDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active && !prises.has(c.id)).length
+  // Chambre annoncée dans le résumé : la choisie, sinon la première libre de la catégorie (attribuée par le serveur)
+  const chambreVisee =
+    chambreId !== CHAMBRE_AUTO
+      ? chambreId
+      : (d.chambres.find((c) => c.hebergementId === hebergementId && c.active && !prises.has(c.id))?.id ?? r.chambreId)
 
   const valeurMontant = lireMontant(montant)
   const montantValide = montant.trim() !== "" && Number.isInteger(valeurMontant) && valeurMontant >= 0
   const nomHebergement = (id: string) => d.hebergements.find((h) => h.id === id)?.nom ?? id
+  const numeroChambre = (id: string) => d.chambres.find((c) => c.id === id)?.numero ?? "?"
   const changements =
-    nuits && montantValide ? changementsReservation(r, { hebergementId, arrivee, depart, adultes, enfants, navette, montantTotal: valeurMontant }, nomHebergement) : []
+    nuits && montantValide
+      ? changementsReservation(
+          r,
+          { hebergementId, chambreId: chambreVisee, arrivee, depart, adultes, enfants, navette, montantTotal: valeurMontant },
+          nomHebergement,
+          numeroChambre,
+        )
+      : []
 
   async function envoyer(e: FormEvent) {
     e.preventDefault()
     setEnCours(true)
     setErreur(null)
     const resultat = await executer<{ changements: string[] }>("PATCH", `/api/hotes/reservations/${encodeURIComponent(r.id)}`, {
-      modification: { hebergementId, arrivee, depart, adultes, enfants, navette, montantTotal: valeurMontant },
+      modification: { hebergementId, chambreId: chambreId === CHAMBRE_AUTO ? null : chambreId, arrivee, depart, adultes, enfants, navette, montantTotal: valeurMontant },
       prevenir: prevenir && Boolean(client?.email),
       mot,
     })
@@ -139,14 +152,25 @@ function Formulaire({ r, onFin }: { r: Reservation; onFin: () => void }) {
                   className={styles.champ}
                   value={hebergement ? `${hebergement.nom} · ${hebergement.capaciteMax} pers.` : ""}
                   selectedOptions={[hebergementId]}
-                  onOptionSelect={(_e, data) => setHebergementId(data.optionValue ?? r.hebergementId)}
+                  onOptionSelect={(_e, data) => {
+                    const id = data.optionValue ?? r.hebergementId
+                    setHebergementId(id)
+                    // Retour à la catégorie d'origine : sa chambre ; autre catégorie : la première libre
+                    setChambreId(id === r.hebergementId ? r.chambreId : CHAMBRE_AUTO)
+                  }}
                 >
-                  {d.hebergements.map((h) => (
-                    <Option key={h.id} value={h.id} text={`${h.nom} · ${h.capaciteMax} pers.`} disabled={occupes.has(h.id)}>
-                      {h.nom} · {h.capaciteMax} pers.{occupes.has(h.id) ? " · pris à ces dates" : ""}
-                    </Option>
-                  ))}
+                  {d.hebergements.map((h) => {
+                    const libres = libresDans(h.id)
+                    return (
+                      <Option key={h.id} value={h.id} text={`${h.nom} · ${h.capaciteMax} pers.`} disabled={nuits > 0 && libres === 0}>
+                        {h.nom} · {h.capaciteMax} pers.{nuits > 0 && (libres === 0 ? " · complet à ces dates" : ` · ${libres} libre${libres > 1 ? "s" : ""}`)}
+                      </Option>
+                    )
+                  })}
                 </Dropdown>
+              </Field>
+              <Field label="Chambre" className={styles.pleine}>
+                <ChoixChambre className={styles.champ} hebergementId={hebergementId} valeur={chambreId} onChange={setChambreId} prises={prises} />
               </Field>
               <Field label="Adultes" required>
                 <SpinButton value={adultes} min={1} max={10} onChange={(_e, data) => setAdultes(data.value ?? (Number(data.displayValue) || 1))} />
@@ -224,12 +248,12 @@ function Formulaire({ r, onFin }: { r: Reservation; onFin: () => void }) {
               </MessageBar>
             )}
           </DialogContent>
-          <DialogActions>
+          <DialogActions fluid className={styles.pied}>
             <Button onClick={onFin}>Annuler</Button>
             <Button
               type="submit"
               appearance="primary"
-              disabled={enCours || !nuits || !montantValide || changements.length === 0}
+              disabled={enCours || lectureSeule || !nuits || !montantValide || changements.length === 0}
               icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}
             >
               Enregistrer les modifications

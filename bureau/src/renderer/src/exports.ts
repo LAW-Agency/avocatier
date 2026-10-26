@@ -1,60 +1,60 @@
-import { nombreNuits } from "@partage/dates"
+import { nombreNuits, pluriel } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
 import type { ClientPublic, Paiement, Reservation } from "@partage/types"
+import type { ColonneClasseur, FeuilleClasseur, ValeurCellule } from "../../partage/ipc"
+import { numeroRecu } from "./documents"
 import { nomDe, soldeDe, type Donnees } from "./donnees"
 import { MODES_PAIEMENT, NOMS_SOURCES } from "./libelles"
 
-// Exports pour un tableur (Excel, LibreOffice) : CSV à la française (séparateur « ; », dates JJ/MM/AAAA,
-// montants entiers en euros), écrit en UTF-8 avec BOM par le processus principal.
+// Exports pour Excel : l'interface prépare les données (dates ISO, montants en euros), le processus principal
+// met en forme le classeur .xlsx (src/main/classeur.ts). Montants toujours en euros, comme la comptabilité.
 
-type Cellule = string | number | null | undefined
+// Nom de fichier proposé : « Réservations 2026-10-21.xlsx »
+export const nomExport = (quoi: string, aujourdhui: string) => `${quoi} ${aujourdhui}.xlsx`
 
-// Texte commençant par = + - @ : Excel le prendrait pour une formule (nom ou message saisi sur le site)
-function cellule(valeur: Cellule): string {
-  if (valeur === null || valeur === undefined) return ""
-  if (typeof valeur === "number") return String(valeur)
-  const texte = /^[=+\-@\t\r]/.test(valeur) ? `'${valeur}` : valeur
-  return /[;"\r\n]/.test(texte) ? `"${texte.replaceAll('"', '""')}"` : texte
+// « Exporté le 21 octobre 2026 à 14:05 · 12 réservations · montants en euros »
+function sousTitre(nombre: string, precision?: string): string {
+  const le = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Indian/Antananarivo" })
+    .format(new Date())
+  return ["Chez L'Avocatier", `exporté le ${le}`, nombre, precision, "montants en euros"].filter(Boolean).join(" · ")
 }
 
-export function versCsv(entetes: string[], lignes: Cellule[][]): string {
-  return [entetes, ...lignes].map((l) => l.map(cellule).join(";")).join("\r\n")
-}
+const feuille = (nom: string, titre: string, sousTitreFeuille: string, colonnes: ColonneClasseur[], lignes: ValeurCellule[][]): FeuilleClasseur => ({
+  nom,
+  titre,
+  sousTitre: sousTitreFeuille,
+  colonnes,
+  lignes,
+})
 
-const jour = (iso?: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "")
-// Date-heure à l'heure de Sainte-Marie : « 21/10/2026 14:05 »
-const instant = (iso?: string) =>
-  iso
-    ? new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Indian/Antananarivo" })
-        .format(new Date(iso))
-        .replace(",", "")
-    : ""
+const vide = (valeur: string | null | undefined) => valeur || null
 
-// Nom de fichier proposé : « Réservations 2026-10-21.csv »
-export const nomExport = (quoi: string, aujourdhui: string) => `${quoi} ${aujourdhui}.csv`
-
-export function csvReservations(reservations: Reservation[], d: Donnees): string {
-  return versCsv(
+export function feuilleReservations(reservations: Reservation[], d: Donnees, precision?: string): FeuilleClasseur {
+  return feuille(
+    "Réservations",
+    "Réservations",
+    sousTitre(pluriel(reservations.length, "réservation"), precision),
     [
-      "Référence",
-      "Statut",
-      "Provenance",
-      "Client",
-      "E-mail",
-      "Téléphone",
-      "Pays",
-      "Hébergement",
-      "Arrivée",
-      "Départ",
-      "Nuits",
-      "Adultes",
-      "Enfants",
-      "Navette",
-      "Montant (€)",
-      "Encaissé (€)",
-      "Reste à payer (€)",
-      "Reçue le",
-      "Facture",
+      { titre: "Référence", format: "texte" },
+      { titre: "Statut", format: "texte" },
+      { titre: "Provenance", format: "texte" },
+      { titre: "Client", format: "texte" },
+      { titre: "E-mail", format: "texte" },
+      { titre: "Téléphone", format: "texte" },
+      { titre: "Pays", format: "texte" },
+      { titre: "Hébergement", format: "texte" },
+      { titre: "Chambre", format: "texte" },
+      { titre: "Arrivée", format: "date" },
+      { titre: "Départ", format: "date" },
+      { titre: "Nuits", format: "entier", total: true, largeur: 8 },
+      { titre: "Adultes", format: "entier", total: true, largeur: 9 },
+      { titre: "Enfants", format: "entier", total: true, largeur: 9 },
+      { titre: "Navette", format: "texte", largeur: 9 },
+      { titre: "Montant", format: "euros", total: true, largeur: 12 },
+      { titre: "Encaissé", format: "euros", total: true, largeur: 12 },
+      { titre: "Reste à payer", format: "euros", total: true, largeur: 13 },
+      { titre: "Reçue le", format: "dateHeure" },
+      { titre: "Facture", format: "texte", largeur: 14 },
     ],
     reservations.map((r) => {
       const client = d.clients.find((c) => c.id === r.clientId)
@@ -64,12 +64,13 @@ export function csvReservations(reservations: Reservation[], d: Donnees): string
         libelleStatutHote[r.statut],
         NOMS_SOURCES[r.source],
         nomDe(client),
-        client?.email,
-        r.telephone || client?.telephone,
-        client?.pays,
-        d.hebergements.find((h) => h.id === r.hebergementId)?.nom,
-        jour(r.arrivee),
-        jour(r.depart),
+        vide(client?.email),
+        vide(r.telephone || client?.telephone),
+        vide(client?.pays),
+        vide(d.hebergements.find((h) => h.id === r.hebergementId)?.nom),
+        vide(d.chambres.find((c) => c.id === r.chambreId)?.numero),
+        r.arrivee,
+        r.depart,
         nombreNuits(r.arrivee, r.depart),
         r.adultes,
         r.enfants,
@@ -77,55 +78,86 @@ export function csvReservations(reservations: Reservation[], d: Donnees): string
         r.montantTotal,
         r.montantTotal - solde,
         r.statut === "confirmee" ? solde : null,
-        instant(r.creeLe),
-        r.factureNumero,
+        r.creeLe,
+        vide(r.factureNumero),
       ]
     }),
   )
 }
 
-export function csvEncaissements(paiements: Paiement[], d: Donnees): string {
-  return versCsv(
-    ["N° de reçu", "Date", "Montant (€)", "Mode", "Note", "Réservation", "Client", "Hébergement", "Enregistré par"],
+export function feuilleEncaissements(paiements: Paiement[], d: Donnees, precision?: string): FeuilleClasseur {
+  return feuille(
+    "Encaissements",
+    "Encaissements",
+    sousTitre(pluriel(paiements.length, "encaissement"), precision),
+    [
+      { titre: "N° de reçu", format: "texte", largeur: 12 },
+      { titre: "Date", format: "dateHeure" },
+      { titre: "Montant", format: "euros", total: true, largeur: 12 },
+      { titre: "Mode", format: "texte" },
+      { titre: "Note", format: "texte" },
+      { titre: "Réservation", format: "texte" },
+      { titre: "Client", format: "texte" },
+      { titre: "Hébergement", format: "texte" },
+      { titre: "Chambre", format: "texte" },
+      { titre: "Enregistré par", format: "texte" },
+    ],
     [...paiements]
       .sort((a, b) => a.le.localeCompare(b.le))
       .map((p) => {
         const r = d.reservations.find((x) => x.id === p.reservationId)
         const membre = d.equipe.find((m) => m.id === p.enregistrePar)
         return [
-          p.numero,
-          instant(p.le),
+          numeroRecu(p),
+          p.le,
           p.montant,
           MODES_PAIEMENT[p.mode],
-          p.note,
-          r?.reference,
-          r && nomDe(d.clients.find((c) => c.id === r.clientId)),
-          r && d.hebergements.find((h) => h.id === r.hebergementId)?.nom,
-          membre && nomDe(membre),
+          vide(p.note),
+          vide(r?.reference),
+          r ? nomDe(d.clients.find((c) => c.id === r.clientId)) : null,
+          vide(r && d.hebergements.find((h) => h.id === r.hebergementId)?.nom),
+          vide(r && d.chambres.find((c) => c.id === r.chambreId)?.numero),
+          membre ? nomDe(membre) : null,
         ]
       }),
   )
 }
 
-export function csvClients(clients: ClientPublic[], d: Donnees): string {
-  return versCsv(
-    ["Prénom", "Nom", "E-mail", "Téléphone", "Pays", "Fiche", "Créée le", "Réservations", "Nuits confirmées", "Montant confirmé (€)", "Reste à payer (€)", "Note interne"],
+export function feuilleClients(clients: ClientPublic[], d: Donnees, precision?: string): FeuilleClasseur {
+  return feuille(
+    "Clients",
+    "Clients",
+    sousTitre(pluriel(clients.length, "client"), precision),
+    [
+      { titre: "Prénom", format: "texte" },
+      { titre: "Nom", format: "texte" },
+      { titre: "E-mail", format: "texte" },
+      { titre: "Téléphone", format: "texte" },
+      { titre: "Pays", format: "texte" },
+      { titre: "Fiche", format: "texte" },
+      { titre: "Créée le", format: "date" },
+      { titre: "Réservations", format: "entier", total: true, largeur: 13 },
+      { titre: "Nuits confirmées", format: "entier", total: true, largeur: 11 },
+      { titre: "Montant confirmé", format: "euros", total: true, largeur: 13 },
+      { titre: "Reste à payer", format: "euros", total: true, largeur: 13 },
+      { titre: "Note interne", format: "texte" },
+    ],
     clients.map((c) => {
       const sejours = d.reservations.filter((r) => r.clientId === c.id)
       const confirmes = sejours.filter((r) => r.statut === "confirmee")
       return [
         c.prenom,
         c.nom,
-        c.email,
-        c.telephone,
-        c.pays,
+        vide(c.email),
+        vide(c.telephone),
+        vide(c.pays),
         c.origine === "site" ? "Compte du site" : "Réception",
-        instant(c.creeLe).slice(0, 10),
+        c.creeLe.slice(0, 10),
         sejours.length,
         confirmes.reduce((t, r) => t + nombreNuits(r.arrivee, r.depart), 0),
         confirmes.reduce((t, r) => t + r.montantTotal, 0),
         confirmes.reduce((t, r) => t + Math.max(0, soldeDe(r, d.paiements)), 0),
-        c.note,
+        vide(c.note),
       ]
     }),
   )

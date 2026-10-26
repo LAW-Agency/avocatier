@@ -1,29 +1,70 @@
 import { ajouterJours, chevauche, estDateISO, nombreNuits, nuitsDuSejour } from "./dates"
-import type { DateISO, Hebergement, JourAnnee, PeriodeOccupee, RegleSaison, Saison } from "./types"
+import type { Chambre, DateISO, Hebergement, JourAnnee, PeriodeOccupee, RegleSaison, Saison } from "./types"
 
 // Règles métier pures, partagées entre le navigateur (affichage immédiat)
 // et le serveur (vérification définitive au moment de l'envoi).
 
 export const NUITS_MAX = 30
+// Chambres d'une même catégorie demandées en une fois sur le site (au-delà : contacter l'hôtel)
+export const CHAMBRES_PAR_DEMANDE_MAX = 5
 
-export function estLibre(hebergementId: string, arrivee: DateISO, depart: DateISO, periodes: PeriodeOccupee[]): boolean {
-  return !periodes.some((p) => p.hebergementId === hebergementId && chevauche(arrivee, depart, p.debut, p.fin))
+// Ce que le navigateur sait d'une chambre : sa catégorie (seules les chambres actives lui sont envoyées)
+export type ChambreVendue = Pick<Chambre, "id" | "hebergementId">
+
+// Chambres de la catégorie libres sur tout le séjour : un client garde la même chambre du début à la fin
+export function chambresLibres(
+  hebergementId: string,
+  arrivee: DateISO,
+  depart: DateISO,
+  chambres: ChambreVendue[],
+  periodes: PeriodeOccupee[],
+): ChambreVendue[] {
+  return chambres.filter(
+    (c) => c.hebergementId === hebergementId && !periodes.some((p) => p.chambreId === c.id && chevauche(arrivee, depart, p.debut, p.fin)),
+  )
 }
 
-// Nuits où aucun hébergement n'est libre : grisées dans le calendrier tant qu'aucun n'est choisi
-export function nuitsCompletes(hebergementIds: string[], periodes: PeriodeOccupee[]): Set<DateISO> {
-  const occupants = new Map<DateISO, Set<string>>()
+// Nuits où aucune des catégories n'a `nombre` chambres libres : grisées dans le calendrier
+export function nuitsCompletes(hebergementIds: string[], chambres: ChambreVendue[], periodes: PeriodeOccupee[], nombre = 1): Set<DateISO> {
+  const vendues = chambres.filter((c) => hebergementIds.includes(c.hebergementId))
+  const occupees = new Map<DateISO, Set<string>>() // nuit → chambres prises
   for (const p of periodes) {
-    if (!hebergementIds.includes(p.hebergementId)) continue
+    if (!vendues.some((c) => c.id === p.chambreId)) continue
     for (const nuit of nuitsDuSejour(p.debut, p.fin)) {
-      const ids = occupants.get(nuit) ?? new Set<string>()
-      ids.add(p.hebergementId)
-      occupants.set(nuit, ids)
+      const ids = occupees.get(nuit) ?? new Set<string>()
+      ids.add(p.chambreId)
+      occupees.set(nuit, ids)
     }
   }
+  const libres = (hebergementId: string, prises: Set<string>) =>
+    vendues.filter((c) => c.hebergementId === hebergementId && !prises.has(c.id)).length
   const completes = new Set<DateISO>()
-  for (const [nuit, ids] of occupants) if (ids.size >= hebergementIds.length) completes.add(nuit)
+  for (const [nuit, prises] of occupees) {
+    if (!hebergementIds.some((id) => libres(id, prises) >= nombre)) completes.add(nuit)
+  }
   return completes
+}
+
+// Voyageurs répartis entre les chambres d'une même demande : au moins un adulte par chambre, adultes au plus
+// égaux, puis les enfants dans les places qui restent. null si la capacité ne suffit pas
+export function repartirVoyageurs(
+  adultes: number,
+  enfants: number,
+  chambres: number,
+  capacite: number,
+): { adultes: number; enfants: number }[] | null {
+  if (chambres < 1 || adultes < chambres || adultes + enfants > chambres * capacite) return null
+  const repartition = Array.from({ length: chambres }, (_, i) => ({
+    adultes: Math.floor(adultes / chambres) + (i < adultes % chambres ? 1 : 0),
+    enfants: 0,
+  }))
+  let restants = enfants
+  for (const r of repartition) {
+    const places = Math.min(capacite - r.adultes, restants)
+    r.enfants = places
+    restants -= places
+  }
+  return repartition
 }
 
 // Vérifié sur une année non bissextile : pas de saison qui commence ou finit un 29 février

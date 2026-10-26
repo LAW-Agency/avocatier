@@ -1,9 +1,10 @@
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { app, BrowserWindow, dialog, shell } from "electron"
-import type { ResultatFichier } from "../partage/ipc"
+import type { Classeur, ResultatFichier } from "../partage/ipc"
+import { construireClasseur } from "./classeur"
 
-// Fichiers produits par le logiciel : exports pour un tableur (CSV) et factures ou reçus (PDF). L'interface
+// Fichiers produits par le logiciel : exports pour Excel (.xlsx) et factures ou reçus (PDF). L'interface
 // prépare le contenu ; ici, la boîte « Enregistrer sous » de Windows et l'écriture sur le disque.
 
 // Nom proposé sans caractère interdit par Windows
@@ -15,16 +16,17 @@ async function choisirChemin(fenetre: BrowserWindow | null, nom: string, filtre:
   return choix.canceled || !choix.filePath ? null : choix.filePath
 }
 
-// BOM UTF-8 en tête : sans lui, Excel lit les accents de travers
-export async function enregistrerCsv(fenetre: BrowserWindow | null, nom: string, contenu: string): Promise<ResultatFichier> {
-  const chemin = await choisirChemin(fenetre, nom, { name: "Tableur (CSV)", extensions: ["csv"] })
+// Classeur mis en forme (src/main/classeur.ts), ouvert ensuite dans Excel
+export async function enregistrerXlsx(fenetre: BrowserWindow | null, nom: string, classeur: Classeur): Promise<ResultatFichier> {
+  const chemin = await choisirChemin(fenetre, nom, { name: "Classeur Excel", extensions: ["xlsx"] })
   if (!chemin) return null
   try {
-    await writeFile(chemin, `﻿${contenu}`, "utf8")
-    return { chemin }
+    await writeFile(chemin, await construireClasseur(classeur))
   } catch {
     return { erreur: "Impossible d'écrire le fichier : il est peut-être ouvert dans Excel. Fermez-le et réessayez." }
   }
+  void shell.openPath(chemin)
+  return { chemin }
 }
 
 // Page mise en PDF dans une fenêtre cachée, sans JavaScript ni accès à quoi que ce soit : le HTML est produit par

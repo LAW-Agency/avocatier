@@ -1,12 +1,14 @@
 import { formaterPlage } from "../../../lib/reservation/dates"
 import type { ActiviteReservation, FilActivite } from "../../../lib/reservation/types"
 import type { Annonce } from "../partage/ipc"
-import { appeler } from "./api"
+import { appeler, estEnLigne } from "./api"
 
 // Suivi en direct : interrogation de l'API toutes les 15 s (pas de WebSocket ni LISTEN/NOTIFY, incompatibles
 // avec le pooler Neon et les fonctions Vercel). Fait dans le processus principal : il continue fenêtre
 // réduite ou fermée dans la zone de notification, sans le ralentissement des pages en arrière-plan.
 const INTERVALLE_MS = 15_000
+// Serveur injoignable : nouvel essai plus rapproché, pour lever l'alerte dès que la connexion revient
+const INTERVALLE_HORS_LIGNE_MS = 5_000
 // Calendriers des plateformes (Booking.com, Airbnb…) : importés toutes les 10 minutes tant que le logiciel tourne
 const INTERVALLE_CALENDRIERS_MS = 10 * 60_000
 
@@ -55,7 +57,7 @@ export function demarrerSuivi(changement: (annonces: Annonce[]) => void) {
       changement(fil.evenements.flatMap((e) => annonce(e) ?? []))
     } finally {
       enCours = false
-      if (actif) minuterie = setTimeout(verifier, INTERVALLE_MS)
+      if (actif) minuterie = setTimeout(verifier, estEnLigne() ? INTERVALLE_MS : INTERVALLE_HORS_LIGNE_MS)
     }
   }
 

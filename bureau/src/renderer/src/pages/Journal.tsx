@@ -53,9 +53,9 @@ import {
 import { useCallback, useEffect, useState } from "react"
 import { formaterHeure, pluriel } from "@partage/dates"
 import type { CategorieJournal, EntreeJournal } from "@partage/types"
-import { EnTete, Vide } from "../composants/commun"
+import { ChargementLogo, EnTete, Vide } from "../composants/commun"
 import { useCadreTableStyles } from "../composants/useCommunStyles.styles"
-import { useDonneesChargees } from "../donnees"
+import { useDonneesChargees, useLectureSeule } from "../donnees"
 import { useAnnoncer } from "../toasts"
 
 const CATEGORIES: Record<CategorieJournal, { libelle: string; Icone: FluentIcon; couleur: BadgeProps["color"] }> = {
@@ -91,7 +91,6 @@ const useStyles = makeStyles({
   detail: { color: tokens.colorNeutralForeground2, whiteSpace: "normal", wordBreak: "break-word" },
   date: { whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: tokens.colorNeutralForeground2 },
   plus: { display: "flex", justifyContent: "center" },
-  attente: { display: "flex", justifyContent: "center", padding: tokens.spacingVerticalXXXL },
 })
 
 const normaliser = (texte: string) => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
@@ -100,6 +99,7 @@ const normaliser = (texte: string) => texte.normalize("NFD").replace(/\p{Diacrit
 // Consultable par toute l'équipe ; seuls les gérants suppriment des entrées (l'API le vérifie, et note
 // l'effacement lui-même au journal)
 export default function Journal() {
+  const lectureSeule = useLectureSeule()
   const styles = useStyles()
   const cadre = useCadreTableStyles()
   const { d, gerant } = useDonneesChargees()
@@ -114,6 +114,7 @@ export default function Journal() {
   const [affichees, setAffichees] = useState(PAR_PAGE)
   const [aConfirmer, setAConfirmer] = useState<{ effacement: Effacement; titre: string; texte: string } | null>(null)
   const [enCours, setEnCours] = useState(false)
+  const [actualisation, setActualisation] = useState(false)
 
   const charger = useCallback(async () => {
     const resultat = await window.avocatier.api<{ entrees: EntreeJournal[] }>("GET", "/api/hotes/journal")
@@ -167,7 +168,7 @@ export default function Journal() {
     <Button
       icon={<DeleteRegular />}
       // Réception : bouton grisé mais atteignable, pour lire l'info-bulle
-      disabled={gerant && selection.size === 0}
+      disabled={(gerant && selection.size === 0) || lectureSeule}
       disabledFocusable={!gerant}
       onClick={() =>
         setAConfirmer({
@@ -189,7 +190,15 @@ export default function Journal() {
         actions={
           <>
             <Tooltip content="Actualiser" relationship="label">
-              <Button icon={<ArrowSyncRegular />} onClick={charger} />
+              <Button
+                disabled={actualisation}
+                icon={actualisation ? <Spinner size="tiny" /> : <ArrowSyncRegular />}
+                onClick={async () => {
+                  setActualisation(true)
+                  await charger()
+                  setActualisation(false)
+                }}
+              />
             </Tooltip>
             {gerant ? (
               boutonSupprimer
@@ -207,7 +216,7 @@ export default function Journal() {
             ) : (
             <Menu>
               <MenuTrigger disableButtonEnhancement>
-                <Button appearance="primary" icon={<ChevronDownRegular />} iconPosition="after">
+                <Button appearance="primary" icon={<ChevronDownRegular />} iconPosition="after" disabled={lectureSeule}>
                   Effacer le journal
                 </Button>
               </MenuTrigger>
@@ -299,9 +308,7 @@ export default function Journal() {
       </div>
 
       {entrees === null && !erreur ? (
-        <div className={styles.attente}>
-          <Spinner label="Chargement du journal…" />
-        </div>
+        <ChargementLogo taille="moyen" texte="Chargement du journal…" />
       ) : filtrees.length === 0 ? (
         <Vide
           Icone={HistoryRegular}
@@ -391,7 +398,7 @@ export default function Journal() {
                 <Button onClick={() => setAConfirmer(null)} disabled={enCours}>
                   Annuler
                 </Button>
-                <Button appearance="primary" icon={enCours ? <Spinner size="tiny" /> : <DeleteRegular />} disabled={enCours} onClick={() => effacer(aConfirmer.effacement)}>
+                <Button appearance="primary" icon={enCours ? <Spinner size="tiny" /> : <DeleteRegular />} disabled={enCours || lectureSeule} onClick={() => effacer(aConfirmer.effacement)}>
                   Supprimer
                 </Button>
               </DialogActions>

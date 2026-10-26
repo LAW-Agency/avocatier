@@ -1,17 +1,20 @@
 import { Body1, Button, Caption1, Dropdown, Input, MessageBar, MessageBarBody, Option, Spinner, Text, Tooltip, mergeClasses } from "@fluentui/react-components"
 import { DeleteRegular, MoneyRegular, ReceiptRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
-import { formaterHeure, formaterPrix } from "@partage/dates"
-import type { ModePaiement, Reservation } from "@partage/types"
+import { formaterHeure } from "@partage/dates"
+import type { ModePaiement, Paiement, Reservation } from "@partage/types"
 import { numeroRecu } from "../documents"
-import { soldeDe, useDonneesChargees } from "../donnees"
+import { soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useEncaissementsStyles } from "./useReservationStyles.styles"
+import { usePrix } from "../montants"
 
 // Encaissements d'une réservation : montant, déjà payé, reste dû ; saisie d'un paiement (négatif : remboursement).
 // Suppression réservée aux gérants (la réception corrige par un remboursement)
 export default function Encaissements({ reservation: r }: { reservation: Reservation }) {
+  const lectureSeule = useLectureSeule()
+  const formaterPrix = usePrix()
   const styles = useEncaissementsStyles()
   const { d, executer, gerant, paiementsDe } = useDonneesChargees()
   const { imprimerRecu } = useFichiers()
@@ -21,6 +24,8 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
   const [mode, setMode] = useState<ModePaiement>("especes")
   const [note, setNote] = useState("")
   const [enCours, setEnCours] = useState(false)
+  // Ligne dont le reçu s'enregistre ou qui se supprime
+  const [ligneEnCours, setLigneEnCours] = useState<{ id: string; action: "recu" | "suppression" } | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const membre = (id?: string) => d.equipe.find((m) => m.id === id)?.prenom
 
@@ -38,8 +43,16 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
   }
 
   async function supprimer(id: string) {
+    setLigneEnCours({ id, action: "suppression" })
     const resultat = await executer("DELETE", `/api/hotes/paiements/${encodeURIComponent(id)}`)
+    setLigneEnCours(null)
     if (!resultat.ok) setErreur(resultat.erreur)
+  }
+
+  async function recu(p: Paiement) {
+    setLigneEnCours({ id: p.id, action: "recu" })
+    await imprimerRecu(p)
+    setLigneEnCours(null)
   }
 
   return (
@@ -75,11 +88,23 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
               </div>
               <Text className={styles.montant}>{formaterPrix(p.montant)}</Text>
               <Tooltip content="Reçu (PDF)" relationship="label">
-                <Button appearance="subtle" size="small" icon={<ReceiptRegular />} onClick={() => imprimerRecu(p)} />
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  disabled={ligneEnCours?.id === p.id}
+                  icon={ligneEnCours?.id === p.id && ligneEnCours.action === "recu" ? <Spinner size="tiny" /> : <ReceiptRegular />}
+                  onClick={() => recu(p)}
+                />
               </Tooltip>
               {gerant ? (
                 <Tooltip content="Supprimer cet encaissement" relationship="label">
-                  <Button appearance="subtle" size="small" icon={<DeleteRegular />} onClick={() => supprimer(p.id)} />
+                  <Button
+                    appearance="subtle"
+                    size="small"
+                    disabled={ligneEnCours?.id === p.id || lectureSeule}
+                    icon={ligneEnCours?.id === p.id && ligneEnCours.action === "suppression" ? <Spinner size="tiny" /> : <DeleteRegular />}
+                    onClick={() => supprimer(p.id)}
+                  />
                 </Tooltip>
               ) : (
                 <span />
@@ -109,7 +134,7 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
             ))}
           </Dropdown>
           <Input className={styles.champ} value={note} onChange={(_e, data) => setNote(data.value)} placeholder="Note (acompte, reçu n°…)" aria-label="Note" />
-          <Button type="submit" appearance="primary" disabled={enCours || !montant.trim()} icon={enCours ? <Spinner size="tiny" /> : <MoneyRegular />}>
+          <Button type="submit" appearance="primary" disabled={enCours || lectureSeule || !montant.trim()} icon={enCours ? <Spinner size="tiny" /> : <MoneyRegular />}>
             Encaisser
           </Button>
         </form>

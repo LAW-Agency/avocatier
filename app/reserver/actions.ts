@@ -9,7 +9,7 @@ import { synchroniserCalendriers } from "@/lib/reservation/calendriers"
 
 export type EtatDemande = {
   erreur?: string
-  reference?: string
+  references?: string[] // une par chambre demandée
 }
 
 const MESSAGE_MAX = 1000
@@ -30,6 +30,7 @@ export async function envoyerDemande(_etat: EtatDemande, formData: FormData): Pr
 
   const resultat = await moteur.creerDemande(client.id, {
     hebergementId: texte("hebergementId"),
+    chambres: Number(texte("chambres") || 1),
     arrivee: texte("arrivee"),
     depart: texte("depart"),
     adultes: Number(texte("adultes")),
@@ -40,12 +41,12 @@ export async function envoyerDemande(_etat: EtatDemande, formData: FormData): Pr
   })
   if (!resultat.ok) return { erreur: resultat.erreur }
 
-  // Accusé de réception au client et alerte aux hôtes, après la réponse
-  const reservationId = resultat.reservation.id
+  // Accusé de réception au client et alerte aux hôtes (un seul e-mail pour toutes les chambres), après la réponse
+  const reservationId = resultat.reservations[0].id
   after(() => notifierNouvelleDemande(reservationId))
 
   // Les dates prises disparaissent du calendrier, la demande apparaît dans « Mon compte »
   revalidatePath("/reserver")
   revalidatePath("/compte")
-  return { reference: resultat.reservation.reference }
+  return { references: resultat.reservations.map((r) => r.reference) }
 }

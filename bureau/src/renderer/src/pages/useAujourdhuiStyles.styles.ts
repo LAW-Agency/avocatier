@@ -58,6 +58,8 @@ export const useAujourdhuiStyles = makeStyles({
   raccourcis: { display: "flex", flexWrap: "wrap", gap: tokens.spacingHorizontalS },
   liste: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },
   listeSerree: { rowGap: 0 },
+  // Demandes à traiter : deux ou trois visibles, la suite défile, pour ne pas étirer toute la rangée du tableau
+  listeDefile: { maxHeight: "min(560px, 60vh)", overflowY: "auto", paddingRight: tokens.spacingHorizontalXS },
   demande: {
     display: "flex",
     flexDirection: "column",

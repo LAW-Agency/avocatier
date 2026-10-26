@@ -17,7 +17,7 @@ import {
 import { PersonAddRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent, type ReactElement } from "react"
 import type { ClientPublic } from "@partage/types"
-import { useDonnees } from "../donnees"
+import { useDonnees, useLectureSeule } from "../donnees"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
 
 const VIDE = { prenom: "", nom: "", telephone: "", email: "", pays: "Madagascar", note: "" }
@@ -72,6 +72,7 @@ export function useCreationClient() {
 
 // Fenêtre « Nouveau client » (écran Clients)
 export default function NouveauClient({ declencheur, onCree }: { declencheur?: ReactElement; onCree?: (client: ClientPublic) => void }) {
+  const lectureSeule = useLectureSeule()
   const styles = useFormulairesStyles()
   const [ouvert, setOuvert] = useState(false)
   const { valeurs, setValeurs, enCours, erreur, creer } = useCreationClient()
@@ -88,7 +89,7 @@ export default function NouveauClient({ declencheur, onCree }: { declencheur?: R
     <Dialog open={ouvert} onOpenChange={(_e, d) => setOuvert(d.open)}>
       <DialogTrigger disableButtonEnhancement>
         {declencheur ?? (
-          <Button appearance="primary" icon={<PersonAddRegular />}>
+          <Button appearance="primary" disabled={lectureSeule} icon={<PersonAddRegular />}>
             Nouveau client
           </Button>
         )}
@@ -109,7 +110,7 @@ export default function NouveauClient({ declencheur, onCree }: { declencheur?: R
               <DialogTrigger disableButtonEnhancement>
                 <Button>Annuler</Button>
               </DialogTrigger>
-              <Button type="submit" appearance="primary" disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : undefined}>
+              <Button type="submit" appearance="primary" disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : undefined}>
                 Enregistrer le client
               </Button>
             </DialogActions>

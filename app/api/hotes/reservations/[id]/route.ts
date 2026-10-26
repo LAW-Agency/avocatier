@@ -22,8 +22,9 @@ const MOT_MAX = 2000
 // { statut, mot? } : confirmer ou refuser une demande, annuler une réservation confirmée ; `mot` : message des
 // hôtes ajouté à l'e-mail du client (et à l'historique).
 // { mouvement: "arrivee" | "depart", annuler? } : arrivée ou départ du client enregistré par la réception.
-// { modification: { hebergementId, arrivee, depart, adultes, enfants, navette, montantTotal }, prevenir?, mot? } :
-// séjour modifié ; `prevenir` : e-mail au client avec ce qui change.
+// { modification: { hebergementId, chambreId, arrivee, depart, adultes, enfants, navette, montantTotal }, prevenir?, mot? } :
+// séjour modifié ; `prevenir` : e-mail au client avec ce qui change. `chambreId` vide : chambre attribuée par le moteur.
+// Confirmer ou refuser une demande de plusieurs chambres s'applique à toutes ses chambres.
 export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext<"/api/hotes/reservations/[id]">) => {
   const { id } = await contexte.params
   const corps = await lireCorps(requete)
@@ -45,6 +46,7 @@ export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext
       id,
       {
         hebergementId: String(champ("hebergementId") ?? ""),
+        chambreId: String(champ("chambreId") ?? "") || null,
         arrivee: String(champ("arrivee") ?? ""),
         depart: String(champ("depart") ?? ""),
         adultes: Number(champ("adultes")),

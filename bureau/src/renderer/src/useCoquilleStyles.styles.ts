@@ -3,6 +3,7 @@ import { makeStyles, tokens } from "@fluentui/react-components"
 export const useCoquilleStyles = makeStyles({
   coquille: { height: "100%", display: "flex", flexDirection: "column" },
   recherche: { width: "100%", maxWidth: "none" },
+  horsLigne: { marginRight: tokens.spacingHorizontalXS },
   corps: { flex: 1, minHeight: 0, display: "flex" },
   // Navigation sur le Mica, sans fond propre (comme les Paramètres de Windows 11)
   nav: { backgroundColor: "transparent", borderRightStyle: "none" },
@@ -11,8 +12,9 @@ export const useCoquilleStyles = makeStyles({
   // Icônes de la navigation à 20 px (taille de Windows 11), plus lisibles que la taille par défaut
   iconeNav: { fontSize: tokens.fontSizeBase500, width: tokens.fontSizeBase500, height: tokens.fontSizeBase500 },
   libelleNav: { flex: 1 },
-  pastilleNav: { marginRight: tokens.spacingHorizontalS },
-  piedNav: { alignItems: "stretch", rowGap: tokens.spacingVerticalXS, paddingLeft: tokens.spacingHorizontalS, paddingRight: tokens.spacingHorizontalS, paddingBottom: tokens.spacingVerticalS },
+  // Compteur (16 px) et point (6 px) centrés dans le même emplacement : ils tombent sur le même axe
+  pastilleNav: { width: "20px", flexShrink: 0, display: "flex", justifyContent: "center", marginRight: tokens.spacingHorizontalXS },
+  piedNav: { alignItems: "stretch", rowGap: tokens.spacingVerticalXS, paddingTop: tokens.spacingVerticalM, paddingLeft: tokens.spacingHorizontalS, paddingRight: tokens.spacingHorizontalS, paddingBottom: tokens.spacingVerticalS },
   rail: {
     width: "56px",
     flexShrink: 0,
@@ -24,6 +26,8 @@ export const useCoquilleStyles = makeStyles({
     paddingBottom: tokens.spacingVerticalM,
   },
   railEspace: { flex: 1 },
+  // Avatar du compte en bas de la navigation réduite : bouton carré de 40 px comme les rubriques
+  compteRail: { padding: 0, minWidth: "40px", width: "40px", height: "40px" },
   railBouton: { position: "relative" },
   railPastille: { position: "absolute", top: tokens.spacingVerticalXXS, right: tokens.spacingHorizontalXXS },
   ceSoir: {
@@ -50,31 +54,27 @@ export const useCoquilleStyles = makeStyles({
     backgroundColor: tokens.colorNeutralBackground2,
     border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
   },
+  // Bande collée en haut de la zone qui défile, de la hauteur de la marge de l'écran et de la couleur du fond : ce
+  // qui défile y disparaît, les en-têtes collés (tableaux, sommaire du Guide) gardent leur espace au-dessus.
+  // Marge négative : elle ne décale pas la page
+  masqueHaut: {
+    position: "sticky",
+    top: 0,
+    // Au-dessus des colonnes collées du planning (2) et des en-têtes de tableau (1)
+    zIndex: 3,
+    height: tokens.spacingVerticalXXL,
+    marginBottom: `calc(-1 * ${tokens.spacingVerticalXXL})`,
+    backgroundColor: tokens.colorNeutralBackground2,
+  },
   page: {
     padding: `${tokens.spacingVerticalXXL} ${tokens.spacingHorizontalXXXL} ${tokens.spacingVerticalXXXL}`,
     display: "flex",
     flexDirection: "column",
     rowGap: tokens.spacingVerticalXXL,
   },
-  // Premier chargement : emblème agrandi au centre de la zone principale, rempli d'une vague de squelette (couleurs du Skeleton de Fluent)
-  attente: { height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", rowGap: tokens.spacingVerticalXXL },
-  emblemeSquelette: {
-    display: "block",
-    height: "min(320px, 50vh)",
-    aspectRatio: "824 / 973",
-    maskRepeat: "no-repeat",
-    maskSize: "contain",
-    maskPosition: "center",
-    backgroundColor: tokens.colorNeutralStencil1,
-    backgroundImage: `linear-gradient(to right, ${tokens.colorNeutralStencil1} 0%, ${tokens.colorNeutralStencil2} 50%, ${tokens.colorNeutralStencil1} 100%)`,
-    backgroundSize: "300% 100%",
-    backgroundRepeat: "no-repeat",
-    animationName: { from: { backgroundPositionX: "300%" }, to: { backgroundPositionX: "0%" } },
-    animationDuration: "1.6s",
-    animationTimingFunction: "linear",
-    animationIterationCount: "infinite",
-    "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
-  },
+  // Écran courant, dans la page (mêmes écarts) ; atténué pendant que le suivant se prépare
+  ecran: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXXL, transitionProperty: "opacity", transitionDuration: tokens.durationFast },
+  ecranSuivant: { opacity: 0.6 },
   // Navigation pendant le chargement : rubriques de gestion, situation du soir et compte en squelette
   squeletteNav: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalL, padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalMNudge}` },
   squeletteTitre: { width: "64px" },
@@ -83,5 +83,4 @@ export const useCoquilleStyles = makeStyles({
   squeletteNom: { width: "140px" },
   squeletteCompte: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalMNudge, padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalS}` },
   squeletteRail: { display: "flex", flexDirection: "column", alignItems: "center", rowGap: tokens.spacingVerticalXS },
-  texteAttente: { color: tokens.colorNeutralForeground3 },
 })

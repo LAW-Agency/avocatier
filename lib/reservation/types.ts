@@ -64,7 +64,11 @@ export type Reservation = {
   id: string
   reference: string // ex. AVO-2026-0042
   clientId: string
-  hebergementId: string
+  hebergementId: string // catégorie réservée (prix, capacité)
+  chambreId: string // chambre attribuée dans cette catégorie
+  // Demande de plusieurs chambres en une fois (site) : une réservation par chambre, toutes avec le même groupe.
+  // Les hôtes confirment ou refusent la demande entière ; chaque séjour s'annule ensuite seul
+  groupe?: string
   arrivee: DateISO
   depart: DateISO // jour du départ : la nuit n'est pas comptée
   adultes: number
@@ -72,7 +76,7 @@ export type Reservation = {
   navette: boolean
   telephone: string
   message: string
-  montantTotal: number
+  montantTotal: number // pour cette chambre
   statut: StatutReservation
   source: SourceReservation
   creeLe: string
@@ -91,7 +95,7 @@ export type ActiviteReservation = EvenementReservation & {
   reservationId: string
   reference: string
   client: string // prénom et nom
-  hebergement: string
+  hebergement: string // « Bungalow Océan · Océan 3 »
   arrivee: DateISO
   depart: DateISO
 }
@@ -103,16 +107,21 @@ export type FilActivite = { curseur: string; total: number; evenements: Activite
 // Dates fermées sans réservation du site : import Booking.com, travaux, privatisation…
 export type Blocage = {
   id: string
-  hebergementId: string
+  hebergementId: string // catégorie de la chambre
+  chambreId: string
   debut: DateISO
   fin: DateISO
   raison: string
   calendrierId?: string // importé d'un calendrier externe (Booking.com, Airbnb…) : remplacé à chaque synchronisation
 }
 
-// Nuits occupées, sans aucune donnée client : seule information envoyée au navigateur
+// Dates fermées par l'équipe, sur une ou plusieurs chambres à la fois (travaux, privatisation…)
+export type NouveauBlocage = { chambreIds: string[]; debut: DateISO; fin: DateISO; raison: string }
+
+// Nuits occupées d'une chambre, sans aucune donnée client : seule information envoyée au navigateur
 export type PeriodeOccupee = {
   hebergementId: string
+  chambreId: string
   debut: DateISO
   fin: DateISO
 }
@@ -144,6 +153,7 @@ export type ClientPublic = Omit<Client, "motDePasseHash">
 
 export type DemandeReservation = {
   hebergementId: string
+  chambres: number // chambres de cette catégorie demandées ensemble, attribuées automatiquement
   arrivee: DateISO
   depart: DateISO
   adultes: number
@@ -156,6 +166,9 @@ export type DemandeReservation = {
 export type ResultatDemande =
   | { ok: true; reservation: Reservation }
   | { ok: false; erreur: string }
+
+// Demande du site : une réservation par chambre demandée
+export type ResultatDemandeSite = { ok: true; reservations: Reservation[] } | { ok: false; erreur: string }
 
 export type NouveauClient = Omit<Client, "id" | "creeLe" | "role" | "sessionsValidesDepuis" | "actif" | "origine" | "note">
 
@@ -180,10 +193,24 @@ export type ReglagesDevises = {
 
 // --- Logiciel des hôtes : réception, chambres, encaissements, équipe ---
 
-// Ménage et maintenance d'un hébergement
+// Ménage et maintenance d'une chambre
 export type EtatChambre = "propre" | "a_nettoyer" | "maintenance"
 
-export type Chambre = { id: string; etat: EtatChambre; noteEtat: string }
+// Chambre physique d'une catégorie d'hébergement : « Océan 3 » dans « Bungalow Océan ». Le site vend la catégorie,
+// le moteur attribue la chambre (l'équipe peut en choisir une autre)
+export type Chambre = {
+  id: string
+  hebergementId: string
+  numero: string // unique dans l'hôtel
+  etat: EtatChambre
+  noteEtat: string
+  active: boolean // désactivée : plus vendue ni attribuée, son historique reste
+}
+
+export type NouvelleChambre = Pick<Chambre, "hebergementId" | "numero">
+
+// Ce qui change ; seuls l'état et la note sont ouverts à la réception
+export type ModificationChambre = Partial<Pick<Chambre, "numero" | "etat" | "noteEtat" | "active">>
 
 export type ModePaiement = "especes" | "carte" | "mobile_money" | "virement" | "autre"
 
@@ -221,6 +248,7 @@ export type EffacementJournal = { ids: string[] } | { avant: string } | { tout: 
 export type ReservationDirecte = {
   clientId: string
   hebergementId: string
+  chambreId: string | null // null : première chambre libre de la catégorie
   arrivee: DateISO
   depart: DateISO
   adultes: number
@@ -242,6 +270,7 @@ export type ModificationMembre = { role?: "hote" | "reception"; actif?: boolean;
 // Modification d'une réservation active par l'équipe : tout le séjour est renvoyé, pas seulement ce qui change
 export type ModificationReservation = {
   hebergementId: string
+  chambreId: string | null // null : chambre actuelle si elle reste libre, sinon une autre de la catégorie
   arrivee: DateISO
   depart: DateISO
   adultes: number
@@ -260,11 +289,12 @@ export type ModificationClient = Pick<Client, "prenom" | "nom" | "email" | "tele
 
 export type Plateforme = "booking" | "airbnb" | "autre"
 
-// Calendrier d'une plateforme pour un hébergement : import de ses dates (urlImport) et export des nôtres
+// Calendrier d'une plateforme pour une chambre (une annonce = une chambre) : import de ses dates (urlImport) et export des nôtres
 // (lien secret construit avec `jeton`, à donner à la plateforme)
 export type CalendrierExterne = {
   id: string
-  hebergementId: string
+  hebergementId: string // catégorie de la chambre
+  chambreId: string
   plateforme: Plateforme
   nom: string // « Booking.com »
   urlImport: string // vide : export seulement
@@ -274,7 +304,7 @@ export type CalendrierExterne = {
   creeLe: string
 }
 
-export type NouveauCalendrier = Pick<CalendrierExterne, "hebergementId" | "plateforme" | "nom" | "urlImport">
+export type NouveauCalendrier = Pick<CalendrierExterne, "chambreId" | "plateforme" | "nom" | "urlImport">
 
 // Période lue dans un fichier iCal (`fin` exclue, comme `depart`)
 export type PeriodeImportee = { uid: string; debut: DateISO; fin: DateISO; raison: string }

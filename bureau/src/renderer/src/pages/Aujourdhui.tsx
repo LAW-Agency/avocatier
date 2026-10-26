@@ -56,20 +56,21 @@ import {
   type FluentIcon,
 } from "@fluentui/react-icons"
 import { useState, type DragEvent, type ReactNode } from "react"
-import { ajouterJours, formaterDate, formaterHeure, formaterPlage, formaterPrix, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
+import { ajouterJours, formaterDate, formaterHeure, formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
 import type { EtatChambre, Reservation } from "@partage/types"
 import type { PlaceWidget, TailleWidget } from "../../../partage/ipc"
 import ActionsReservation, { BoutonReception } from "../composants/ActionsReservation"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
 import { Histogramme, Indicateur } from "../composants/graphiques"
-import { doublesReservations, nomDe, soldeDe, useDonneesChargees } from "../donnees"
+import { chambresTriees, doublesReservations, nomDe, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { ETATS_CHAMBRE, MODES_PAIEMENT } from "../libelles"
 import { useReglages } from "../reglages"
 import { situationDuJour } from "../situation"
 import { encaissementsDans, pourcent } from "../statistiques"
 import { useAnnoncer } from "../toasts"
 import { useAujourdhuiStyles } from "./useAujourdhuiStyles.styles"
+import { usePrix } from "../montants"
 
 type Onglet = "arrivees" | "departs" | "surPlace"
 
@@ -113,6 +114,8 @@ const COULEURS_ETAT: Record<EtatChambre, BadgeProps["color"]> = { propre: "succe
 // départ à enregistrer), semaine, chambres… « Personnaliser » permet de les déplacer (glisser-déposer ou
 // menu), de changer leur largeur, d'en masquer ou d'en ajouter ; la disposition est gardée sur ce poste
 export default function Aujourdhui() {
+  const lectureSeule = useLectureSeule()
+  const formaterPrix = usePrix()
   const styles = useAujourdhuiStyles()
   const donnees = useDonneesChargees()
   const { d, naviguer, ouvrirNouvelleReservation, gerant } = donnees
@@ -132,7 +135,7 @@ export default function Aujourdhui() {
   const semaine = confirmees
     .filter((r) => r.arrivee > d.aujourdhui && r.arrivee <= ajouterJours(d.aujourdhui, 7))
     .sort((a, b) => a.arrivee.localeCompare(b.arrivee))
-  const aNettoyer = d.hebergements.filter((h) => h.etat === "a_nettoyer").length
+  const aNettoyer = d.chambres.filter((c) => c.active && c.etat === "a_nettoyer").length
   const encaisse = encaissementsDans(d.paiements, { debut: d.aujourdhui, fin: ajouterJours(d.aujourdhui, 1) }).reduce((t, p) => t + p.montant, 0)
   const arriveesAttendues = arrivees.filter((r) => !r.arriveeLe).length
   const departsAttendus = departs.filter((r) => !r.departLe).length
@@ -204,7 +207,7 @@ export default function Aujourdhui() {
             libelle="Taux d'occupation ce soir"
             valeur={pourcent(total ? occupes / total : 0)}
             className={styles.remplir}
-            note={`${occupes} / ${pluriel(total, "hébergement")}${aNettoyer ? ` · ${pluriel(aNettoyer, "chambre")} à nettoyer` : " · chambres prêtes"}`}
+            note={`${occupes} / ${pluriel(total, "chambre")}${aNettoyer ? ` · ${pluriel(aNettoyer, "chambre")} à nettoyer` : " · chambres prêtes"}`}
           >
             <ProgressBar value={total ? occupes / total : 0} thickness="large" aria-label="Taux d'occupation" />
           </Indicateur>
@@ -224,7 +227,7 @@ export default function Aujourdhui() {
             {aTraiter.length === 0 ? (
               <Vide Icone={MailInboxCheckmarkRegular} titre="Rien à traiter" texte="Les nouvelles demandes envoyées depuis le site apparaîtront ici." />
             ) : (
-              <ul className={styles.liste}>
+              <ul className={mergeClasses(styles.liste, styles.listeDefile)}>
                 {aTraiter.map((r) => (
                   <Demande key={r.id} reservation={r} donnees={donnees} />
                 ))}
@@ -272,24 +275,24 @@ export default function Aujourdhui() {
             }
           >
             <ul className={mergeClasses(styles.liste, styles.listeSerree)}>
-              {d.hebergements.map((h) => (
-                <li key={h.id} className={styles.sejour}>
-                  <BedRegular className={styles.iconeLigne} />
-                  <div className={styles.infos}>
-                    <Text weight="semibold" truncate wrap={false}>
-                      {h.nom}
-                    </Text>
-                    {h.noteEtat && (
+              {chambresTriees(d)
+                .filter((c) => c.active)
+                .map((c) => (
+                  <li key={c.id} className={styles.sejour}>
+                    <BedRegular className={styles.iconeLigne} />
+                    <div className={styles.infos}>
+                      <Text weight="semibold" truncate wrap={false}>
+                        {c.numero}
+                      </Text>
                       <Caption1 className={styles.secondaire} truncate wrap={false}>
-                        {h.noteEtat}
+                        {c.noteEtat || d.hebergements.find((h) => h.id === c.hebergementId)?.nom}
                       </Caption1>
-                    )}
-                  </div>
-                  <Badge appearance="tint" shape="rounded" color={COULEURS_ETAT[h.etat]}>
-                    {ETATS_CHAMBRE[h.etat]}
-                  </Badge>
-                </li>
-              ))}
+                    </div>
+                    <Badge appearance="tint" shape="rounded" color={COULEURS_ETAT[c.etat]}>
+                      {ETATS_CHAMBRE[c.etat]}
+                    </Badge>
+                  </li>
+                ))}
             </ul>
           </Carte>
         )
@@ -354,7 +357,7 @@ export default function Aujourdhui() {
         return (
           <Carte className={styles.remplir} titre="Raccourcis">
             <div className={styles.raccourcis}>
-              <Button appearance="primary" icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation()}>
+              <Button appearance="primary" icon={<CalendarAddRegular />} disabled={lectureSeule} onClick={() => ouvrirNouvelleReservation()}>
                 Nouvelle réservation
               </Button>
               <Button icon={<PersonAddRegular />} onClick={() => naviguer({ page: "clients" })}>
@@ -391,7 +394,7 @@ export default function Aujourdhui() {
               <Button icon={<CalendarLtrRegular />} onClick={() => naviguer({ page: "planning" })}>
                 Planning
               </Button>
-              <Button appearance="primary" icon={<CalendarAddRegular />} onClick={() => ouvrirNouvelleReservation()}>
+              <Button appearance="primary" icon={<CalendarAddRegular />} disabled={lectureSeule} onClick={() => ouvrirNouvelleReservation()}>
                 Nouvelle réservation
               </Button>
             </>
@@ -565,6 +568,7 @@ type Donnees = ReturnType<typeof useDonneesChargees>
 
 // Demande en option : l'essentiel pour décider sans ouvrir la fiche, et les actions
 function Demande({ reservation: r, donnees }: { reservation: Reservation; donnees: Donnees }) {
+  const formaterPrix = usePrix()
   const styles = useAujourdhuiStyles()
   const client = donnees.clientDe(r)
   const restant = r.expireLe ? tempsRestant(r.expireLe) : null
@@ -628,6 +632,7 @@ function Demande({ reservation: r, donnees }: { reservation: Reservation; donnee
 
 // Liste courte de séjours : une ligne par client ; à la réception, bouton d'arrivée ou de départ
 function Sejours({ reservations, vide, donnees, avecDate = false, reception = false }: { reservations: Reservation[]; vide: string; donnees: Donnees; avecDate?: boolean; reception?: boolean }) {
+  const formaterPrix = usePrix()
   const styles = useAujourdhuiStyles()
   if (reservations.length === 0) {
     return (

@@ -17,11 +17,12 @@ const pont: PontAvocatier = {
   api: (methode, chemin, corps) => ipcRenderer.invoke("api", methode, chemin, corps),
   ouvrirLien: (url) => ipcRenderer.invoke("lien:ouvrir", url),
   signalerATraiter: (nombre) => ipcRenderer.send("hotes:a-traiter", nombre),
-  enregistrerCsv: (nom, contenu) => ipcRenderer.invoke("fichier:csv", nom, contenu),
+  enregistrerXlsx: (nom, classeur) => ipcRenderer.invoke("fichier:xlsx", nom, classeur),
   enregistrerPdf: (nom, html) => ipcRenderer.invoke("fichier:pdf", nom, html),
   reglages: () => ipcRenderer.invoke("reglages:lire"),
   modifierReglages: (modification) => ipcRenderer.invoke("reglages:modifier", modification),
   infos: () => ipcRenderer.invoke("logiciel:infos"),
+  etatConnexion: () => ipcRenderer.invoke("connexion:etat"),
   signalerPrete: () => ipcRenderer.send("fenetre:prete"),
   reduire: () => ipcRenderer.send("fenetre:reduire"),
   basculerAgrandie: () => ipcRenderer.send("fenetre:agrandir"),
@@ -35,6 +36,7 @@ const pont: PontAvocatier = {
   surReglages: (rappel) => abonner("reglages", rappel),
   surZoom: (rappel) => abonner("fenetre:zoom", rappel),
   surPleinEcran: (rappel) => abonner("fenetre:plein-ecran", rappel),
+  surConnexion: (rappel) => abonner("connexion", rappel),
 }
 
 contextBridge.exposeInMainWorld("avocatier", pont)

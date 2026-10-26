@@ -15,7 +15,9 @@ export const useActionsStyles = makeStyles({
 
 export const useFicheStyles = makeStyles({
   surface: { maxWidth: "900px", width: "100%", padding: 0, overflow: "hidden" },
-  corps: { rowGap: 0, maxHeight: "calc(100vh - 96px)" },
+  // Sans l'écart de 8 px de Fluent entre les cases de la grille : les filets de l'en-tête, du panneau et du pied
+  // se rejoignent bord à bord
+  corps: { rowGap: 0, columnGap: 0, maxHeight: "calc(100vh - 96px)" },
   entete: {
     display: "flex",
     flexDirection: "column",
@@ -63,12 +65,16 @@ export const useFicheStyles = makeStyles({
       backgroundColor: tokens.colorBrandBackground,
     },
   },
+  // Pied sur toute la largeur de la fenêtre : Fluent le cale à droite (justify-self: end) même en « fluid »,
+  // et son filet s'arrêtait au milieu sous le panneau
   pied: {
+    justifySelf: "stretch",
+    margin: 0,
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "space-between",
     columnGap: tokens.spacingHorizontalM,
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXXL}`,
+    padding: `${tokens.spacingVerticalXL} ${tokens.spacingHorizontalXXL} ${tokens.spacingVerticalL}`,
     borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
   },
   // Modifier, facture : à gauche du pied ; la décision (confirmer, refuser, annuler) reste à droite

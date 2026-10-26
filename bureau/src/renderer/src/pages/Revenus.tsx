@@ -5,6 +5,7 @@ import {
   Caption1,
   Dropdown,
   Option,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -17,26 +18,28 @@ import {
 } from "@fluentui/react-components"
 import { ArrowDownloadRegular, MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
 import { useState } from "react"
-import { formaterHeure, formaterPlage, formaterPrix } from "@partage/dates"
+import { formaterHeure, formaterPlage } from "@partage/dates"
 import type { ModePaiement, Reservation } from "@partage/types"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
 import { Histogramme, Indicateur, Repartition } from "../composants/graphiques"
 import { useCadreTableStyles } from "../composants/useCommunStyles.styles"
-import { nomDe, soldeDe, useDonneesChargees } from "../donnees"
-import { csvEncaissements } from "../exports"
+import { nomChambre, nomDe, soldeDe, useDonneesChargees } from "../donnees"
+import { feuilleEncaissements } from "../exports"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT, NOMS_SOURCES } from "../libelles"
 import { debutDeMois, encaissementsDans, evolution, indicateurs, nomDuMois, parMois, periodes, PERIODES, repartition, type ChoixPeriode } from "../statistiques"
 import { useGestionStyles } from "./useGestionStyles.styles"
+import { usePrix } from "../montants"
 
 // Revenus (gérants) : chiffre d'affaires réparti par nuit, encaissements, reste à encaisser, par mois
 // et par mode de paiement. Montants en euros, comme les tarifs.
 export default function Revenus() {
+  const formaterPrix = usePrix()
   const styles = useGestionStyles()
   const cadre = useCadreTableStyles()
-  const { d, clientDe, hebergementDe } = useDonneesChargees()
-  const { exporter } = useFichiers()
+  const { d, clientDe } = useDonneesChargees()
+  const { exporter, exportEnCours } = useFichiers()
   const [choix, setChoix] = useState<ChoixPeriode>("mois")
   const { actuelle, precedente } = periodes(choix, d.aujourdhui)
   const maintenant = indicateurs(d, actuelle)
@@ -77,9 +80,9 @@ export default function Revenus() {
               ))}
             </Dropdown>
             <Button
-              icon={<ArrowDownloadRegular />}
-              disabled={encaissements.length === 0}
-              onClick={() => exporter(`Encaissements ${PERIODES[choix].toLowerCase()}`, csvEncaissements(encaissements, d))}
+              icon={exportEnCours ? <Spinner size="tiny" /> : <ArrowDownloadRegular />}
+              disabled={exportEnCours || encaissements.length === 0}
+              onClick={() => exporter(`Encaissements ${PERIODES[choix].toLowerCase()}`, feuilleEncaissements(encaissements, d, PERIODES[choix].toLowerCase()))}
             >
               Exporter les encaissements
             </Button>
@@ -131,7 +134,7 @@ export default function Revenus() {
           {impayes.length === 0 ? (
             <Vide Icone={CheckmarkCircleRegular} titre="Tout est encaissé" texte="Aucun séjour confirmé n'attend de paiement." />
           ) : (
-            <div className={cadre.root}>
+            <div className={mergeClasses(cadre.root, cadre.defile)}>
               <Table size="small" aria-label="Séjours non soldés">
                 <TableHeader className={cadre.entete}>
                   <TableRow>
@@ -152,7 +155,7 @@ export default function Revenus() {
                         </TableCellLayout>
                       </TableCell>
                       <TableCell>
-                        <TableCellLayout truncate description={hebergementDe(r)?.nom}>
+                        <TableCellLayout truncate description={nomChambre(d, r.chambreId)}>
                           {formaterPlage(r.arrivee, r.depart)}
                         </TableCellLayout>
                       </TableCell>

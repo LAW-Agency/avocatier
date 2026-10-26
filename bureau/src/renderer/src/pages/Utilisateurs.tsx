@@ -50,7 +50,7 @@ import { ChampMotDePasse, motDePasseAleatoire } from "../composants/ChampMotDePa
 import { Carte, EnTete } from "../composants/commun"
 import { useCadreTableStyles } from "../composants/useCommunStyles.styles"
 import { useFormulairesStyles } from "../composants/useFormulairesStyles.styles"
-import { nomDe, useDonneesChargees, type MembreEquipe } from "../donnees"
+import { nomDe, useDonneesChargees, useLectureSeule, type MembreEquipe } from "../donnees"
 import { ROLES } from "../libelles"
 
 const useStyles = makeStyles({
@@ -140,12 +140,16 @@ export default function Utilisateurs() {
 }
 
 function ActionsMembre({ membre: m, soiMeme }: { membre: MembreEquipe; soiMeme: boolean }) {
+  const lectureSeule = useLectureSeule()
   const { executer } = useDonneesChargees()
   const [erreur, setErreur] = useState<string | null>(null)
   const [motDePasse, setMotDePasse] = useState(false)
+  const [enCours, setEnCours] = useState(false)
 
   async function modifier(modification: { role?: RoleEquipe; actif?: boolean }) {
+    setEnCours(true)
     const resultat = await executer("PATCH", `/api/hotes/equipe/${encodeURIComponent(m.id)}`, modification)
+    setEnCours(false)
     setErreur(resultat.ok ? null : resultat.erreur)
   }
 
@@ -153,7 +157,7 @@ function ActionsMembre({ membre: m, soiMeme }: { membre: MembreEquipe; soiMeme: 
     <>
       <Menu>
         <MenuTrigger disableButtonEnhancement>
-          <Button appearance="subtle" icon={<MoreHorizontalRegular />} aria-label={`Actions pour ${nomDe(m)}`} />
+          <Button appearance="subtle" disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <MoreHorizontalRegular />} aria-label={`Actions pour ${nomDe(m)}`} />
         </MenuTrigger>
         <MenuPopover>
           <MenuList>
@@ -203,6 +207,7 @@ function ActionsMembre({ membre: m, soiMeme }: { membre: MembreEquipe; soiMeme: 
 }
 
 function NouveauMotDePasse({ membre: m, onFin }: { membre: MembreEquipe; onFin: () => void }) {
+  const lectureSeule = useLectureSeule()
   const formulaire = useFormulairesStyles()
   const { executer } = useDonneesChargees()
   const [valeur, setValeur] = useState(motDePasseAleatoire)
@@ -237,7 +242,7 @@ function NouveauMotDePasse({ membre: m, onFin }: { membre: MembreEquipe; onFin: 
             </DialogContent>
             <DialogActions>
               <Button onClick={onFin}>Annuler</Button>
-              <Button type="submit" appearance="primary" disabled={enCours || valeur.length < 8} icon={enCours ? <Spinner size="tiny" /> : <KeyRegular />}>
+              <Button type="submit" appearance="primary" disabled={enCours || lectureSeule || valeur.length < 8} icon={enCours ? <Spinner size="tiny" /> : <KeyRegular />}>
                 Définir le mot de passe
               </Button>
             </DialogActions>
@@ -249,6 +254,7 @@ function NouveauMotDePasse({ membre: m, onFin }: { membre: MembreEquipe; onFin: 
 }
 
 function NouvelUtilisateur() {
+  const lectureSeule = useLectureSeule()
   const formulaire = useFormulairesStyles()
   const { executer } = useDonneesChargees()
   const [ouvert, setOuvert] = useState(false)
@@ -277,7 +283,7 @@ function NouvelUtilisateur() {
   return (
     <Dialog open={ouvert} onOpenChange={(_e, data) => setOuvert(data.open)}>
       <DialogTrigger disableButtonEnhancement>
-        <Button appearance="primary" icon={<PersonAddRegular />}>
+        <Button appearance="primary" icon={<PersonAddRegular />} disabled={lectureSeule}>
           Ajouter un utilisateur
         </Button>
       </DialogTrigger>
@@ -316,7 +322,7 @@ function NouvelUtilisateur() {
               <DialogTrigger disableButtonEnhancement>
                 <Button>Annuler</Button>
               </DialogTrigger>
-              <Button type="submit" appearance="primary" disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : <PersonAddRegular />}>
+              <Button type="submit" appearance="primary" disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <PersonAddRegular />}>
                 Créer le compte
               </Button>
             </DialogActions>

@@ -1,15 +1,18 @@
+import { useState } from "react"
 import type { Paiement, Reservation } from "@partage/types"
-import type { ResultatFichier } from "../../partage/ipc"
+import type { FeuilleClasseur, ResultatFichier } from "../../partage/ipc"
 import { facture, numeroRecu, recu } from "./documents"
 import { nomDe, useDonneesChargees } from "./donnees"
 import { nomExport } from "./exports"
 import { useAnnoncer } from "./toasts"
 
-// Exports CSV, factures et reçus PDF : enregistrement par le processus principal (« Enregistrer sous »), puis
+// Exports Excel, factures et reçus PDF : enregistrement par le processus principal (« Enregistrer sous »), puis
 // une notification avec le chemin du fichier (ou l'erreur). Abandon de l'enregistrement : rien à dire.
 export function useFichiers() {
-  const { d, executer, clientDe, hebergementDe, paiementsDe } = useDonneesChargees()
+  const { d, executer, clientDe, hebergementDe, chambreDe, paiementsDe } = useDonneesChargees()
   const { annoncer } = useAnnoncer()
+  // Export en cours (fenêtre « Enregistrer sous » puis mise en forme du classeur) : Spinner sur le bouton
+  const [exportEnCours, setExportEnCours] = useState(false)
 
   function annoncerResultat(resultat: ResultatFichier, reussi: string, echec: string) {
     if (!resultat) return
@@ -17,11 +20,14 @@ export function useFichiers() {
     else annoncer({ titre: reussi, texte: resultat.chemin, intent: "success", duree: 8000 })
   }
 
-  async function exporter(quoi: string, contenu: string) {
-    annoncerResultat(await window.avocatier.enregistrerCsv(nomExport(quoi, d.aujourdhui), contenu), "Export enregistré", "Export non enregistré")
+  async function exporter(quoi: string, feuille: FeuilleClasseur) {
+    setExportEnCours(true)
+    const resultat = await window.avocatier.enregistrerXlsx(nomExport(quoi, d.aujourdhui), { feuilles: [feuille] })
+    setExportEnCours(false)
+    annoncerResultat(resultat, "Export Excel enregistré", "Export non enregistré")
   }
 
-  const contexte = (r: Reservation) => ({ facturation: d.facturation, client: clientDe(r), hebergement: hebergementDe(r) })
+  const contexte = (r: Reservation) => ({ facturation: d.facturation, client: clientDe(r), hebergement: hebergementDe(r), chambre: chambreDe(r)?.numero })
 
   // Numéro attribué par le serveur à la première édition (le même ensuite) ; renvoie l'erreur à afficher
   async function imprimerFacture(r: Reservation): Promise<string | null> {
@@ -42,5 +48,5 @@ export function useFichiers() {
     annoncerResultat(await window.avocatier.enregistrerPdf(`Reçu ${numeroRecu(p)} ${nomDe(clientDe(r))}.pdf`, html), `Reçu ${numeroRecu(p)} enregistré`, "Reçu non enregistré")
   }
 
-  return { exporter, imprimerFacture, imprimerRecu }
+  return { exporter, exportEnCours, imprimerFacture, imprimerRecu }
 }

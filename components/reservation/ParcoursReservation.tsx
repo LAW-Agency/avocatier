@@ -6,18 +6,28 @@ import { useActionState, useEffect, useRef, useState, type ReactNode } from "rea
 import { deconnexion } from "@/app/compte/actions"
 import { envoyerDemande, type EtatDemande } from "@/app/reserver/actions"
 import ButtonLink from "@/components/ButtonLink"
+import { BoutonEnvoi } from "@/components/Chargement"
 import { classesChamp } from "@/components/Champ"
 import { BlocCompte } from "@/components/compte/FormulairesCompte"
 import Calendrier from "@/components/reservation/Calendrier"
 import PanneauPhoto from "@/components/reservation/PanneauPhoto"
 import { MentionConversion, useDevise } from "@/components/Devise"
 import { formaterPlage, nombreNuits, nuitsDuSejour, pluriel } from "@/lib/reservation/dates"
-import { calculerDevis, estLibre, nuitsCompletes, verifierDates, type Devis } from "@/lib/reservation/regles"
+import {
+  calculerDevis,
+  CHAMBRES_PAR_DEMANDE_MAX,
+  chambresLibres,
+  nuitsCompletes,
+  verifierDates,
+  type ChambreVendue,
+  type Devis,
+} from "@/lib/reservation/regles"
 import { versParametres, type Selection } from "@/lib/reservation/selection"
 import type { ClientPublic, DateISO, Hebergement, PeriodeOccupee, Saison } from "@/lib/reservation/types"
 
 interface ParcoursProps {
   hebergements: Hebergement[]
+  chambres: ChambreVendue[] // chambres actives de chaque catégorie
   saisons: Saison[]
   periodes: PeriodeOccupee[]
   client: ClientPublic | null
@@ -43,22 +53,28 @@ const classesGlisse = (sens: Sens) =>
       : ""
 
 const boutonPrincipal =
-  "inline-flex items-center justify-center rounded-button border border-primary-dark bg-primary-dark px-7 py-3.5 text-sm font-medium tracking-wide text-text-light transition-[background-color,opacity] duration-300 hover:bg-primary-dark/90 disabled:cursor-not-allowed disabled:opacity-35"
+  "inline-flex items-center justify-center gap-2 rounded-button border border-primary-dark bg-primary-dark px-7 py-3.5 text-sm font-medium tracking-wide text-text-light transition-[background-color,opacity] duration-300 hover:bg-primary-dark/90 disabled:cursor-not-allowed disabled:opacity-35"
 const boutonRetour =
   "text-sm font-medium tracking-wide text-text-dark underline decoration-primary-dark/30 underline-offset-4 transition-colors hover:decoration-primary-dark"
 
-export default function ParcoursReservation({ hebergements, saisons, periodes, client, aujourdhui, initial }: ParcoursProps) {
+export default function ParcoursReservation({ hebergements, chambres, saisons, periodes, client, aujourdhui, initial }: ParcoursProps) {
   const [selection, setSelection] = useState(initial)
-  const [etatDemande, envoyer, envoiEnCours] = useActionState<EtatDemande, FormData>(envoyerDemande, {})
+  const [etatDemande, envoyer] = useActionState<EtatDemande, FormData>(envoyerDemande, {})
 
   const { arrivee, depart, adultes, enfants } = selection
   const voyageurs = adultes + enfants
-  const capaciteMax = Math.max(...hebergements.map((h) => h.capaciteMax))
   const hebergement = hebergements.find((h) => h.slug === selection.hebergement) ?? null
+
+  // Plusieurs chambres d'une même catégorie, au plus autant que la catégorie la mieux pourvue
+  const chambresDe = (h: Hebergement) => chambres.filter((c) => c.hebergementId === h.id).length
+  const chambresMax = Math.max(1, Math.min(CHAMBRES_PAR_DEMANDE_MAX, Math.max(...hebergements.map(chambresDe))))
+  const nbChambres = Math.min(selection.chambres, chambresMax)
+  // Capacité des chambres demandées, dans la catégorie qui en accueille le plus
+  const capaciteMax = Math.max(...hebergements.map((h) => h.capaciteMax * Math.min(nbChambres, Math.max(1, chambresDe(h)))))
 
   // Ce qui est valide jusqu'ici décide de l'étape la plus avancée accessible
   // Dates venues de l'URL : elles peuvent traverser des nuits où tout l'hôtel est complet
-  const nuitsHotelComplet = nuitsCompletes(hebergements.map((h) => h.id), periodes)
+  const nuitsHotelComplet = nuitsCompletes(hebergements.map((h) => h.id), chambres, periodes, nbChambres)
   const plageComplete = Boolean(arrivee && depart && nuitsDuSejour(arrivee, depart).some((n) => nuitsHotelComplet.has(n)))
   const erreurDates =
     arrivee && depart
@@ -66,24 +82,34 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
         (plageComplete ? "L'hôtel est complet sur une partie de ces dates. Choisissez une autre période." : null))
       : null
   const datesOk = Boolean(arrivee && depart) && !erreurDates
-  const voyageursOk = adultes >= 1 && voyageurs <= capaciteMax
-  const disponible = (h: Hebergement) => datesOk && estLibre(h.id, arrivee!, depart!, periodes)
-  const hebergementOk = hebergement !== null && disponible(hebergement) && voyageurs <= hebergement.capaciteMax
+  const voyageursOk = adultes >= nbChambres && voyageurs <= capaciteMax
+  // Chambres de la catégorie libres sur tout le séjour (chacune gardée du début à la fin)
+  const libres = (h: Hebergement) => (datesOk ? chambresLibres(h.id, arrivee!, depart!, chambres, periodes).length : 0)
+  const disponible = (h: Hebergement) => libres(h) >= nbChambres
+  const assezGrand = (h: Hebergement) => voyageurs <= h.capaciteMax * nbChambres
+  const hebergementOk = hebergement !== null && disponible(hebergement) && assezGrand(hebergement)
   const etapeMax = !datesOk ? 0 : !voyageursOk ? 1 : !hebergementOk ? 2 : 3
 
   const [navigation, setNavigation] = useState<{ etape: number; sens: Sens }>({ etape: etapeMax, sens: null })
   const etape = Math.min(navigation.etape, etapeMax)
   const allerA = (cible: number) => setNavigation({ etape: cible, sens: cible > etape ? "avant" : "arriere" })
 
-  const devis = hebergement && datesOk ? calculerDevis(hebergement, arrivee!, depart!, saisons) : null
-  const confirmee = Boolean(etatDemande.reference && hebergement && devis)
+  // Prix de toutes les chambres demandées (le devis est celui d'une chambre)
+  const devisDe = (h: Hebergement): Devis => {
+    const devis = calculerDevis(h, arrivee!, depart!, saisons)
+    return { ...devis, total: devis.total * nbChambres }
+  }
+  // Calculé dès que les dates se suivent : une fois la demande envoyée, ses propres chambres rendent les dates
+  // indisponibles, et la confirmation doit pourtant rester affichée
+  const devis = hebergement && arrivee && depart && depart > arrivee ? devisDe(hebergement) : null
+  const confirmee = Boolean(etatDemande.references?.length && hebergement && devis)
   const { formater } = useDevise()
   const prixSejour = devis ? `${formater(devis.total)} pour ${pluriel(devis.nuits, "nuit")}` : null
 
   // Ce que la barre d'action rappelle, ou ce qu'il reste à faire, à chaque étape
   const indications = [
     !arrivee ? "Choisissez votre arrivée" : !depart ? "Choisissez votre départ" : datesOk ? pluriel(nombreNuits(arrivee, depart), "nuit") : null,
-    pluriel(voyageurs, "voyageur"),
+    [pluriel(voyageurs, "voyageur"), nbChambres > 1 && pluriel(nbChambres, "chambre")].filter(Boolean).join(", "),
     hebergementOk ? prixSejour : "Choisissez un hébergement",
     prixSejour,
   ]
@@ -115,15 +141,15 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
   }
 
   // Tout effacer et repartir des dates (proposé seulement quand il y a quelque chose à effacer)
-  const aEffacer = Boolean(arrivee || selection.hebergement || adultes !== 2 || enfants)
+  const aEffacer = Boolean(arrivee || selection.hebergement || adultes !== 2 || enfants || nbChambres > 1)
   function reinitialiser() {
-    modifier({ arrivee: null, depart: null, adultes: 2, enfants: 0, hebergement: null })
+    modifier({ arrivee: null, depart: null, adultes: 2, enfants: 0, chambres: 1, hebergement: null })
     setNavigation({ etape: 0, sens: etape > 0 ? "arriere" : null })
   }
   const effacer = aEffacer ? reinitialiser : undefined
 
   // Calendrier : disponibilités de l'hébergement choisi, sinon nuits où tout est complet
-  const nuitsIndisponibles = hebergement ? nuitsCompletes([hebergement.id], periodes) : nuitsHotelComplet
+  const nuitsIndisponibles = hebergement ? nuitsCompletes([hebergement.id], chambres, periodes, nbChambres) : nuitsHotelComplet
   // Libre chaque nuit pris séparément, mais aucun hébergement libre sur toute la période
   const aucunLibre = datesOk && !hebergements.some(disponible)
 
@@ -140,13 +166,18 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
     // Même conteneur que le header (max-w-7xl, mêmes marges) : la photo s'aligne sur le logo, le formulaire sur les actions
     <div className="mx-auto max-w-7xl px-4 pt-4 pb-12 sm:px-6 lg:grid lg:grid-cols-[5fr_7fr] lg:gap-12 lg:pt-8 lg:pb-16 xl:gap-16">
       <PanneauPhoto images={photos} active={photoActive} className="h-72 sm:h-96">
-        <RecitSejour selection={selection} hebergement={hebergementOk || confirmee ? hebergement : null} devis={hebergementOk || confirmee ? devis : null} />
+        <RecitSejour
+          selection={selection}
+          chambres={nbChambres}
+          hebergement={hebergementOk || confirmee ? hebergement : null}
+          devis={hebergementOk || confirmee ? devis : null}
+        />
       </PanneauPhoto>
 
       <div className="pt-8 lg:pt-0">
         <div className="max-w-2xl">
           {confirmee && hebergement ? (
-            <Confirmation reference={etatDemande.reference!} />
+            <Confirmation references={etatDemande.references!} />
           ) : (
             <>
               <h1 className="font-heading text-section text-balance text-text-dark">Réserver votre séjour</h1>
@@ -188,7 +219,14 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                 {etape === 1 && (
                   <Etape titre="Voyageurs">
                     <div className="divide-y divide-primary-dark/15 border-y border-primary-dark/15">
-                      <Compteur label="Adultes" valeur={adultes} min={1} max={capaciteMax - enfants} onChange={(n) => modifier({ adultes: n })} />
+                      <Compteur
+                        label="Adultes"
+                        aide={nbChambres > 1 ? "Au moins un par chambre" : undefined}
+                        valeur={adultes}
+                        min={nbChambres}
+                        max={capaciteMax - enfants}
+                        onChange={(n) => modifier({ adultes: n })}
+                      />
                       <Compteur
                         label="Enfants"
                         aide="Moins de 12 ans"
@@ -197,10 +235,24 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                         max={capaciteMax - adultes}
                         onChange={(n) => modifier({ enfants: n })}
                       />
+                      {chambresMax > 1 && (
+                        <Compteur
+                          label="Chambres"
+                          aide="De la même catégorie, réservées ensemble"
+                          valeur={nbChambres}
+                          min={1}
+                          max={Math.min(chambresMax, adultes)}
+                          onChange={(n) => modifier({ chambres: n })}
+                        />
+                      )}
                     </div>
                     <p className="mt-5 text-sm text-text-dark">
-                      Nos hébergements accueillent jusqu&apos;à {capaciteMax} personnes. Pour un groupe, contactez-nous
-                      directement.
+                      {nbChambres > 1
+                        ? `${pluriel(nbChambres, "chambre")} accueillent jusqu’à ${capaciteMax} personnes.`
+                        : `Nos hébergements accueillent jusqu’à ${capaciteMax} personnes.`}{" "}
+                      {chambresMax > 1
+                        ? "Ajoutez une chambre pour venir plus nombreux, ou contactez-nous pour un groupe."
+                        : "Pour un groupe, contactez-nous directement."}
                     </p>
                     <Actions reinitialiser={effacer} retour={() => allerA(0)} indication={indications[1]}>
                       <button type="button" disabled={!voyageursOk} onClick={() => allerA(2)} className={boutonPrincipal}>
@@ -214,7 +266,9 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                   <Etape titre="Votre hébergement">
                     {aucunLibre && (
                       <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-4 border-l-2 border-primary-accent bg-primary-accent/5 px-4 py-3 text-sm text-primary-accent">
-                        Aucun hébergement n&apos;est libre sur toute cette période.
+                        {nbChambres > 1
+                          ? `Aucune catégorie n’a ${nbChambres} chambres libres sur toute cette période.`
+                          : "Aucun hébergement n’est libre sur toute cette période."}
                         <button type="button" onClick={() => allerA(0)} className="font-medium underline underline-offset-4">
                           Modifier les dates
                         </button>
@@ -225,10 +279,12 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                         <CarteHebergement
                           key={h.id}
                           hebergement={h}
-                          libre={disponible(h)}
-                          assezGrand={voyageurs <= h.capaciteMax}
+                          chambres={nbChambres}
+                          total={chambresDe(h)}
+                          libres={libres(h)}
+                          assezGrand={assezGrand(h)}
                           choisi={h.slug === selection.hebergement}
-                          devis={disponible(h) ? calculerDevis(h, arrivee!, depart!, saisons) : null}
+                          devis={disponible(h) ? devisDe(h) : null}
                           onChoisir={() => modifier({ hebergement: h.slug })}
                         />
                       ))}
@@ -256,6 +312,7 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                     ) : (
                       <form action={envoyer}>
                         <input type="hidden" name="hebergementId" value={hebergement.id} />
+                        <input type="hidden" name="chambres" value={nbChambres} />
                         <input type="hidden" name="arrivee" value={arrivee ?? ""} />
                         <input type="hidden" name="depart" value={depart ?? ""} />
                         <input type="hidden" name="adultes" value={adultes} />
@@ -270,9 +327,9 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                             </span>
                             <span className="text-sm">{client.email}</span>
                           </p>
-                          <button type="submit" formAction={deconnexion} formNoValidate className={boutonRetour}>
+                          <BoutonEnvoi formAction={deconnexion} formNoValidate className={`${boutonRetour} inline-flex items-center gap-2`}>
                             Changer de compte
-                          </button>
+                          </BoutonEnvoi>
                         </div>
 
                         <div className="space-y-6">
@@ -309,9 +366,9 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
                           d&apos;acompte.
                         </p>
                         <Actions reinitialiser={effacer} retour={() => allerA(2)} indication={indications[3]}>
-                          <button type="submit" disabled={envoiEnCours} className={boutonPrincipal}>
-                            {envoiEnCours ? "Envoi en cours…" : "Envoyer ma demande"}
-                          </button>
+                          <BoutonEnvoi enCours="Envoi en cours…" className={boutonPrincipal}>
+                            Envoyer ma demande
+                          </BoutonEnvoi>
                         </Actions>
                       </form>
                     )}
@@ -327,12 +384,19 @@ export default function ParcoursReservation({ hebergements, saisons, periodes, c
 }
 
 // Le séjour raconté sur la photo : chaque valeur sort du flou quand elle change
-function RecitSejour({ selection, hebergement, devis }: { selection: Selection; hebergement: Hebergement | null; devis: Devis | null }) {
+interface RecitSejourProps {
+  selection: Selection
+  chambres: number
+  hebergement: Hebergement | null
+  devis: Devis | null
+}
+
+function RecitSejour({ selection, chambres, hebergement, devis }: RecitSejourProps) {
   const { formater } = useDevise()
   const { arrivee, depart, adultes, enfants } = selection
   const plage = arrivee && depart ? formaterPlage(arrivee, depart) : null
   const voyageurs = `${pluriel(adultes, "adulte")}${enfants ? `, ${pluriel(enfants, "enfant")}` : ""}`
-  const details = [devis && pluriel(devis.nuits, "nuit"), voyageurs].filter(Boolean).join(", ")
+  const details = [devis && pluriel(devis.nuits, "nuit"), voyageurs, chambres > 1 && pluriel(chambres, "chambre")].filter(Boolean).join(", ")
   const valeur = "block animate-valeur motion-reduce:animate-none"
 
   return (
@@ -346,7 +410,8 @@ function RecitSejour({ selection, hebergement, devis }: { selection: Selection; 
 
       {hebergement && devis && (
         <div className="mt-6 flex items-end justify-between gap-6 border-t border-primary-light/25 pt-5">
-          <p key={hebergement.id} className={`font-heading text-2xl text-sand sm:text-3xl ${valeur}`}>
+          <p key={`${hebergement.id}-${chambres}`} className={`font-heading text-2xl text-sand sm:text-3xl ${valeur}`}>
+            {chambres > 1 && `${chambres} × `}
             {hebergement.nom}
           </p>
           <p className="text-right">
@@ -511,18 +576,30 @@ function Compteur({ label, aide, valeur, min, max, onChange }: CompteurProps) {
 
 interface CarteHebergementProps {
   hebergement: Hebergement
-  libre: boolean
+  chambres: number // demandées
+  total: number // chambres de la catégorie
+  libres: number // libres sur tout le séjour
   assezGrand: boolean
   choisi: boolean
-  devis: Devis | null
+  devis: Devis | null // pour toutes les chambres demandées
   onChoisir: () => void
 }
 
-function CarteHebergement({ hebergement: h, libre, assezGrand, choisi: choisiDemande, devis, onChoisir }: CarteHebergementProps) {
+function CarteHebergement({ hebergement: h, chambres, total, libres, assezGrand, choisi: choisiDemande, devis, onChoisir }: CarteHebergementProps) {
   const { formater } = useDevise()
+  const libre = libres >= chambres
   const choisissable = libre && assezGrand
   const choisi = choisiDemande && choisissable
-  const indisponible = !libre ? "Complet à ces dates" : !assezGrand ? `${h.capaciteMax} personnes au maximum` : null
+  const indisponible =
+    total < chambres
+      ? `${pluriel(total, "chambre")} de ce type`
+      : libres === 0
+        ? "Complet à ces dates"
+        : !libre
+          ? `Plus que ${libres} libre${libres > 1 ? "s" : ""} à ces dates`
+          : !assezGrand
+            ? `${h.capaciteMax * chambres} personnes au maximum`
+            : null
 
   return (
     <button
@@ -556,7 +633,10 @@ function CarteHebergement({ hebergement: h, libre, assezGrand, choisi: choisiDem
             devis && (
               <span className="shrink-0 text-right text-text-dark">
                 <span className="block text-xl font-light tabular-nums">{formater(devis.total)}</span>
-                <span className="block text-xs">pour {pluriel(devis.nuits, "nuit")}</span>
+                <span className="block text-xs">
+                  pour {chambres > 1 && `${pluriel(chambres, "chambre")}, `}
+                  {pluriel(devis.nuits, "nuit")}
+                </span>
               </span>
             )
           )}
@@ -565,6 +645,7 @@ function CarteHebergement({ hebergement: h, libre, assezGrand, choisi: choisiDem
         <span className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-text-dark">
           <span className="flex items-center gap-1.5">
             <Users className="h-4 w-4" aria-hidden="true" /> Jusqu&apos;à {pluriel(h.capaciteMax, "personne")}
+            {chambres > 1 && " par chambre"}
           </span>
           <span className="flex items-center gap-1.5">
             <BedDouble className="h-4 w-4" aria-hidden="true" /> {h.literie}
@@ -591,7 +672,7 @@ function CarteHebergement({ hebergement: h, libre, assezGrand, choisi: choisiDem
 }
 
 // Fin du parcours : la coche se trace, puis ce qui va se passer ensuite
-function Confirmation({ reference }: { reference: string }) {
+function Confirmation({ references }: { references: string[] }) {
   const suite = [
     "Joëlle & Stéphane confirment votre séjour, sous 48 h.",
     "Vous versez l'acompte qu'ils vous indiquent.",
@@ -608,8 +689,14 @@ function Confirmation({ reference }: { reference: string }) {
         <h1 id="titre-etape" tabIndex={-1} className="mt-8 font-heading text-section text-balance text-text-dark outline-none">
           Demande envoyée
         </h1>
-        <p className="mt-6 text-sm text-text-dark">Référence de votre demande</p>
-        <p className="font-heading text-3xl tracking-wide text-text-dark">{reference}</p>
+        <p className="mt-6 text-sm text-text-dark">
+          {references.length > 1 ? `Références de vos ${references.length} chambres` : "Référence de votre demande"}
+        </p>
+        {references.map((reference) => (
+          <p key={reference} className="font-heading text-3xl tracking-wide text-text-dark">
+            {reference}
+          </p>
+        ))}
         <p className="mt-6 max-w-xl text-body text-text-dark">
           Vos dates sont bloquées pendant 48 h, le temps que les hôtes reviennent vers vous.
         </p>

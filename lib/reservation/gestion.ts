@@ -6,12 +6,13 @@ import type {
   ClientPublic,
   EffacementJournal,
   EntreeJournal,
-  EtatChambre,
   ModePaiement,
+  ModificationChambre,
   ModificationClient,
   ModificationMembre,
   ModificationReservation,
   NouveauCalendrier,
+  NouvelleChambre,
   NouveauClientLocal,
   NouveauMembre,
   NouvelleEntreeJournal,
@@ -52,19 +53,23 @@ export interface GestionHotel {
 
   // Réservation confirmée d'office, saisie par l'équipe (`membreId` : auteur, noté dans l'historique)
   creerReservationDirecte(reservation: ReservationDirecte, auteur: string): Promise<ResultatDemande>
-  // Demande ou séjour confirmé modifié (dates, hébergement, voyageurs, navette, montant), noté dans l'historique
+  // Demande ou séjour confirmé modifié (dates, hébergement, chambre, voyageurs, navette, montant), noté dans l'historique
   modifierReservation(id: string, modification: ModificationReservation, auteur: string): Promise<ResultatModification>
   // Arrivée / départ du client (réservation confirmée) ; `annuler` efface l'enregistrement (erreur de saisie)
   enregistrerMouvement(reservationId: string, mouvement: "arrivee" | "depart", annuler?: boolean): Promise<ResultatAction>
 
-  listerChambres(): Promise<Chambre[]>
-  modifierChambre(id: string, etat: EtatChambre, noteEtat: string): Promise<ResultatAction>
+  // Chambres numérotées (liste : moteur.listerChambres). Désactiver est refusé tant qu'un séjour à venir y est
+  // attribué ; supprimer, dès qu'une réservation y a été faite (désactiver plutôt). Ses dates bloquées et ses
+  // calendriers de plateforme partent avec elle
+  creerChambre(chambre: NouvelleChambre): Promise<{ ok: true; chambre: Chambre } | { ok: false; erreur: string }>
+  modifierChambre(id: string, modification: ModificationChambre): Promise<ResultatAction>
+  supprimerChambre(id: string): Promise<ResultatAction>
 
   listerPaiements(): Promise<Paiement[]>
   ajouterPaiement(reservationId: string, paiement: { montant: number; mode: ModePaiement; note: string }, membreId: string): Promise<ResultatAction>
   supprimerPaiement(id: string): Promise<boolean>
 
-  // Calendriers des plateformes (Booking.com, Airbnb…) : un par hébergement et par plateforme
+  // Calendriers des plateformes (Booking.com, Airbnb…) : un par chambre et par plateforme
   listerCalendriers(): Promise<CalendrierExterne[]>
   creerCalendrier(calendrier: NouveauCalendrier): Promise<{ ok: true; calendrier: CalendrierExterne } | { ok: false; erreur: string }>
   // Supprime aussi les dates importées de ce calendrier ; renvoie le calendrier supprimé

@@ -25,14 +25,16 @@ import {
 } from "@fluentui/react-components"
 import { CalendarCheckmarkRegular, PersonAddRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
-import { ajouterJours, chevauche, formaterPrix, nombreNuits, pluriel } from "@partage/dates"
+import { ajouterJours, nombreNuits, pluriel } from "@partage/dates"
 import { calculerDevis, deplierSaisons } from "@partage/regles"
 import type { ReservationDirecte } from "@partage/types"
-import { blocageGene, clientsVisibles, nomDe, useDonneesChargees, type Preremplissage } from "../donnees"
+import { chambresPrises, clientsVisibles, nomDe, useDonneesChargees, useLectureSeule, type Preremplissage } from "../donnees"
 import { NOMS_SOURCES } from "../libelles"
 import ChampDate from "./ChampDate"
+import ChoixChambre, { CHAMBRE_AUTO } from "./ChoixChambre"
 import { ChampsClient, useCreationClient } from "./NouveauClient"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
+import { usePrix } from "../montants"
 
 type Source = ReservationDirecte["source"]
 const SOURCES: Source[] = ["sur_place", "telephone", "whatsapp", "booking", "airbnb"]
@@ -40,7 +42,8 @@ const SOURCES: Source[] = ["sur_place", "telephone", "whatsapp", "booking", "air
 const normaliser = (texte: string) => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
 
 // Fenêtre « Nouvelle réservation » (réception) : client existant ou nouveau, hébergement libre aux dates
-// choisies, tarif calculé (modifiable), réservation confirmée d'office. Ouverte depuis la barre de titre,
+// choisies et sa chambre (la première libre, ou une précise), tarif calculé (modifiable), réservation confirmée
+// d'office. Ouverte depuis la barre de titre,
 // Aujourd'hui, Planning ou la fiche d'un client (préremplie).
 export default function NouvelleReservation() {
   const { nouvelleReservation, fermerNouvelleReservation } = useDonneesChargees()
@@ -53,6 +56,8 @@ export default function NouvelleReservation() {
 }
 
 function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: () => void }) {
+  const lectureSeule = useLectureSeule()
+  const formaterPrix = usePrix()
   const styles = useFormulairesStyles()
   const { d, executer, naviguer } = useDonneesChargees()
   const [clientId, setClientId] = useState(prerempli.clientId ?? "")
@@ -60,6 +65,7 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
   const [nouveauClient, setNouveauClient] = useState(false)
   const creation = useCreationClient()
   const [hebergementId, setHebergementId] = useState(prerempli.hebergementId ?? "")
+  const [chambreId, setChambreId] = useState(prerempli.chambreId ?? CHAMBRE_AUTO)
   const [arrivee, setArrivee] = useState(prerempli.arrivee ?? d.aujourdhui)
   const [depart, setDepart] = useState(ajouterJours(prerempli.arrivee ?? d.aujourdhui, 1))
   const [adultes, setAdultes] = useState(2)
@@ -78,16 +84,11 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
   const hebergement = d.hebergements.find((h) => h.id === hebergementId)
   const tarif = hebergement && nuits ? calculerDevis(hebergement, arrivee, depart, saisons).total : null
 
-  // Hébergements déjà pris (réservation active ou dates bloquées) aux dates choisies ; une réservation
+  // Chambres déjà prises (réservation active ou dates bloquées) aux dates choisies ; une réservation
   // Booking.com saisie à la main n'est pas gênée par les dates déjà importées de Booking.com
-  const occupes = new Set(
-    nuits
-      ? [
-          ...d.reservations.filter((r) => (r.statut === "option" || r.statut === "confirmee") && chevauche(arrivee, depart, r.arrivee, r.depart)).map((r) => r.hebergementId),
-          ...d.blocages.filter((b) => chevauche(arrivee, depart, b.debut, b.fin) && blocageGene(b, source, d.calendriers)).map((b) => b.hebergementId),
-        ]
-      : [],
-  )
+  const prises = chambresPrises(d, arrivee, depart, { source })
+  const libresDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active && !prises.has(c.id)).length
+  const totalDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active).length
   const clientsTrouves = clientsVisibles(d.clients)
     .filter((c) => normaliser(`${nomDe(c)} ${c.email} ${c.telephone}`).includes(normaliser(recherche.trim())))
     .slice(0, 30)
@@ -108,6 +109,7 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
     const resultat = await executer<{ reservation: { id: string } }>("POST", "/api/hotes/reservations", {
       clientId: id,
       hebergementId,
+      chambreId: chambreId === CHAMBRE_AUTO ? null : chambreId,
       arrivee,
       depart,
       adultes,
@@ -200,14 +202,28 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
                   placeholder="Choisir un hébergement libre"
                   value={hebergement ? `${hebergement.nom} · ${hebergement.capaciteMax} pers.` : ""}
                   selectedOptions={hebergementId ? [hebergementId] : []}
-                  onOptionSelect={(_e, data) => setHebergementId(data.optionValue ?? "")}
+                  onOptionSelect={(_e, data) => {
+                    setHebergementId(data.optionValue ?? "")
+                    setChambreId(CHAMBRE_AUTO)
+                  }}
                 >
-                  {d.hebergements.map((h) => (
-                    <Option key={h.id} value={h.id} text={`${h.nom} · ${h.capaciteMax} pers.`} disabled={occupes.has(h.id)}>
-                      {h.nom} · {h.capaciteMax} pers.{occupes.has(h.id) ? " · déjà pris à ces dates" : ` · ${formaterPrix(h.prixNuit)} / nuit`}
-                    </Option>
-                  ))}
+                  {d.hebergements.map((h) => {
+                    const libres = nuits ? libresDans(h.id) : totalDans(h.id)
+                    return (
+                      <Option key={h.id} value={h.id} text={`${h.nom} · ${h.capaciteMax} pers.`} disabled={libres === 0}>
+                        {h.nom} · {h.capaciteMax} pers. ·{" "}
+                        {totalDans(h.id) === 0
+                          ? "aucune chambre active"
+                          : libres === 0
+                            ? "complet à ces dates"
+                            : `${libres} libre${libres > 1 ? "s" : ""} sur ${totalDans(h.id)} · ${formaterPrix(h.prixNuit)} / nuit`}
+                      </Option>
+                    )
+                  })}
                 </Dropdown>
+              </Field>
+              <Field label="Chambre" className={styles.pleine}>
+                <ChoixChambre className={styles.champ} hebergementId={hebergementId} valeur={chambreId} onChange={setChambreId} prises={prises} />
               </Field>
               <Field label="Adultes" required>
                 <SpinButton value={adultes} min={1} max={10} onChange={(_e, data) => setAdultes(data.value ?? (Number(data.displayValue) || 1))} />
@@ -264,12 +280,12 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
               </MessageBar>
             )}
           </DialogContent>
-          <DialogActions>
+          <DialogActions fluid className={styles.pied}>
             <Button onClick={onFin}>Annuler</Button>
             <Button
               type="submit"
               appearance="primary"
-              disabled={enCours || (!clientId && !nouveauClient) || !hebergementId || !nuits}
+              disabled={enCours || lectureSeule || (!clientId && !nouveauClient) || !hebergementId || !nuits}
               icon={enCours ? <Spinner size="tiny" /> : <CalendarCheckmarkRegular />}
             >
               Confirmer la réservation

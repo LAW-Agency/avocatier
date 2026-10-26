@@ -1,18 +1,20 @@
 import type {
   Blocage,
+  Chambre,
   Client,
   ClientPublic,
   DemandeReservation,
   FilActivite,
   Hebergement,
   ModificationTarifs,
+  NouveauBlocage,
   NouveauClient,
   PeriodeOccupee,
   ReglagesDevises,
   RegleSaison,
   Reservation,
   ResultatAction,
-  ResultatDemande,
+  ResultatDemandeSite,
   Saison,
   StatutReservation,
 } from "./types"
@@ -23,16 +25,19 @@ import type {
 
 export interface MoteurReservation {
   listerHebergements(): Promise<Hebergement[]>
+  // Chambres numérotées de chaque catégorie, actives ou non (le site ne vend que les actives)
+  listerChambres(): Promise<Chambre[]>
   // Occurrences datées des saisons, de l'an dernier à dans deux ans
   listerSaisons(): Promise<Saison[]>
   // Saisons telles que les hôtes les saisissent (une par nom, sans année)
   listerReglesSaisons(): Promise<RegleSaison[]>
-  // Réservations actives (option, confirmée) + blocages, sans donnée client
+  // Réservations actives (option, confirmée) + blocages, par chambre, sans donnée client
   periodesOccupees(): Promise<PeriodeOccupee[]>
-  // Revérifie disponibilité, capacité et prix : ne jamais se fier au navigateur
-  creerDemande(clientId: string, demande: DemandeReservation): Promise<ResultatDemande>
+  // Revérifie disponibilité, capacité et prix : ne jamais se fier au navigateur. Attribue automatiquement les
+  // chambres libres de la catégorie : une réservation par chambre, groupées si plusieurs
+  creerDemande(clientId: string, demande: DemandeReservation): Promise<ResultatDemandeSite>
   reservationsDuClient(clientId: string): Promise<Reservation[]>
-  // Le client ne peut annuler lui-même qu'une demande en option
+  // Le client ne peut annuler lui-même qu'une demande en option (toutes les chambres de la demande)
   annulerDemande(clientId: string, reservationId: string): Promise<boolean>
 
   // Code serveur uniquement (e-mails) : aucune vérification de propriétaire
@@ -42,11 +47,11 @@ export interface MoteurReservation {
   toutesLesReservations(): Promise<Reservation[]>
   // Suivi en direct : événements survenus après `depuis` (aucun si null : seulement le curseur de départ)
   activiteDepuis(depuis: string | null): Promise<FilActivite>
-  // Confirmer ou refuser une demande, annuler une réservation confirmée
+  // Confirmer ou refuser une demande (toutes ses chambres), annuler une réservation confirmée (cette chambre seule)
   changerStatut(reservationId: string, statut: StatutReservation, note?: string): Promise<ResultatAction>
   listerBlocages(): Promise<Blocage[]>
-  // Refusé s'il chevauche une réservation active
-  ajouterBlocage(blocage: Omit<Blocage, "id">): Promise<ResultatAction>
+  // Sur chaque chambre choisie ; tout refusé si l'une chevauche une réservation active
+  ajouterBlocage(blocage: NouveauBlocage): Promise<ResultatAction>
   supprimerBlocage(id: string): Promise<boolean>
   // Nouveaux prix pour les demandes à venir : les réservations existantes gardent leur montant
   modifierTarifs(modification: ModificationTarifs): Promise<ResultatAction>

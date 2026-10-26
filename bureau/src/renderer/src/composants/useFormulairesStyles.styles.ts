@@ -7,6 +7,18 @@ export const useFormulairesStyles = makeStyles({
   champ: { minWidth: 0, width: "100%" },
   surface: { maxWidth: "720px", width: "100%" },
   corps: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalL },
+  // Pied des longues fenêtres (le contenu défile au-dessus) : filet sur toute la largeur de la fenêtre, en
+  // débordant de sa marge de 24 px, et boutons calés à droite
+  pied: {
+    gridColumn: "1 / -1",
+    justifySelf: "stretch",
+    justifyContent: "flex-end",
+    marginTop: tokens.spacingVerticalS,
+    marginLeft: `calc(-1 * ${tokens.spacingHorizontalXXL})`,
+    marginRight: `calc(-1 * ${tokens.spacingHorizontalXXL})`,
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXXL} 0`,
+    borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
   encart: {
     display: "flex",
     flexDirection: "column",

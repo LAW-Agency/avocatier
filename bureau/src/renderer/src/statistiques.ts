@@ -33,7 +33,7 @@ export type Indicateurs = {
   delaiMoyen: number // jours entre la réservation et l'arrivée
 }
 
-export function indicateurs(d: Pick<Donnees, "reservations" | "hebergements" | "paiements">, periode: Periode): Indicateurs {
+export function indicateurs(d: Pick<Donnees, "reservations" | "chambres" | "paiements">, periode: Periode): Indicateurs {
   const ok = confirmees(d.reservations)
   let nuitsVendues = 0
   let chiffreAffaires = 0
@@ -43,7 +43,8 @@ export function indicateurs(d: Pick<Donnees, "reservations" | "hebergements" | "
     nuitsVendues += nuits
     chiffreAffaires += (r.montantTotal * nuits) / nombreNuits(r.arrivee, r.depart)
   }
-  const nuitsDisponibles = d.hebergements.length * nombreNuits(periode.debut, periode.fin)
+  // Chambres en vente aujourd'hui (une chambre désactivée ne compte plus)
+  const nuitsDisponibles = d.chambres.filter((c) => c.active).length * nombreNuits(periode.debut, periode.fin)
   const commencent = ok.filter((r) => r.arrivee >= periode.debut && r.arrivee < periode.fin)
   const creees = d.reservations.filter((r) => r.creeLe.slice(0, 10) >= periode.debut && r.creeLe.slice(0, 10) < periode.fin)
   const perdues = creees.filter((r) => r.statut === "annulee" || r.statut === "refusee" || r.statut === "expiree")
@@ -114,7 +115,7 @@ export function periodes(choix: ChoixPeriode, aujourdhui: DateISO): { actuelle: 
 }
 
 // Mois de la période, chacun avec ses indicateurs (histogrammes)
-export function parMois(d: Pick<Donnees, "reservations" | "hebergements" | "paiements">, { debut, fin }: Periode) {
+export function parMois(d: Pick<Donnees, "reservations" | "chambres" | "paiements">, { debut, fin }: Periode) {
   const mois: { debut: DateISO; indicateurs: Indicateurs }[] = []
   for (let m = debutDeMois(debut); m < fin; m = debutDeMois(m, 1)) {
     mois.push({ debut: m, indicateurs: indicateurs(d, { debut: m, fin: debutDeMois(m, 1) }) })
@@ -128,14 +129,15 @@ export function repartition<K extends string>(valeurs: { cle: K; valeur: number 
   return valeurs.map((v) => ({ ...v, part: total ? v.valeur / total : 0 })).sort((a, b) => b.valeur - a.valeur)
 }
 
-// Occupation de chaque hébergement sur la période (0 à 1)
-export function occupationParHebergement(d: Pick<Donnees, "reservations" | "hebergements">, periode: Periode) {
+// Occupation de chaque catégorie sur la période (0 à 1) : nuits vendues sur les nuits de ses chambres en vente
+export function occupationParHebergement(d: Pick<Donnees, "reservations" | "hebergements" | "chambres">, periode: Periode) {
   const nuits = nombreNuits(periode.debut, periode.fin)
   return d.hebergements.map((h) => {
+    const disponibles = nuits * d.chambres.filter((c) => c.hebergementId === h.id && c.active).length
     const vendues = confirmees(d.reservations)
       .filter((r) => r.hebergementId === h.id)
       .reduce((t, r) => t + nuitsDans(r, periode), 0)
-    return { hebergement: h, nuits: vendues, occupation: nuits ? vendues / nuits : 0 }
+    return { hebergement: h, nuits: vendues, occupation: disponibles ? vendues / disponibles : 0 }
   })
 }
 

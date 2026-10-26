@@ -1,10 +1,12 @@
-import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react"
+import { comparerNumeros } from "@partage/controles"
 import { chevauche } from "@partage/dates"
 import type {
   Blocage,
   CalendrierExterne,
+  Chambre,
   ClientPublic,
-  EtatChambre,
+  DateISO,
   Paiement,
   ReglagesDevises,
   ReglagesFacturation,
@@ -17,6 +19,7 @@ import type { Methode, ResultatApi, RoleEquipe } from "../../partage/ipc"
 // Données du logiciel, chargées en une fois depuis GET /api/hotes/donnees (voir app/api/hotes/donnees),
 // rechargées après chaque action de l'équipe et à chaque nouveauté du suivi en direct
 
+// Catégorie d'hébergement (« Bungalow Océan ») : prix et capacité de chacune de ses chambres
 export type HebergementCourt = {
   id: string
   nom: string
@@ -25,8 +28,6 @@ export type HebergementCourt = {
   prixNuit: number
   literie: string
   vue: string
-  etat: EtatChambre
-  noteEtat: string
 }
 
 export type MembreEquipe = { id: string; prenom: string; nom: string; email: string; role: RoleEquipe; actif: boolean; creeLe: string }
@@ -40,6 +41,7 @@ export type Donnees = {
   reservations: Reservation[]
   clients: ClientPublic[]
   hebergements: HebergementCourt[]
+  chambres: Chambre[] // chambres numérotées de chaque catégorie, actives ou non
   blocages: Blocage[]
   saisons: RegleSaison[]
   devises: ReglagesDevises
@@ -68,8 +70,8 @@ export type Vue =
 // Écrans réservés aux gérants (la réception ne les voit pas ; l'API refuse de toute façon)
 export const PAGES_GERANTS: Vue["page"][] = ["revenus", "statistiques", "tarifs", "utilisateurs"]
 
-// Fenêtre « Nouvelle réservation », éventuellement préremplie (client, hébergement, date)
-export type Preremplissage = { clientId?: string; hebergementId?: string; arrivee?: string }
+// Fenêtre « Nouvelle réservation », éventuellement préremplie (client, hébergement et chambre, date)
+export type Preremplissage = { clientId?: string; hebergementId?: string; chambreId?: string; arrivee?: string }
 
 type ContexteDonnees = {
   donnees: Donnees | null
@@ -79,6 +81,11 @@ type ContexteDonnees = {
   executer: <T = unknown>(methode: Methode, chemin: string, corps?: unknown) => Promise<ResultatApi<T>>
   vue: Vue
   naviguer: (vue: Vue) => void
+  // Écran suivant en préparation (rendu en transition) : la coquille affiche le logo en attendant
+  changementEcran: boolean
+  // Serveur joignable ; hors connexion, le logiciel passe en lecture seule
+  enLigne: boolean
+  setEnLigne: (valeur: boolean) => void
   recherche: string
   setRecherche: (texte: string) => void
   nouvelleReservation: Preremplissage | null
@@ -88,12 +95,21 @@ type ContexteDonnees = {
 
 const Contexte = createContext<ContexteDonnees | null>(null)
 
+export const MESSAGE_LECTURE_SEULE = "Hors connexion : le logiciel est en lecture seule. Réessayez une fois la connexion rétablie."
+
 export function FournisseurDonnees({ children }: { children: ReactNode }) {
   const [donnees, setDonnees] = useState<Donnees | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [vue, setVue] = useState<Vue>({ page: "aujourdhui" })
   const [recherche, setRecherche] = useState("")
   const [nouvelleReservation, setNouvelleReservation] = useState<Preremplissage | null>(null)
+  const [changementEcran, demarrerChangement] = useTransition()
+  const [enLigne, setEnLigne] = useState(true)
+  // Lu au moment de l'action, sans recréer `executer` à chaque changement de connexion
+  const enLigneActuel = useRef(enLigne)
+  useEffect(() => {
+    enLigneActuel.current = enLigne
+  }, [enLigne])
 
   const recharger = useCallback(async () => {
     const resultat = await window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
@@ -104,7 +120,8 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
   }, [])
 
   const executer = useCallback(
-    async <T,>(methode: Methode, chemin: string, corps?: unknown) => {
+    async <T,>(methode: Methode, chemin: string, corps?: unknown): Promise<ResultatApi<T>> => {
+      if (!enLigneActuel.current) return { ok: false, erreur: MESSAGE_LECTURE_SEULE }
       const resultat = await window.avocatier.api<T>(methode, chemin, corps)
       if (resultat.ok) await recharger()
       return resultat
@@ -112,13 +129,19 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
     [recharger],
   )
 
+  // En transition : l'écran courant reste réactif pendant que le suivant se prépare (longues listes)
   const naviguer = useCallback((nouvelle: Vue) => {
-    setVue(nouvelle)
-    // Quitter la liste des réservations efface la recherche qui y menait
-    if (nouvelle.page !== "reservations") setRecherche("")
+    demarrerChangement(() => {
+      setVue(nouvelle)
+      // Quitter la liste des réservations efface la recherche qui y menait
+      if (nouvelle.page !== "reservations") setRecherche("")
+    })
   }, [])
 
-  const ouvrirNouvelleReservation = useCallback((p: Preremplissage = {}) => setNouvelleReservation(p), [])
+  // Hors connexion, aucune saisie : la fenêtre ne s'ouvre pas
+  const ouvrirNouvelleReservation = useCallback((p: Preremplissage = {}) => {
+    if (enLigneActuel.current) setNouvelleReservation(p)
+  }, [])
   const fermerNouvelleReservation = useCallback(() => setNouvelleReservation(null), [])
 
   useEffect(() => {
@@ -134,13 +157,16 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
       executer,
       vue,
       naviguer,
+      changementEcran,
+      enLigne,
+      setEnLigne,
       recherche,
       setRecherche,
       nouvelleReservation,
       ouvrirNouvelleReservation,
       fermerNouvelleReservation,
     }),
-    [donnees, erreur, recharger, executer, vue, naviguer, recherche, nouvelleReservation, ouvrirNouvelleReservation, fermerNouvelleReservation],
+    [donnees, erreur, recharger, executer, vue, naviguer, changementEcran, enLigne, recherche, nouvelleReservation, ouvrirNouvelleReservation, fermerNouvelleReservation],
   )
   return <Contexte value={valeur}>{children}</Contexte>
 }
@@ -161,11 +187,47 @@ export function useDonneesChargees() {
     gerant: d.hote.role === "hote",
     clientDe: (r: Reservation) => d.clients.find((c) => c.id === r.clientId),
     hebergementDe: (r: Reservation) => d.hebergements.find((h) => h.id === r.hebergementId),
+    chambreDe: (r: Pick<Reservation, "chambreId">) => d.chambres.find((c) => c.id === r.chambreId),
     paiementsDe: (r: Reservation) => d.paiements.filter((p) => p.reservationId === r.id),
   }
 }
 
+// Hors connexion : boutons qui enregistrent quelque chose désactivés (l'écriture serait refusée de toute façon)
+export function useLectureSeule(): boolean {
+  return !useDonnees().enLigne
+}
+
 export const nomDe = (client?: Pick<ClientPublic, "prenom" | "nom">) => (client ? `${client.prenom} ${client.nom}`.trim() : "Client inconnu")
+
+// Chambres dans l'ordre du site (catégorie après catégorie), puis des numéros (« Océan 2 » avant « Océan 10 »)
+export function chambresTriees(d: Pick<Donnees, "hebergements" | "chambres">): Chambre[] {
+  const rang = (c: Chambre) => d.hebergements.findIndex((h) => h.id === c.hebergementId)
+  return [...d.chambres].sort((a, b) => rang(a) - rang(b) || comparerNumeros(a, b))
+}
+
+// « Bungalow Océan · Océan 3 »
+export function nomChambre(d: Pick<Donnees, "hebergements" | "chambres">, chambreId: string): string {
+  const chambre = d.chambres.find((c) => c.id === chambreId)
+  if (!chambre) return "Chambre supprimée"
+  return [d.hebergements.find((h) => h.id === chambre.hebergementId)?.nom, chambre.numero].filter(Boolean).join(" · ")
+}
+
+// Chambres prises sur [arrivée, départ[ : réservation active ou dates bloquées qui gênent cette provenance.
+// `sauf` : réservation modifiée, qui ne se gêne pas elle-même
+export function chambresPrises(
+  d: Pick<Donnees, "reservations" | "blocages" | "calendriers">,
+  arrivee: DateISO,
+  depart: DateISO,
+  { sauf, source }: { sauf?: string; source?: Reservation["source"] } = {},
+): Set<string> {
+  if (!arrivee || !depart || depart <= arrivee) return new Set()
+  return new Set([
+    ...d.reservations
+      .filter((r) => r.id !== sauf && (r.statut === "option" || r.statut === "confirmee") && chevauche(arrivee, depart, r.arrivee, r.depart))
+      .map((r) => r.chambreId),
+    ...d.blocages.filter((b) => chevauche(arrivee, depart, b.debut, b.fin) && blocageGene(b, source, d.calendriers)).map((b) => b.chambreId),
+  ])
+}
 
 // Fiches proposées dans les listes et les recherches : pas celles des clients effacés (elles ne restent que pour
 // les réservations passées, sous le nom « Client effacé »)
@@ -187,7 +249,7 @@ export function doublesReservations(d: Donnees): { blocage: Blocage; reservation
       d.reservations
         .filter(
           (r) =>
-            r.hebergementId === b.hebergementId &&
+            r.chambreId === b.chambreId &&
             (r.statut === "option" || r.statut === "confirmee") &&
             chevauche(b.debut, b.fin, r.arrivee, r.depart) &&
             blocageGene(b, r.source, d.calendriers),

@@ -11,6 +11,7 @@ import {
   type EtatFormulaire,
   type EtatRecuperation,
 } from "@/app/compte/actions"
+import { ContenuEnCours } from "@/components/Chargement"
 import Champ from "@/components/Champ"
 import { classesBouton as bouton, classesLien } from "./styles"
 
@@ -44,7 +45,7 @@ export function FormulaireConnexion({ suite }: { suite?: string }) {
       </div>
       <Erreur message={etat.erreur} />
       <button type="submit" disabled={enCours} className={bouton}>
-        {enCours ? "Connexion…" : "Se connecter"}
+        <ContenuEnCours enCours={enCours}>{enCours ? "Connexion…" : "Se connecter"}</ContenuEnCours>
       </button>
     </form>
   )
@@ -77,7 +78,7 @@ export function FormulaireInscription({ suite }: { suite?: string }) {
       />
       <Erreur message={etat.erreur} />
       <button type="submit" disabled={enCours} className={bouton}>
-        {enCours ? "Création du compte…" : "Créer mon compte"}
+        <ContenuEnCours enCours={enCours}>{enCours ? "Création du compte…" : "Créer mon compte"}</ContenuEnCours>
       </button>
     </form>
   )
@@ -110,7 +111,7 @@ export function FormulaireRecuperation({ suite }: { suite?: string }) {
       <Champ label="E-mail" name="email" id="recuperation-email" type="email" autoComplete="email" required />
       <Erreur message={etat.erreur} />
       <button type="submit" disabled={enCours} className={bouton}>
-        {enCours ? "Envoi…" : "Recevoir le lien"}
+        <ContenuEnCours enCours={enCours}>{enCours ? "Envoi…" : "Recevoir le lien"}</ContenuEnCours>
       </button>
       <p className="text-center">
         <Link href={retourConnexion} className={classesLien}>
@@ -153,7 +154,7 @@ export function FormulaireNouveauMotDePasse({ jeton, suite }: { jeton: string; s
         </Link>
       )}
       <button type="submit" disabled={enCours} className={bouton}>
-        {enCours ? "Enregistrement…" : "Enregistrer et me connecter"}
+        <ContenuEnCours enCours={enCours}>{enCours ? "Enregistrement…" : "Enregistrer et me connecter"}</ContenuEnCours>
       </button>
     </form>
   )

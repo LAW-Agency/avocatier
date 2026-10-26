@@ -18,7 +18,7 @@ import {
 import { PeopleSwapRegular, PersonDeleteRegular, SaveRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent, type ReactElement } from "react"
 import type { ClientPublic } from "@partage/types"
-import { clientsVisibles, nomDe, useDonneesChargees } from "../donnees"
+import { clientsVisibles, nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useAnnoncer } from "../toasts"
 import { useActionsStyles } from "./useReservationStyles.styles"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
@@ -46,6 +46,7 @@ export function FenetresClient({ client, ouverte, onFermer }: { client: ClientPu
 
 // Coordonnées corrigées par l'équipe. Pour un compte du site, l'e-mail est l'identifiant de connexion du client
 function FormulaireCoordonnees({ client, onFin }: { client: ClientPublic; onFin: () => void }) {
+  const lectureSeule = useLectureSeule()
   const styles = useFormulairesStyles()
   const { executer } = useDonneesChargees()
   const [valeurs, setValeurs] = useState({ prenom: client.prenom, nom: client.nom, telephone: client.telephone, email: client.email, pays: client.pays })
@@ -99,7 +100,7 @@ function FormulaireCoordonnees({ client, onFin }: { client: ClientPublic; onFin:
           </DialogContent>
           <DialogActions>
             <Button onClick={onFin}>Annuler</Button>
-            <Button type="submit" appearance="primary" disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
+            <Button type="submit" appearance="primary" disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
               Enregistrer
             </Button>
           </DialogActions>
@@ -112,6 +113,7 @@ function FormulaireCoordonnees({ client, onFin }: { client: ClientPublic; onFin:
 // Deux fiches pour la même personne (créée au comptoir, puis compte ouvert sur le site…) : réunies en une seule.
 // La fiche gardée est celle du compte du site s'il y en a un, sinon celle-ci
 function FormulaireFusion({ client, onFin }: { client: ClientPublic; onFin: () => void }) {
+  const lectureSeule = useLectureSeule()
   const styles = useFormulairesStyles()
   const { d, executer, naviguer } = useDonneesChargees()
   const { annoncer } = useAnnoncer()
@@ -190,7 +192,7 @@ function FormulaireFusion({ client, onFin }: { client: ClientPublic; onFin: () =
           <Button onClick={onFin}>Annuler</Button>
           <Button
             appearance="primary"
-            disabled={enCours || !autre || (autre.origine === "site" && client.origine === "site")}
+            disabled={enCours || lectureSeule || !autre || (autre.origine === "site" && client.origine === "site")}
             icon={enCours ? <Spinner size="tiny" /> : <PeopleSwapRegular />}
             onClick={fusionner}
           >
@@ -205,6 +207,7 @@ function FormulaireFusion({ client, onFin }: { client: ClientPublic; onFin: () =
 // Droit à l'effacement (RGPD) : la fiche disparaît, ou devient « Client effacé » si des séjours doivent rester
 // dans la comptabilité. Impossible tant qu'un séjour est en cours ou à venir
 function ConfirmationEffacement({ client, onFin }: { client: ClientPublic; onFin: () => void }) {
+  const lectureSeule = useLectureSeule()
   const actions = useActionsStyles()
   const { d, executer, naviguer } = useDonneesChargees()
   const { annoncer } = useAnnoncer()
@@ -242,7 +245,7 @@ function ConfirmationEffacement({ client, onFin }: { client: ClientPublic; onFin
         </DialogContent>
         <DialogActions>
           <Button onClick={onFin}>Retour</Button>
-          <Button className={actions.danger} disabled={enCours} icon={enCours ? <Spinner size="tiny" /> : <PersonDeleteRegular />} onClick={effacer}>
+          <Button className={actions.danger} disabled={enCours || lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <PersonDeleteRegular />} onClick={effacer}>
             Effacer définitivement
           </Button>
         </DialogActions>
