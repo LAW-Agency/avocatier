@@ -15,7 +15,7 @@ win:
   target: nsis
 # Mises à jour automatiques (src/main/misesAJour.ts) : le logiciel lit latest.yml dans la dernière version publiée
 # de ce dépôt public, qui ne contient que les installateurs (le code reste dans le dépôt privé). Publication :
-# GH_TOKEN=… npm run publier (crée un brouillon de version à valider sur GitHub)
+# GH_TOKEN=… npm run publier (scripts/publier.mjs : un brouillon de version à valider sur GitHub)
 publish:
   provider: github
   owner: LAW-Agency

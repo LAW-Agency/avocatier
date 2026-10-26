@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "start": "electron-vite preview",
     "paquet": "electron-vite build && electron-builder --win --publish never",
-    "publier": "electron-vite build && electron-builder --win --publish always"
+    "publier": "npm run paquet && node scripts/publier.mjs"
   },
   "devDependencies": {
     "@fluentui/react-components": "9.74.9",
