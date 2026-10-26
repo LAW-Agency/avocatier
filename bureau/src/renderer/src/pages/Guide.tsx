@@ -585,7 +585,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     resume: "Préférences de ce poste et de votre compte.",
     Icone: SettingsRegular,
     ecran: { page: "parametres" },
-    motsCles: "paramètres devise ariary fmg franc malgache euro monnaie thème clair sombre zoom taille affichage plein écran notifications démarrage windows se souvenir serveur version factures reçus coordonnées nif stat mentions",
+    motsCles: "paramètres devise ariary fmg franc malgache euro monnaie thème clair sombre zoom taille affichage plein écran notifications démarrage windows se souvenir serveur version mise à jour mises à jour nouvelle version redémarrer factures reçus coordonnées nif stat mentions",
     contenu: (
       <ul>
         <li>Thème (comme Windows, clair, sombre), taille de l&apos;affichage (zoom) et plein écran.</li>
@@ -595,6 +595,10 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         </li>
         <li>Notifications de Windows, maintien dans la zone de notification à la fermeture, lancement au démarrage de Windows.</li>
         <li>Se souvenir de moi, adresse du serveur, déconnexion et version du logiciel.</li>
+        <li>
+          <strong>Mises à jour</strong> : le logiciel cherche une nouvelle version au lancement puis toutes les 4 heures, la télécharge tout seul et propose de redémarrer
+          pour l&apos;installer (sinon, elle s&apos;installe à la prochaine fermeture). Le bouton « Rechercher » de la section À propos vérifie tout de suite.
+        </li>
         <li>
           <strong>Factures et reçus</strong> (gérants) : nom de l&apos;établissement, adresse, contacts, identifiants légaux (NIF, STAT…) et mentions du bas des factures. Ces
           réglages sont communs à toute l&apos;équipe.

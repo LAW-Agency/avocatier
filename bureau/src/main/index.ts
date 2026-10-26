@@ -8,6 +8,7 @@ import { appeler, estEnLigne, quandConnexionChange, quandJetonRefuse } from "./a
 import { lireEtatFenetre, suivreEtatFenetre } from "./fenetre"
 import { estClasseur } from "./classeur"
 import { enregistrerPdf, enregistrerXlsx } from "./fichiers"
+import { demarrerMisesAJour, etatMiseAJour, installerMiseAJour, rechercherMiseAJour } from "./misesAJour"
 import { lireReglages, modifierReglages } from "./reglages"
 import { fermer, memoriser, ouvrir, SERVEUR_PAR_DEFAUT, sessionActive } from "./session"
 import { arreterSuivi, demarrerSuivi } from "./suivi"
@@ -21,6 +22,8 @@ const MICA = process.platform === "win32" && Number(release().split(".")[2]) >= 
 // Essais automatisés : dossier de données séparé, donc une instance à part (le verrou d'instance unique et la
 // session sont liés à ce dossier)
 if (process.env.AVOCATIER_DOSSIER) app.setPath("userData", process.env.AVOCATIER_DOSSIER)
+// Développement : dossier à part, pour ne pas laisser l'adresse localhost (session.json) au logiciel installé
+else if (!app.isPackaged) app.setPath("userData", join(app.getPath("appData"), `${NOM} (dev)`))
 
 let fenetre: BrowserWindow | null = null
 let zone: Tray | null = null
@@ -276,6 +279,10 @@ ipcMain.handle("reglages:modifier", (_e, modification: Partial<Reglages>) => {
   return reglages
 })
 ipcMain.handle("logiciel:infos", () => ({ version: app.getVersion(), installe: app.isPackaged }))
+ipcMain.handle("mise-a-jour:etat", () => etatMiseAJour())
+ipcMain.on("mise-a-jour:rechercher", () => rechercherMiseAJour(true))
+// Quitter pour de bon : sinon la fermeture rangerait la fenêtre dans la zone de notification
+ipcMain.on("mise-a-jour:installer", () => installerMiseAJour(() => (quitter = true)))
 
 ipcMain.on("fenetre:reduire", () => fenetre?.minimize())
 ipcMain.on("fenetre:agrandir", () => (fenetre?.isMaximized() ? fenetre.unmaximize() : fenetre?.maximize()))
@@ -317,6 +324,8 @@ if (!app.requestSingleInstanceLock()) {
     creerFenetre()
     creerZoneDeNotification()
     if (sessionActive()) suivre()
+    // Version téléchargée : annoncée par l'interface (redémarrer maintenant), sinon installée à la fermeture
+    demarrerMisesAJour((etat) => fenetre?.webContents.send("mise-a-jour", etat))
   })
 
   app.on("before-quit", () => {

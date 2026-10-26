@@ -11,7 +11,8 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "start": "electron-vite preview",
-    "paquet": "electron-vite build && electron-builder --win"
+    "paquet": "electron-vite build && electron-builder --win --publish never",
+    "publier": "electron-vite build && electron-builder --win --publish always"
   },
   "devDependencies": {
     "@fluentui/react-components": "9.74.9",
@@ -35,6 +36,7 @@
     "electron-winstaller@5.4.0": true
   },
   "dependencies": {
+    "electron-updater": "6.8.10",
     "exceljs": "4.4.0"
   }
 }

@@ -23,6 +23,9 @@ const pont: PontAvocatier = {
   modifierReglages: (modification) => ipcRenderer.invoke("reglages:modifier", modification),
   infos: () => ipcRenderer.invoke("logiciel:infos"),
   etatConnexion: () => ipcRenderer.invoke("connexion:etat"),
+  etatMiseAJour: () => ipcRenderer.invoke("mise-a-jour:etat"),
+  rechercherMiseAJour: () => ipcRenderer.send("mise-a-jour:rechercher"),
+  installerMiseAJour: () => ipcRenderer.send("mise-a-jour:installer"),
   signalerPrete: () => ipcRenderer.send("fenetre:prete"),
   reduire: () => ipcRenderer.send("fenetre:reduire"),
   basculerAgrandie: () => ipcRenderer.send("fenetre:agrandir"),
@@ -37,6 +40,7 @@ const pont: PontAvocatier = {
   surZoom: (rappel) => abonner("fenetre:zoom", rappel),
   surPleinEcran: (rappel) => abonner("fenetre:plein-ecran", rappel),
   surConnexion: (rappel) => abonner("connexion", rappel),
+  surMiseAJour: (rappel) => abonner("mise-a-jour", rappel),
 }
 
 contextBridge.exposeInMainWorld("avocatier", pont)
