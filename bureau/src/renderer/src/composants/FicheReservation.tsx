@@ -24,7 +24,7 @@ import type { Reservation } from "@partage/types"
 import { estTermine, nomChambre, nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFichiers } from "../fichiers"
 import { SOURCES } from "../libelles"
-import ActionsReservation, { BoutonReception } from "./ActionsReservation"
+import ActionsReservation, { AnnulerMouvement, BoutonReception } from "./ActionsReservation"
 import { BadgeStatut } from "./commun"
 import Encaissements from "./Encaissements"
 import ModifierReservation from "./ModifierReservation"
@@ -205,8 +205,9 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
                   <Caption1 className={styles.libelle}>Accueil</Caption1>
                   <Body1>{r.arriveeLe ? `Arrivé le ${formaterHeure(r.arriveeLe)}` : "Arrivée pas encore enregistrée"}</Body1>
                   {r.departLe && <Body1>Parti le {formaterHeure(r.departLe)}</Body1>}
-                  <div>
+                  <div className={styles.accueil}>
                     <BoutonReception reservation={r} aujourdhui={d.aujourdhui} taille="small" />
+                    <AnnulerMouvement reservation={r} />
                   </div>
                 </div>
               )}

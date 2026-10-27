@@ -16,10 +16,12 @@ import {
   Text,
   mergeClasses,
 } from "@fluentui/react-components"
-import { ArrowDownloadRegular, MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
+import { ArrowDownloadRegular, ArrowUndoRegular, MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
 import { useState } from "react"
 import { formaterHeure, formaterPlage } from "@partage/dates"
+import { libelleStatutHote } from "@partage/statuts"
 import type { ModePaiement, Reservation } from "@partage/types"
+import { alertesDe } from "../alertes"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
 import { Histogramme, Indicateur, Repartition } from "../composants/graphiques"
@@ -64,6 +66,9 @@ export default function Revenus() {
     .filter(({ solde }) => solde > 0)
     .sort((a, b) => a.r.arrivee.localeCompare(b.r.arrivee))
   const resteTotal = impayes.reduce((t, { solde }) => t + solde, 0)
+  // Trop-perçus : tout statut (une réservation annulée déjà payée ne doit plus rien)
+  const { tropPercus } = alertesDe(d)
+  const tropPercuTotal = tropPercus.reduce((t, r) => t - soldeDe(r, d.paiements), 0)
 
   return (
     <>
@@ -128,6 +133,54 @@ export default function Revenus() {
           )}
         </Carte>
       </div>
+
+      {tropPercus.length > 0 && (
+        <Carte titre="Trop-perçus à rembourser" description="Séjours annulés déjà payés, ou payés plus que leur montant" action={<Text className={styles.reste}>{formaterPrix(tropPercuTotal)}</Text>}>
+          <div className={cadre.root}>
+            <Table size="small" aria-label="Trop-perçus à rembourser">
+              <TableHeader className={cadre.entete}>
+                <TableRow>
+                  <TableHeaderCell className={cadre.premiere}>Client</TableHeaderCell>
+                  <TableHeaderCell>Séjour</TableHeaderCell>
+                  <TableHeaderCell style={{ width: "120px" }}>
+                    <span className={cadre.droite}>À rendre</span>
+                  </TableHeaderCell>
+                  <TableHeaderCell style={{ width: "140px" }} aria-label="Rembourser" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tropPercus.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className={cadre.premiere}>
+                      <TableCellLayout truncate media={<Avatar name={nomDe(clientDe(r))} color="colorful" size={24} />}>
+                        {nomDe(clientDe(r))}
+                      </TableCellLayout>
+                    </TableCell>
+                    <TableCell>
+                      <TableCellLayout truncate description={`${libelleStatutHote[r.statut]} · ${nomChambre(d, r.chambreId)}`}>{formaterPlage(r.arrivee, r.depart)}</TableCellLayout>
+                    </TableCell>
+                    <TableCell>
+                      <span className={mergeClasses(cadre.droite, styles.reste)}>{formaterPrix(-soldeDe(r, d.paiements))}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cadre.droite}>
+                        <FicheReservation
+                          reservation={r}
+                          declencheur={
+                            <Button size="small" icon={<ArrowUndoRegular />}>
+                              Rembourser
+                            </Button>
+                          }
+                        />
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Carte>
+      )}
 
       <div className={styles.deuxColonnes}>
         <Carte titre="Reste à encaisser" description="Séjours confirmés non soldés">

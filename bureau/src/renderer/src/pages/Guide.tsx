@@ -378,7 +378,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     resume: "Chambres numérotées de chaque catégorie : ménage, maintenance, ajout et retrait.",
     Icone: BedRegular,
     ecran: { page: "chambres" },
-    motsCles: "chambre bungalow numéro ajouter renommer désactiver supprimer catégorie ménage nettoyer propre maintenance état note occupant prochaine arrivée",
+    motsCles: "chambre bungalow numéro ajouter renommer désactiver supprimer catégorie ménage nettoyer propre maintenance état note occupant prochaine arrivée liste compacte affichage cartes",
     contenu: (
       <>
         <p>
@@ -388,7 +388,11 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <ul>
           <li>Chaque chambre est Propre, À nettoyer ou En maintenance, avec une note (« moustiquaire à changer »…).</li>
           <li>Le départ enregistré d&apos;un client passe automatiquement sa chambre « À nettoyer ».</li>
-          <li>Une pastille orange dans la navigation signale les chambres à nettoyer.</li>
+          <li>Dans la navigation, une pastille orange signale les chambres à nettoyer, une rouge celles en maintenance.</li>
+          <li>
+            <strong>Liste compacte</strong> (en haut à droite, à côté de « Cartes ») : une ligne par chambre pour voir tout l&apos;hôtel sur une page ; les actions sont
+            en icônes (survolez-les pour leur nom). Ce choix est gardé sur cet ordinateur.
+          </li>
         </ul>
         <h3>Gérer les chambres (gérants)</h3>
         <ul>
@@ -445,11 +449,24 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     titre: "Encaissements",
     resume: "Paiements, remboursements et reste dû d'une réservation.",
     Icone: MoneyRegular,
-    motsCles: "encaissement paiement remboursement espèces carte mobile money virement solde reste dû acompte reçu pdf imprimer",
+    motsCles:
+      "encaissement paiement remboursement espèces carte mobile money virement solde reste dû acompte reçu pdf imprimer non soldé trop-perçu départ arrivée notifications cloche alerte annuler départ",
     contenu: (
       <ul>
         <li>Dans la fiche d&apos;une réservation : montant total, déjà payé, reste dû, et la saisie d&apos;un paiement (espèces, carte, mobile money, virement…).</li>
-        <li>Un montant négatif enregistre un remboursement.</li>
+        <li>Un montant négatif enregistre un remboursement. Un séjour annulé ne doit plus rien : ce qui a été encaissé dessus apparaît en « Trop-perçu », à rembourser.</li>
+        <li>
+          <strong>Arrivée</strong> : la fenêtre rappelle l&apos;acompte reçu et le reste à payer ; on peut encaisser tout de suite, sans obligation.
+        </li>
+        <li>
+          <strong>Départ</strong> : s&apos;il reste à payer, encaissez-le dans la fenêtre (« Encaisser maintenant »). « Départ quand même » demande la raison (virement promis,
+          litige…), notée dans l&apos;historique de la réservation et le journal.
+        </li>
+        <li>
+          La <strong>cloche</strong> de la barre de titre compte ce qui reste à régler : départs non soldés, trop-perçus, arrivées ou départs oubliés, demandes à traiter. Le
+          widget « Départs à encaisser » d&apos;Aujourd&apos;hui reprend les impayés.
+        </li>
+        <li>Erreur de clic : un gérant peut annuler une arrivée ou un départ depuis la fiche (section Accueil).</li>
         <li>
           Chaque encaissement a un numéro de reçu (RE-000042) ; l&apos;icône de reçu à côté du montant enregistre le <strong>reçu PDF</strong>, à imprimer ou envoyer au client.
         </li>

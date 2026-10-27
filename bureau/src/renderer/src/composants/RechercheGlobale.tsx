@@ -1,5 +1,6 @@
 import { Caption1, Combobox, Option, OptionGroup, Text, makeStyles, mergeClasses, tokens } from "@fluentui/react-components"
 import {
+  AlertRegular,
   BedRegular,
   BookOpenRegular,
   CalendarAddRegular,
@@ -56,6 +57,7 @@ const ECRANS: { vue: Vue; libelle: string; mots: string; Icone: FluentIcon }[] =
   { vue: { page: "tarifs" }, libelle: "Tarifs", mots: "prix saisons devises taux", Icone: TagRegular },
   { vue: { page: "utilisateurs" }, libelle: "Utilisateurs", mots: "équipe comptes rôles mot de passe", Icone: PeopleTeamRegular },
   { vue: { page: "journal" }, libelle: "Journal d'activité", mots: "audit historique actions connexions", Icone: HistoryRegular },
+  { vue: { page: "notifications" }, libelle: "Notifications", mots: "alertes cloche impayés non soldé trop-perçu rembourser oublis départ arrivée", Icone: AlertRegular },
   { vue: { page: "guide" }, libelle: "Guide", mots: "aide mode d'emploi documentation", Icone: BookOpenRegular },
   { vue: { page: "parametres" }, libelle: "Paramètres", mots: "réglages thème zoom notifications démarrage version mise à jour factures reçus nif stat coordonnées", Icone: SettingsRegular },
 ]

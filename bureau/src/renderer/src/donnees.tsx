@@ -64,6 +64,7 @@ export type Vue =
   | { page: "tarifs" }
   | { page: "utilisateurs" }
   | { page: "journal" }
+  | { page: "notifications" }
   | { page: "guide"; section?: string }
   | { page: "parametres" }
 
@@ -262,6 +263,10 @@ export function doublesReservations(d: Donnees): { blocage: Blocage; reservation
 // Séjour confirmé déjà passé : plus aucune action possible dessus
 export const estTermine = (r: Reservation, aujourdhui: string) => r.statut === "confirmee" && r.depart <= aujourdhui
 
-// Montant encore dû sur une réservation confirmée (encaissements déduits, remboursements ajoutés)
+// Total encaissé sur une réservation (remboursements déduits)
+export const encaisseDe = (r: Reservation, paiements: Paiement[]) => paiements.filter((p) => p.reservationId === r.id).reduce((total, p) => total + p.montant, 0)
+
+// Montant encore dû (négatif : trop-perçu, à rembourser). Une réservation annulée, refusée ou expirée ne doit
+// plus rien : tout ce qui a été encaissé dessus est à rendre
 export const soldeDe = (r: Reservation, paiements: Paiement[]) =>
-  r.montantTotal - paiements.filter((p) => p.reservationId === r.id).reduce((total, p) => total + p.montant, 0)
+  (r.statut === "confirmee" || r.statut === "option" ? r.montantTotal : 0) - encaisseDe(r, paiements)

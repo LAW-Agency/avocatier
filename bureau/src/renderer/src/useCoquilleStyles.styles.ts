@@ -7,13 +7,29 @@ export const useCoquilleStyles = makeStyles({
   corps: { flex: 1, minHeight: 0, display: "flex" },
   // Navigation sur le Mica, sans fond propre (comme les Paramètres de Windows 11)
   nav: { backgroundColor: "transparent", borderRightStyle: "none" },
-  lienNav: { backgroundColor: "transparent", ":hover": { backgroundColor: tokens.colorSubtleBackgroundHover } },
-  lienNavActif: { backgroundColor: tokens.colorSubtleBackgroundSelected },
+  // Survol d'un cran plus marqué que le gris « subtle » de Fluent : en clair, il se confondait avec le Mica et la
+  // rubrique semblait disparaître ; la rubrique active reste un cran au-dessus, survolée ou non
+  lienNav: { backgroundColor: "transparent", ":hover": { backgroundColor: tokens.colorSubtleBackgroundSelected } },
+  lienNavActif: { backgroundColor: tokens.colorSubtleBackgroundPressed, ":hover": { backgroundColor: tokens.colorSubtleBackgroundPressed } },
   // Icônes de la navigation à 20 px (taille de Windows 11), plus lisibles que la taille par défaut
   iconeNav: { fontSize: tokens.fontSizeBase500, width: tokens.fontSizeBase500, height: tokens.fontSizeBase500 },
   libelleNav: { flex: 1 },
   // Compteur (16 px) et point (6 px) centrés dans le même emplacement : ils tombent sur le même axe
-  pastilleNav: { width: "20px", flexShrink: 0, display: "flex", justifyContent: "center", marginRight: tokens.spacingHorizontalXS },
+  // Centrée sur la ligne du libellé (le NavItem étire ses enfants : sans alignItems, la pastille restait en haut)
+  pastilleNav: {
+    minWidth: "20px",
+    flexShrink: 0,
+    alignSelf: "center",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    columnGap: tokens.spacingHorizontalXXS,
+    lineHeight: 0,
+    marginRight: tokens.spacingHorizontalXS,
+  },
+  // Compteur des chambres à nettoyer : jaune de l'état « À nettoyer » (badge « warning » de l'écran Chambres), avec
+  // son chiffre foncé, le seul lisible sur ce jaune (CounterBadge n'a pas de couleur « warning »)
+  pastilleMenage: { backgroundColor: tokens.colorPaletteYellowBackground3, color: tokens.colorNeutralForeground1Static },
   piedNav: { alignItems: "stretch", rowGap: tokens.spacingVerticalXS, paddingTop: tokens.spacingVerticalM, paddingLeft: tokens.spacingHorizontalS, paddingRight: tokens.spacingHorizontalS, paddingBottom: tokens.spacingVerticalS },
   rail: {
     width: "56px",

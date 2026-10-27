@@ -69,6 +69,7 @@ import type { Annonce, Destination } from "../../partage/ipc"
 import { BarreTitre } from "./composants/BarreTitre"
 import { ChargementLogo } from "./composants/commun"
 import FenetreMiseAJour from "./composants/FenetreMiseAJour"
+import { BoutonNotifications, PanneauNotifications } from "./composants/Notifications"
 import NouvelleReservation from "./composants/NouvelleReservation"
 import { RechercheGlobale } from "./composants/RechercheGlobale"
 import { useApparitionStyles } from "./composants/useCommunStyles.styles"
@@ -80,6 +81,7 @@ import Clients from "./pages/Clients"
 import FicheClient from "./pages/FicheClient"
 import Guide from "./pages/Guide"
 import Journal from "./pages/Journal"
+import Notifications from "./pages/Notifications"
 import Parametres from "./pages/Parametres"
 import Planning from "./pages/Planning"
 import Reservations from "./pages/Reservations"
@@ -168,12 +170,17 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const apparition = useApparitionStyles()
   const { donnees, erreur, recharger, vue, naviguer, changementEcran, enLigne, setEnLigne, ouvrirNouvelleReservation } = useDonnees()
   const [navOuverte, setNavOuverte] = useState(true)
+  // Panneau des notifications à droite du contenu, ouvert par la cloche de la barre de titre
+  const [notificationsOuvertes, setNotificationsOuvertes] = useState(false)
   const champRecherche = useRef<HTMLInputElement>(null)
   const zoneDefilement = useRef<HTMLElement>(null)
   const { annoncer } = useAnnoncer()
   const gerant = donnees?.hote.role === "hote"
 
   const aTraiter = donnees?.reservations.filter((r) => r.statut === "option").length ?? 0
+  // Pastilles de l'entrée Chambres : rouge s'il y a une chambre en maintenance, jaune s'il y en a à nettoyer
+  const aNettoyer = donnees?.chambres.filter((c) => c.active && c.etat === "a_nettoyer").length ?? 0
+  const enMaintenance = donnees?.chambres.filter((c) => c.active && c.etat === "maintenance").length ?? 0
   useEffect(() => window.avocatier.signalerATraiter(aTraiter), [aTraiter])
 
   // Suivi en direct (processus principal) : données rechargées, nouveautés annoncées une minute
@@ -268,6 +275,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   else if (vue.page === "tarifs") ecran = <Tarifs />
   else if (vue.page === "utilisateurs") ecran = <Utilisateurs />
   else if (vue.page === "journal") ecran = <Journal />
+  else if (vue.page === "notifications") ecran = <Notifications />
   else if (vue.page === "guide") ecran = <Guide key={vue.section} section={vue.section} />
   else ecran = <Parametres onDeconnexion={onDeconnexion} />
 
@@ -289,6 +297,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
             <Tooltip content="Nouvelle réservation (Ctrl + N)" relationship="label">
               <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees || !enLigne} onClick={() => ouvrirNouvelleReservation()} />
             </Tooltip>
+            {donnees && <BoutonNotifications ouvert={notificationsOuvertes} onBasculer={() => setNotificationsOuvertes((o) => !o)} />}
           </>
         }
       />
@@ -311,9 +320,18 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
                       <CounterBadge count={aTraiter} size="small" />
                     </span>
                   )}
-                  {page === "chambres" && donnees?.chambres.some((c) => c.active && c.etat === "a_nettoyer") && (
+                  {page === "chambres" && (aNettoyer > 0 || enMaintenance > 0) && (
                     <span className={styles.pastilleNav}>
-                      <Badge size="extra-small" color="warning" aria-label="Chambres à nettoyer" />
+                      {enMaintenance > 0 && (
+                        <Tooltip content={`${pluriel(enMaintenance, "chambre")} en maintenance`} relationship="label">
+                          <CounterBadge count={enMaintenance} size="small" color="danger" />
+                        </Tooltip>
+                      )}
+                      {aNettoyer > 0 && (
+                        <Tooltip content={`${pluriel(aNettoyer, "chambre")} à nettoyer`} relationship="label">
+                          <CounterBadge count={aNettoyer} size="small" className={styles.pastilleMenage} />
+                        </Tooltip>
+                      )}
                     </span>
                   )}
                 </NavItem>
@@ -396,6 +414,15 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
                     onClick={() => naviguer({ page } as Vue)}
                   />
                   {page === "reservations" && aTraiter > 0 && <CounterBadge count={aTraiter} size="extra-small" className={styles.railPastille} />}
+                  {page === "chambres" && (enMaintenance > 0 || aNettoyer > 0) && (
+                    <CounterBadge
+                      count={enMaintenance || aNettoyer}
+                      size="extra-small"
+                      color={enMaintenance ? "danger" : "brand"}
+                      aria-label={enMaintenance ? `${pluriel(enMaintenance, "chambre")} en maintenance` : `${pluriel(aNettoyer, "chambre")} à nettoyer`}
+                      className={mergeClasses(styles.railPastille, !enMaintenance && styles.pastilleMenage)}
+                    />
+                  )}
                 </div>
               </Tooltip>
             ))}
@@ -443,6 +470,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
             </>
           )}
         </main>
+        {donnees && <PanneauNotifications ouvert={notificationsOuvertes} onFermer={() => setNotificationsOuvertes(false)} />}
       </div>
 
       {donnees && <NouvelleReservation />}

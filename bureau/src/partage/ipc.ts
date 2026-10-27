@@ -68,6 +68,10 @@ export type AffichagePlanning = {
 export const DEVISES_LOGICIEL = ["MGA", "FMG", "EUR", "USD", "GBP", "CHF", "CAD"] as const
 export type DeviseLogiciel = (typeof DEVISES_LOGICIEL)[number]
 
+// Écran Chambres : grandes cartes, ou liste compacte (une ligne par chambre, tout l'hôtel sur une page)
+export const VUES_CHAMBRES = ["cartes", "liste"] as const
+export type VueChambres = (typeof VUES_CHAMBRES)[number]
+
 // Préférences du poste, gardées par le processus principal (fichier reglages.json du dossier utilisateur)
 export type Reglages = {
   theme: Theme
@@ -81,6 +85,7 @@ export type Reglages = {
   vuePlanning: VuePlanning
   triPlanning: TriPlanning
   affichagePlanning: AffichagePlanning
+  vueChambres: VueChambres
   devise: DeviseLogiciel
 }
 

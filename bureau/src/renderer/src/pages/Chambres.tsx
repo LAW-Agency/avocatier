@@ -26,6 +26,8 @@ import {
   Spinner,
   Subtitle1,
   Subtitle2,
+  Tab,
+  TabList,
   Text,
   Textarea,
   Tooltip,
@@ -42,17 +44,21 @@ import {
   DeleteRegular,
   DoorArrowLeftRegular,
   DoorArrowRightRegular,
+  GridRegular,
   MoreHorizontalRegular,
   NoteRegular,
+  OpenRegular,
   PersonRegular,
   ProhibitedRegular,
   RenameRegular,
+  TextBulletListLtrRegular,
   WrenchRegular,
   type FluentIcon,
 } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import { formaterDate, pluriel } from "@partage/dates"
 import type { Chambre, EtatChambre } from "@partage/types"
+import type { VueChambres } from "../../../partage/ipc"
 import { EnTete } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
 import { Indicateur } from "../composants/graphiques"
@@ -60,6 +66,7 @@ import { useFormulairesStyles } from "../composants/useFormulairesStyles.styles"
 import { chambresTriees, nomDe, useDonneesChargees, useLectureSeule, type Donnees, type HebergementCourt } from "../donnees"
 import { ETATS_CHAMBRE } from "../libelles"
 import { usePrix } from "../montants"
+import { useReglages } from "../reglages"
 import { useAnnoncer } from "../toasts"
 import { useChambresStyles } from "./useChambresStyles.styles"
 
@@ -98,11 +105,13 @@ export default function Chambres() {
   const lectureSeule = useLectureSeule()
   const styles = useChambresStyles()
   const { d, gerant } = useDonneesChargees()
+  const { reglages, modifier } = useReglages()
   const [ajout, setAjout] = useState<string | null>(null) // catégorie de la chambre à ajouter
   const actives = d.chambres.filter((c) => c.active)
   const compte = (etat: EtatChambre) => actives.filter((c) => c.etat === etat).length
   const occupees = actives.filter((c) => occupantDe(d, c.id)).length
   const triees = chambresTriees(d)
+  const vue: VueChambres = reglages.vueChambres === "liste" ? "liste" : "cartes"
 
   return (
     <>
@@ -110,41 +119,71 @@ export default function Chambres() {
         titre="Chambres"
         description="Chambres numérotées de chaque catégorie : ménage, maintenance et occupation aujourd'hui."
         actions={
-          gerant && (
-            <Button appearance="primary" icon={<AddRegular />} disabled={lectureSeule} onClick={() => setAjout(d.hebergements[0]?.id ?? "")}>
-              Ajouter une chambre
-            </Button>
-          )
+          <div className={styles.actionsEnTete}>
+            {/* Affichage gardé sur ce poste : cartes détaillées ou liste compacte (tout l'hôtel sur une page) */}
+            <TabList size="small" selectedValue={vue} onTabSelect={(_e, data) => void modifier({ vueChambres: data.value as VueChambres })} aria-label="Affichage">
+              <Tab value="cartes" icon={<GridRegular />}>
+                Cartes
+              </Tab>
+              <Tab value="liste" icon={<TextBulletListLtrRegular />}>
+                Liste compacte
+              </Tab>
+            </TabList>
+            {gerant && (
+              <Button appearance="primary" icon={<AddRegular />} disabled={lectureSeule} onClick={() => setAjout(d.hebergements[0]?.id ?? "")}>
+                Ajouter une chambre
+              </Button>
+            )}
+          </div>
         }
       />
-      <div className={styles.resume}>
-        <Indicateur Icone={BedRegular} libelle="Occupées ce soir" valeur={`${occupees} / ${actives.length}`} />
-        <Indicateur Icone={CheckmarkCircleRegular} libelle="Propres" valeur={compte("propre")} />
-        <Indicateur Icone={BroomRegular} libelle="À nettoyer" valeur={compte("a_nettoyer")} />
-        <Indicateur Icone={WrenchRegular} libelle="En maintenance" valeur={compte("maintenance")} />
-      </div>
+      {vue === "cartes" ? (
+        <div className={styles.resume}>
+          <Indicateur Icone={BedRegular} libelle="Occupées ce soir" valeur={`${occupees} / ${actives.length}`} />
+          <Indicateur Icone={CheckmarkCircleRegular} libelle="Propres" valeur={compte("propre")} />
+          <Indicateur Icone={BroomRegular} libelle="À nettoyer" valeur={compte("a_nettoyer")} />
+          <Indicateur Icone={WrenchRegular} libelle="En maintenance" valeur={compte("maintenance")} />
+        </div>
+      ) : (
+        // Liste compacte : le résumé tient sur une ligne de pastilles
+        <div className={styles.resumeCompact}>
+          <Badge appearance="tint" color="brand" shape="rounded" size="large" icon={<BedRegular />}>
+            {occupees} / {actives.length} occupées ce soir
+          </Badge>
+          {(Object.keys(ETATS_CHAMBRE) as EtatChambre[]).map((etat) => {
+            const { couleur, Icone } = STYLE_ETAT[etat]
+            return (
+              <Badge key={etat} appearance="tint" color={couleur} shape="rounded" size="large" icon={<Icone />}>
+                {compte(etat)} {ETATS_CHAMBRE[etat].toLowerCase()}
+              </Badge>
+            )
+          })}
+        </div>
+      )}
       {d.hebergements.map((h) => (
-        <Categorie key={h.id} hebergement={h} chambres={triees.filter((c) => c.hebergementId === h.id)} onAjouter={() => setAjout(h.id)} />
+        <Categorie key={h.id} hebergement={h} chambres={triees.filter((c) => c.hebergementId === h.id)} vue={vue} onAjouter={() => setAjout(h.id)} />
       ))}
       {ajout !== null && <FenetreChambre hebergementId={ajout} onFin={() => setAjout(null)} />}
     </>
   )
 }
 
-function Categorie({ hebergement: h, chambres, onAjouter }: { hebergement: HebergementCourt; chambres: Chambre[]; onAjouter: () => void }) {
+function Categorie({ hebergement: h, chambres, vue, onAjouter }: { hebergement: HebergementCourt; chambres: Chambre[]; vue: VueChambres; onAjouter: () => void }) {
   const lectureSeule = useLectureSeule()
   const styles = useChambresStyles()
   const formaterPrix = usePrix()
   const { gerant } = useDonneesChargees()
   const actives = chambres.filter((c) => c.active).length
+  const compacte = vue === "liste"
+  const Titre = compacte ? Subtitle2 : Subtitle1
 
   return (
-    <section className={styles.categorie} aria-labelledby={`categorie-${h.id}`}>
+    <section className={mergeClasses(styles.categorie, compacte && styles.categorieCompacte)} aria-labelledby={`categorie-${h.id}`}>
       <div className={styles.enteteCategorie}>
-        <div className={styles.titre}>
-          <Subtitle1 as="h2" id={`categorie-${h.id}`} className={styles.nom}>
+        <div className={compacte ? styles.titreLigne : styles.titre}>
+          <Titre as="h2" id={`categorie-${h.id}`} className={styles.nom}>
             {h.nom}
-          </Subtitle1>
+          </Titre>
           <Caption1 className={styles.secondaire}>
             {actives === 0 ? "Aucune chambre en vente" : `${pluriel(actives, "chambre")} en vente`}
             {chambres.length > actives && ` (+ ${pluriel(chambres.length - actives, "désactivée")})`} · {pluriel(h.capaciteMax, "personne")} par chambre ·{" "}
@@ -152,7 +191,7 @@ function Categorie({ hebergement: h, chambres, onAjouter }: { hebergement: Heber
           </Caption1>
         </div>
         {gerant && (
-          <Button appearance="subtle" icon={<AddRegular />} disabled={lectureSeule} onClick={onAjouter}>
+          <Button appearance="subtle" size={compacte ? "small" : "medium"} icon={<AddRegular />} disabled={lectureSeule} onClick={onAjouter}>
             Ajouter
           </Button>
         )}
@@ -162,6 +201,12 @@ function Categorie({ hebergement: h, chambres, onAjouter }: { hebergement: Heber
           Cette catégorie n&apos;a aucune chambre : elle n&apos;est pas proposée sur le site.
           {gerant ? " Ajoutez-en une pour l'ouvrir à la réservation." : " Un gérant peut en ajouter."}
         </Body1>
+      ) : compacte ? (
+        <div className={styles.lignes}>
+          {chambres.map((c) => (
+            <LigneChambre key={c.id} chambre={c} />
+          ))}
+        </div>
       ) : (
         <div className={styles.grille}>
           {chambres.map((c) => (
@@ -173,38 +218,15 @@ function Categorie({ hebergement: h, chambres, onAjouter }: { hebergement: Heber
   )
 }
 
-function CarteChambre({ chambre: c, hebergement: h }: { chambre: Chambre; hebergement: HebergementCourt }) {
-  const lectureSeule = useLectureSeule()
-  const styles = useChambresStyles()
-  const { d, gerant, clientDe, executer, ouvrirNouvelleReservation } = useDonneesChargees()
-  const { annoncer } = useAnnoncer()
-  const [erreur, setErreur] = useState<string | null>(null)
-  const [renommer, setRenommer] = useState(false)
-  const [supprimer, setSupprimer] = useState(false)
-  // Modification en cours : Spinner sur le bouton qui l'a lancée (État, Note ou menu de gestion)
-  const [enCours, setEnCours] = useState<"etat" | "noteEtat" | "active" | null>(null)
+// Situation du jour d'une chambre : occupant (arrivé ou attendu), départ du jour, dates bloquées, désactivée ou libre
+function useSituation(c: Chambre) {
+  const { d, clientDe } = useDonneesChargees()
   const actives = d.reservations.filter((r) => r.chambreId === c.id && r.statut === "confirmee")
   const occupant = occupantDe(d, c.id)
   const departAujourdhui = actives.find((r) => r.depart === d.aujourdhui && !r.departLe)
   const prochaine = actives.filter((r) => r.arrivee > d.aujourdhui).sort((a, b) => a.arrivee.localeCompare(b.arrivee))[0]
   const bloquee = d.blocages.find((b) => b.chambreId === c.id && b.debut <= d.aujourdhui && b.fin > d.aujourdhui)
-  const { couleur, Icone } = STYLE_ETAT[c.etat]
 
-  async function modifier(modification: Partial<Pick<Chambre, "etat" | "noteEtat" | "active">>) {
-    setEnCours(modification.active !== undefined ? "active" : modification.etat !== undefined ? "etat" : "noteEtat")
-    const resultat = await executer("PATCH", `/api/hotes/chambres/${encodeURIComponent(c.id)}`, modification)
-    setEnCours(null)
-    setErreur(resultat.ok ? null : resultat.erreur)
-    if (resultat.ok && modification.active !== undefined) {
-      annoncer({
-        titre: modification.active ? `${c.numero} remise en vente` : `${c.numero} désactivée`,
-        texte: modification.active ? "Elle est de nouveau proposée sur le site." : "Elle n'est plus proposée sur le site ni attribuée ; son historique reste.",
-        intent: "success",
-      })
-    }
-  }
-
-  // Situation du jour : occupant (arrivé ou attendu), départ du jour, dates bloquées ou libre
   let situation: { Icone: FluentIcon; titre: string; detail: string }
   if (occupant) {
     situation = {
@@ -221,7 +243,134 @@ function CarteChambre({ chambre: c, hebergement: h }: { chambre: Chambre; heberg
   } else {
     situation = { Icone: BedRegular, titre: "Libre ce soir", detail: prochaine ? `Prochaine arrivée le ${formaterDate(prochaine.arrivee, { year: undefined })}` : "Aucune arrivée prévue" }
   }
-  const reservationDuJour = occupant ?? departAujourdhui
+  return { situation, reservationDuJour: occupant ?? departAujourdhui }
+}
+
+type EnCours = "etat" | "noteEtat" | "active" | null
+type Modifier = (modification: Partial<Pick<Chambre, "etat" | "noteEtat" | "active">>) => Promise<void>
+
+// Modification d'une chambre (état, note, mise en vente) ; `enCours` : Spinner sur le bouton qui l'a lancée
+function useModifierChambre(c: Chambre) {
+  const { executer } = useDonneesChargees()
+  const { annoncer } = useAnnoncer()
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [enCours, setEnCours] = useState<EnCours>(null)
+
+  const modifier: Modifier = async (modification) => {
+    setEnCours(modification.active !== undefined ? "active" : modification.etat !== undefined ? "etat" : "noteEtat")
+    const resultat = await executer("PATCH", `/api/hotes/chambres/${encodeURIComponent(c.id)}`, modification)
+    setEnCours(null)
+    setErreur(resultat.ok ? null : resultat.erreur)
+    if (resultat.ok && modification.active !== undefined) {
+      annoncer({
+        titre: modification.active ? `${c.numero} remise en vente` : `${c.numero} désactivée`,
+        texte: modification.active ? "Elle est de nouveau proposée sur le site." : "Elle n'est plus proposée sur le site ni attribuée ; son historique reste.",
+        intent: "success",
+      })
+    }
+  }
+  return { modifier, enCours, erreur }
+}
+
+function BadgeEtat({ chambre: c, taille = "medium" }: { chambre: Chambre; taille?: BadgeProps["size"] }) {
+  const { couleur, Icone } = STYLE_ETAT[c.etat]
+  return c.active ? (
+    <Badge appearance="tint" color={couleur} icon={<Icone />} shape="rounded" size={taille}>
+      {ETATS_CHAMBRE[c.etat]}
+    </Badge>
+  ) : (
+    <Badge appearance="tint" color="subtle" icon={<ProhibitedRegular />} shape="rounded" size={taille}>
+      Désactivée
+    </Badge>
+  )
+}
+
+// Menu de gestion des gérants : numéro, mise en vente, suppression
+function MenuGestion({ chambre: c, enCours, modifier }: { chambre: Chambre; enCours: EnCours; modifier: Modifier }) {
+  const lectureSeule = useLectureSeule()
+  const [renommer, setRenommer] = useState(false)
+  const [supprimer, setSupprimer] = useState(false)
+  return (
+    <>
+      <Menu>
+        <MenuTrigger disableButtonEnhancement>
+          <Tooltip content={`Gérer ${c.numero}`} relationship="label">
+            <Button appearance="subtle" size="small" disabled={enCours === "active" || lectureSeule} icon={enCours === "active" ? <Spinner size="tiny" /> : <MoreHorizontalRegular />} />
+          </Tooltip>
+        </MenuTrigger>
+        <MenuPopover>
+          <MenuList>
+            <MenuItem icon={<RenameRegular />} onClick={() => setRenommer(true)}>
+              Changer le numéro
+            </MenuItem>
+            {c.active ? (
+              <MenuItem icon={<ProhibitedRegular />} onClick={() => modifier({ active: false })}>
+                Désactiver (plus proposée)
+              </MenuItem>
+            ) : (
+              <MenuItem icon={<ArrowCounterclockwiseRegular />} onClick={() => modifier({ active: true })}>
+                Remettre en vente
+              </MenuItem>
+            )}
+            <MenuDivider />
+            <MenuItem icon={<DeleteRegular />} onClick={() => setSupprimer(true)}>
+              Supprimer
+            </MenuItem>
+          </MenuList>
+        </MenuPopover>
+      </Menu>
+      {renommer && <FenetreChambre chambre={c} onFin={() => setRenommer(false)} />}
+      {supprimer && <SupprimerChambre chambre={c} onFin={() => setSupprimer(false)} />}
+    </>
+  )
+}
+
+// Choix de l'état du ménage ; `compact` : bouton icône seule (liste compacte)
+function MenuEtat({ chambre: c, enCours, modifier, compact = false }: { chambre: Chambre; enCours: EnCours; modifier: Modifier; compact?: boolean }) {
+  const lectureSeule = useLectureSeule()
+  const bouton = (
+    <Button
+      appearance={compact ? "subtle" : "secondary"}
+      size={compact ? "small" : "medium"}
+      disabled={enCours === "etat" || lectureSeule}
+      icon={enCours === "etat" ? <Spinner size="tiny" /> : <BroomRegular />}
+    >
+      {compact ? undefined : "État"}
+    </Button>
+  )
+  return (
+    <Menu checkedValues={{ etat: [c.etat] }} onCheckedValueChange={(_e, data) => modifier({ etat: data.checkedItems[0] as EtatChambre })}>
+      <MenuTrigger disableButtonEnhancement>
+        {compact ? (
+          <Tooltip content={`Changer l'état de ${c.numero}`} relationship="label">
+            {bouton}
+          </Tooltip>
+        ) : (
+          bouton
+        )}
+      </MenuTrigger>
+      <MenuPopover>
+        <MenuList>
+          {(Object.keys(ETATS_CHAMBRE) as EtatChambre[]).map((etat) => {
+            const { Icone: IconeEtat } = STYLE_ETAT[etat]
+            return (
+              <MenuItemRadio key={etat} name="etat" value={etat} icon={<IconeEtat />}>
+                {ETATS_CHAMBRE[etat]}
+              </MenuItemRadio>
+            )
+          })}
+        </MenuList>
+      </MenuPopover>
+    </Menu>
+  )
+}
+
+function CarteChambre({ chambre: c, hebergement: h }: { chambre: Chambre; hebergement: HebergementCourt }) {
+  const lectureSeule = useLectureSeule()
+  const styles = useChambresStyles()
+  const { gerant, ouvrirNouvelleReservation } = useDonneesChargees()
+  const { modifier, enCours, erreur } = useModifierChambre(c)
+  const { situation, reservationDuJour } = useSituation(c)
 
   return (
     <section className={mergeClasses(styles.carte, c.active ? styles[c.etat] : styles.desactivee)}>
@@ -236,44 +385,8 @@ function CarteChambre({ chambre: c, hebergement: h }: { chambre: Chambre; heberg
         </div>
         {/* État, puis le menu de gestion des gérants : en haut à droite, le pied garde la place des trois actions */}
         <div className={styles.enteteDroite}>
-          {c.active ? (
-            <Badge appearance="tint" color={couleur} icon={<Icone />} shape="rounded">
-              {ETATS_CHAMBRE[c.etat]}
-            </Badge>
-          ) : (
-            <Badge appearance="tint" color="subtle" icon={<ProhibitedRegular />} shape="rounded">
-              Désactivée
-            </Badge>
-          )}
-          {gerant && (
-            <Menu>
-              <MenuTrigger disableButtonEnhancement>
-                <Tooltip content={`Gérer ${c.numero}`} relationship="label">
-                  <Button appearance="subtle" size="small" disabled={enCours === "active" || lectureSeule} icon={enCours === "active" ? <Spinner size="tiny" /> : <MoreHorizontalRegular />} />
-                </Tooltip>
-              </MenuTrigger>
-              <MenuPopover>
-                <MenuList>
-                  <MenuItem icon={<RenameRegular />} onClick={() => setRenommer(true)}>
-                    Changer le numéro
-                  </MenuItem>
-                  {c.active ? (
-                    <MenuItem icon={<ProhibitedRegular />} onClick={() => modifier({ active: false })}>
-                      Désactiver (plus proposée)
-                    </MenuItem>
-                  ) : (
-                    <MenuItem icon={<ArrowCounterclockwiseRegular />} onClick={() => modifier({ active: true })}>
-                      Remettre en vente
-                    </MenuItem>
-                  )}
-                  <MenuDivider />
-                  <MenuItem icon={<DeleteRegular />} onClick={() => setSupprimer(true)}>
-                    Supprimer
-                  </MenuItem>
-                </MenuList>
-              </MenuPopover>
-            </Menu>
-          )}
+          <BadgeEtat chambre={c} />
+          {gerant && <MenuGestion chambre={c} enCours={enCours} modifier={modifier} />}
         </div>
       </div>
 
@@ -302,25 +415,7 @@ function CarteChambre({ chambre: c, hebergement: h }: { chambre: Chambre; heberg
       <div className={styles.pied}>
         {c.active && (
           <>
-            <Menu checkedValues={{ etat: [c.etat] }} onCheckedValueChange={(_e, data) => modifier({ etat: data.checkedItems[0] as EtatChambre })}>
-              <MenuTrigger disableButtonEnhancement>
-                <Button disabled={enCours === "etat" || lectureSeule} icon={enCours === "etat" ? <Spinner size="tiny" /> : <BroomRegular />}>
-                  État
-                </Button>
-              </MenuTrigger>
-              <MenuPopover>
-                <MenuList>
-                  {(Object.keys(ETATS_CHAMBRE) as EtatChambre[]).map((etat) => {
-                    const { Icone: IconeEtat } = STYLE_ETAT[etat]
-                    return (
-                      <MenuItemRadio key={etat} name="etat" value={etat} icon={<IconeEtat />}>
-                        {ETATS_CHAMBRE[etat]}
-                      </MenuItemRadio>
-                    )
-                  })}
-                </MenuList>
-              </MenuPopover>
-            </Menu>
+            <MenuEtat chambre={c} enCours={enCours} modifier={modifier} />
             <NoteChambre chambre={c} onEnregistrer={(noteEtat) => modifier({ noteEtat })} />
             <Button
               appearance="subtle"
@@ -333,14 +428,79 @@ function CarteChambre({ chambre: c, hebergement: h }: { chambre: Chambre; heberg
           </>
         )}
       </div>
-      {renommer && <FenetreChambre chambre={c} onFin={() => setRenommer(false)} />}
-      {supprimer && <SupprimerChambre chambre={c} onFin={() => setSupprimer(false)} />}
     </section>
   )
 }
 
+// Liste compacte : une ligne par chambre (numéro, état, situation du jour, note, actions en icônes)
+function LigneChambre({ chambre: c }: { chambre: Chambre }) {
+  const lectureSeule = useLectureSeule()
+  const styles = useChambresStyles()
+  const { gerant, ouvrirNouvelleReservation } = useDonneesChargees()
+  const { modifier, enCours, erreur } = useModifierChambre(c)
+  const { situation, reservationDuJour } = useSituation(c)
+
+  return (
+    <div className={mergeClasses(styles.ligne, c.active ? styles[`ligne_${c.etat}`] : styles.ligneDesactivee)}>
+      <Text weight="semibold" truncate wrap={false} className={styles.numeroLigne}>
+        {c.numero}
+      </Text>
+      <div className={styles.etatLigne}>
+        <BadgeEtat chambre={c} taille="small" />
+      </div>
+      <div className={styles.situationLigne} title={`${situation.titre} · ${situation.detail}`}>
+        <situation.Icone className={styles.iconeLigne} />
+        <Text truncate wrap={false} className={styles.texteLigne}>
+          <strong>{situation.titre}</strong>
+          <span className={styles.secondaire}> · {situation.detail}</span>
+        </Text>
+      </div>
+      <Caption1 truncate wrap={false} className={styles.noteLigne} title={c.noteEtat || undefined}>
+        {c.noteEtat && (
+          <>
+            <NoteRegular /> {c.noteEtat}
+          </>
+        )}
+      </Caption1>
+      <div className={styles.actionsLigne}>
+        {reservationDuJour && (
+          <FicheReservation
+            reservation={reservationDuJour}
+            declencheur={
+              <Tooltip content="Détails du séjour" relationship="label">
+                <Button appearance="subtle" size="small" icon={<OpenRegular />} />
+              </Tooltip>
+            }
+          />
+        )}
+        {c.active && (
+          <>
+            <MenuEtat chambre={c} enCours={enCours} modifier={modifier} compact />
+            <NoteChambre chambre={c} onEnregistrer={(noteEtat) => modifier({ noteEtat })} compact />
+            <Tooltip content={`Réserver ${c.numero}`} relationship="label">
+              <Button
+                appearance="subtle"
+                size="small"
+                icon={<CalendarAddRegular />}
+                disabled={lectureSeule}
+                onClick={() => ouvrirNouvelleReservation({ hebergementId: c.hebergementId, chambreId: c.id })}
+              />
+            </Tooltip>
+          </>
+        )}
+        {gerant && <MenuGestion chambre={c} enCours={enCours} modifier={modifier} />}
+      </div>
+      {erreur && (
+        <MessageBar intent="error" className={styles.erreurLigne}>
+          <MessageBarBody>{erreur}</MessageBarBody>
+        </MessageBar>
+      )}
+    </div>
+  )
+}
+
 // Note de ménage ou de maintenance (« ampoule salle de bains », « moustiquaire à changer »…)
-function NoteChambre({ chambre: c, onEnregistrer }: { chambre: Chambre; onEnregistrer: (note: string) => Promise<void> }) {
+function NoteChambre({ chambre: c, onEnregistrer, compact = false }: { chambre: Chambre; onEnregistrer: (note: string) => Promise<void>; compact?: boolean }) {
   const lectureSeule = useLectureSeule()
   const [note, setNote] = useState(c.noteEtat)
   const [ouvert, setOuvert] = useState(false)
@@ -363,9 +523,15 @@ function NoteChambre({ chambre: c, onEnregistrer }: { chambre: Chambre; onEnregi
       }}
     >
       <DialogTrigger disableButtonEnhancement>
-        <Button appearance="subtle" icon={<NoteRegular />} disabled={lectureSeule}>
-          Note
-        </Button>
+        {compact ? (
+          <Tooltip content={`Note de ${c.numero}`} relationship="label">
+            <Button appearance="subtle" size="small" icon={<NoteRegular />} disabled={lectureSeule} />
+          </Tooltip>
+        ) : (
+          <Button appearance="subtle" icon={<NoteRegular />} disabled={lectureSeule}>
+            Note
+          </Button>
+        )}
       </DialogTrigger>
       <DialogSurface>
         <DialogBody>
