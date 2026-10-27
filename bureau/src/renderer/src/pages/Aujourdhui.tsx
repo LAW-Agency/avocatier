@@ -25,7 +25,6 @@ import {
   Text,
   Tooltip,
   mergeClasses,
-  type BadgeProps,
 } from "@fluentui/react-components"
 import {
   AddRegular,
@@ -49,6 +48,7 @@ import {
   MailInboxRegular,
   MoneyRegular,
   MoreHorizontalRegular,
+  NoteRegular,
   PeopleRegular,
   PersonAddRegular,
   ReOrderDotsVerticalRegular,
@@ -57,8 +57,9 @@ import {
 } from "@fluentui/react-icons"
 import { useState, type DragEvent, type ReactNode } from "react"
 import { ajouterJours, formaterDate, formaterHeure, formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
-import type { EtatChambre, Reservation } from "@partage/types"
+import type { Reservation } from "@partage/types"
 import type { PlaceWidget, TailleWidget } from "../../../partage/ipc"
+import { alertesDe } from "../alertes"
 import ActionsReservation, { BoutonReception } from "../composants/ActionsReservation"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
@@ -75,7 +76,19 @@ import { usePrix } from "../montants"
 type Onglet = "arrivees" | "departs" | "surPlace"
 
 // Widgets du tableau de bord : nom, explication (menu « Ajouter un widget »), largeur par défaut sur 4 colonnes
-type IdWidget = "aTraiter" | "arrivees" | "departs" | "occupation" | "demandes" | "mouvements" | "semaine" | "chambres" | "prochainesNuits" | "encaissements" | "raccourcis"
+type IdWidget =
+  | "aTraiter"
+  | "arrivees"
+  | "departs"
+  | "occupation"
+  | "demandes"
+  | "mouvements"
+  | "aEncaisser"
+  | "semaine"
+  | "chambres"
+  | "prochainesNuits"
+  | "encaissements"
+  | "raccourcis"
 
 const WIDGETS: Record<IdWidget, { titre: string; description: string; Icone: FluentIcon; gerants?: boolean }> = {
   aTraiter: { titre: "À traiter", description: "Nombre de demandes en attente de réponse", Icone: MailInboxRegular },
@@ -84,6 +97,7 @@ const WIDGETS: Record<IdWidget, { titre: string; description: string; Icone: Flu
   occupation: { titre: "Taux d'occupation", description: "Hébergements occupés ce soir", Icone: BedRegular },
   demandes: { titre: "Demandes à traiter", description: "Les options du site, à confirmer ou refuser", Icone: MailInboxCheckmarkRegular },
   mouvements: { titre: "Mouvements du jour", description: "Arrivées, départs et clients sur place", Icone: DoorArrowRightRegular },
+  aEncaisser: { titre: "Départs à encaisser", description: "Départs du jour et séjours terminés avec un reste à payer", Icone: MoneyRegular },
   semaine: { titre: "Cette semaine", description: "Arrivées des 7 prochains jours", Icone: CalendarLtrRegular },
   chambres: { titre: "État des chambres", description: "Ménage et maintenance de chaque hébergement", Icone: BedRegular },
   prochainesNuits: { titre: "Occupation à 7 jours", description: "Hébergements occupés les 7 prochaines nuits", Icone: CalendarLtrRegular },
@@ -100,6 +114,7 @@ const DISPOSITION_ORIGINE: PlaceWidget[] = [
   { id: "occupation", taille: 1 },
   { id: "demandes", taille: 2 },
   { id: "mouvements", taille: 2 },
+  { id: "aEncaisser", taille: 2 },
   { id: "semaine", taille: 2 },
   { id: "chambres", taille: 2 },
   { id: "prochainesNuits", taille: 2 },
@@ -107,8 +122,6 @@ const DISPOSITION_ORIGINE: PlaceWidget[] = [
 ]
 
 const TAILLES: Record<TailleWidget, string> = { 1: "Petit (1 colonne)", 2: "Moyen (2 colonnes)", 3: "Large (3 colonnes)", 4: "Pleine largeur" }
-
-const COULEURS_ETAT: Record<EtatChambre, BadgeProps["color"]> = { propre: "success", a_nettoyer: "warning", maintenance: "danger" }
 
 // Tableau du jour en widgets : chiffres clés, demandes à traiter, mouvements du jour (avec l'arrivée et le
 // départ à enregistrer), semaine, chambres… « Personnaliser » permet de les déplacer (glisser-déposer ou
@@ -128,7 +141,7 @@ export default function Aujourdhui() {
   const [survol, setSurvol] = useState<string | null>(null)
   const classesTaille: Record<TailleWidget, string> = { 1: styles.taille1, 2: styles.taille2, 3: styles.taille3, 4: styles.taille4 }
 
-  const aTraiter = d.reservations.filter((r) => r.statut === "option").sort((a, b) => (a.expireLe ?? "").localeCompare(b.expireLe ?? ""))
+  const { demandes: aTraiter, aEncaisser } = alertesDe(d)
   const doubles = doublesReservations(d)
   const confirmees = d.reservations.filter((r) => r.statut === "confirmee")
   const surPlace = confirmees.filter((r) => r.arrivee <= d.aujourdhui && r.depart > d.aujourdhui && !arrivees.includes(r))
@@ -256,10 +269,55 @@ export default function Aujourdhui() {
             <Sejours reservations={listes[onglet]} vide={vides[onglet]} donnees={donnees} reception />
           </Carte>
         )
+      case "aEncaisser":
+        return (
+          <Carte
+            className={styles.remplir}
+            titre="Départs à encaisser"
+            description="Encaissez le reste avant que le client parte"
+            action={<Badge appearance={aEncaisser.length ? "filled" : "outline"} color={aEncaisser.length ? "warning" : "informative"}>{aEncaisser.length}</Badge>}
+          >
+            {aEncaisser.length === 0 ? (
+              <Body1 className={styles.aucun}>
+                <CheckmarkRegular /> Tous les départs sont soldés.
+              </Body1>
+            ) : (
+              <ul className={mergeClasses(styles.liste, styles.listeSerree, styles.listeCourte)}>
+                {aEncaisser.map((r) => (
+                  <li key={r.id} className={styles.sejour}>
+                    <Avatar name={nomDe(donnees.clientDe(r))} color="colorful" size={32} />
+                    <div className={styles.infos}>
+                      <Text weight="semibold" truncate wrap={false}>
+                        {nomDe(donnees.clientDe(r))}
+                      </Text>
+                      <Caption1 className={styles.secondaire} truncate wrap={false}>
+                        {r.departLe ? `Parti le ${formaterHeure(r.departLe)}` : r.depart === d.aujourdhui ? "Départ aujourd'hui" : `Départ prévu le ${formaterDate(r.depart, { year: undefined })}`}
+                        , {donnees.hebergementDe(r)?.nom}
+                      </Caption1>
+                    </div>
+                    <Text className={mergeClasses(styles.prix, styles.reste)}>{formaterPrix(soldeDe(r, d.paiements))}</Text>
+                    {!r.departLe && r.arriveeLe ? (
+                      <BoutonReception reservation={r} aujourdhui={d.aujourdhui} taille="small" />
+                    ) : (
+                      <FicheReservation
+                        reservation={r}
+                        declencheur={
+                          <Button size="small" icon={<MoneyRegular />}>
+                            Encaisser
+                          </Button>
+                        }
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Carte>
+        )
       case "semaine":
         return (
           <Carte className={styles.remplir} titre="Cette semaine" description="Arrivées des 7 prochains jours" action={<Badge appearance="outline">{semaine.length}</Badge>}>
-            <Sejours reservations={semaine} vide="Aucune arrivée prévue cette semaine." donnees={donnees} avecDate />
+            <Sejours reservations={semaine} vide="Aucune arrivée prévue cette semaine." donnees={donnees} avecDate defile />
           </Carte>
         )
       case "chambres":
@@ -274,23 +332,24 @@ export default function Aujourdhui() {
               </Button>
             }
           >
-            <ul className={mergeClasses(styles.liste, styles.listeSerree)}>
+            {/* Tuiles serrées (numéro + pastille d'état) : tout l'hôtel tient en quelques rangées, la note en info-bulle */}
+            <ul className={styles.tuiles}>
               {chambresTriees(d)
                 .filter((c) => c.active)
                 .map((c) => (
-                  <li key={c.id} className={styles.sejour}>
-                    <BedRegular className={styles.iconeLigne} />
-                    <div className={styles.infos}>
-                      <Text weight="semibold" truncate wrap={false}>
-                        {c.numero}
-                      </Text>
-                      <Caption1 className={styles.secondaire} truncate wrap={false}>
-                        {c.noteEtat || d.hebergements.find((h) => h.id === c.hebergementId)?.nom}
-                      </Caption1>
-                    </div>
-                    <Badge appearance="tint" shape="rounded" color={COULEURS_ETAT[c.etat]}>
-                      {ETATS_CHAMBRE[c.etat]}
-                    </Badge>
+                  <li key={c.id}>
+                    <Tooltip
+                      relationship="description"
+                      content={`${ETATS_CHAMBRE[c.etat]} · ${d.hebergements.find((h) => h.id === c.hebergementId)?.nom ?? ""}${c.noteEtat ? ` · ${c.noteEtat}` : ""}`}
+                    >
+                      <div className={mergeClasses(styles.tuile, styles[`tuile_${c.etat}`])}>
+                        <span className={mergeClasses(styles.point, styles[`point_${c.etat}`])} />
+                        <Text size={200} weight="semibold" truncate wrap={false}>
+                          {c.numero}
+                        </Text>
+                        {c.noteEtat && <NoteRegular className={styles.iconeNote} />}
+                      </div>
+                    </Tooltip>
                   </li>
                 ))}
             </ul>
@@ -631,7 +690,22 @@ function Demande({ reservation: r, donnees }: { reservation: Reservation; donnee
 }
 
 // Liste courte de séjours : une ligne par client ; à la réception, bouton d'arrivée ou de départ
-function Sejours({ reservations, vide, donnees, avecDate = false, reception = false }: { reservations: Reservation[]; vide: string; donnees: Donnees; avecDate?: boolean; reception?: boolean }) {
+// `defile` : liste limitée à six séjours environ, la suite défile (widget « Cette semaine », souvent long)
+function Sejours({
+  reservations,
+  vide,
+  donnees,
+  avecDate = false,
+  reception = false,
+  defile = false,
+}: {
+  reservations: Reservation[]
+  vide: string
+  donnees: Donnees
+  avecDate?: boolean
+  reception?: boolean
+  defile?: boolean
+}) {
   const formaterPrix = usePrix()
   const styles = useAujourdhuiStyles()
   if (reservations.length === 0) {
@@ -642,7 +716,7 @@ function Sejours({ reservations, vide, donnees, avecDate = false, reception = fa
     )
   }
   return (
-    <ul className={mergeClasses(styles.liste, styles.listeSerree)}>
+    <ul className={mergeClasses(styles.liste, styles.listeSerree, defile && styles.listeCourte)}>
       {reservations.map((r) => {
         const client = donnees.clientDe(r)
         const solde = soldeDe(r, donnees.d.paiements)
@@ -650,9 +724,17 @@ function Sejours({ reservations, vide, donnees, avecDate = false, reception = fa
           <li key={r.id} className={styles.sejour}>
             <Avatar name={nomDe(client)} color="colorful" size={32} />
             <div className={styles.infos}>
-              <Text weight="semibold" truncate wrap={false}>
-                {nomDe(client)}
-              </Text>
+              <div className={styles.nom}>
+                <Text weight="semibold" truncate wrap={false}>
+                  {nomDe(client)}
+                </Text>
+                {/* Départ du jour (ou passé) avec un reste à payer : à encaisser avant que le client parte */}
+                {solde > 0 && r.depart <= donnees.d.aujourdhui && (
+                  <Badge appearance="filled" color="warning" shape="rounded" size="small">
+                    Non soldé
+                  </Badge>
+                )}
+              </div>
               <Caption1 className={styles.secondaire} truncate wrap={false}>
                 {avecDate ? `${formaterDate(r.arrivee, { year: undefined })}, ` : ""}
                 {donnees.hebergementDe(r)?.nom}, {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}

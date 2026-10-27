@@ -4,6 +4,9 @@ export const useActionsStyles = makeStyles({
   pile: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalS },
   boutons: { display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: tokens.spacingHorizontalS, rowGap: tokens.spacingVerticalS },
   fin: { justifyContent: "flex-end" },
+  // Fenêtre d'arrivée / de départ : assez large pour le bloc des encaissements (trois cases et la saisie)
+  fenetre: { maxWidth: "640px", width: "100%" },
+  discret: { color: tokens.colorNeutralForeground3 },
   // Action destructive : pas de variante « danger » dans Fluent, couleurs d'état de la palette
   danger: {
     backgroundColor: tokens.colorStatusDangerBackground3,
@@ -48,6 +51,7 @@ export const useFicheStyles = makeStyles({
   section: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalS },
   client: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalMNudge },
   contacts: { display: "flex", flexDirection: "column", alignItems: "flex-start", rowGap: tokens.spacingVerticalXS },
+  accueil: { display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: tokens.spacingHorizontalS, rowGap: tokens.spacingVerticalXS },
   historique: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },
   evenement: {
     display: "flex",

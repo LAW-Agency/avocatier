@@ -77,7 +77,8 @@ export default function TableReservations({ reservations, vide, avecClient = tru
               const hebergement = nomChambre(d, r.chambreId)
               const termine = estTermine(r, d.aujourdhui)
               const restant = r.statut === "option" && r.expireLe ? tempsRestant(r.expireLe) : null
-              const solde = r.statut === "confirmee" ? soldeDe(r, d.paiements) : 0
+              // Reste dû d'un séjour confirmé ; trop-perçu (négatif) quel que soit le statut
+              const solde = r.statut !== "option" ? soldeDe(r, d.paiements) : 0
               return (
                 <TableRow key={r.id}>
                   <TableCell className={cadre.premiere}>
@@ -110,6 +111,7 @@ export default function TableReservations({ reservations, vide, avecClient = tru
                       <BadgeStatut reservation={r} termine={termine} />
                       {restant && <Caption1 className={styles.expire}>Expire dans {restant}</Caption1>}
                       {solde > 0 && <Caption1 className={styles.reste}>Reste {formaterPrix(solde)}</Caption1>}
+                      {solde < 0 && <Caption1 className={styles.reste}>Trop-perçu {formaterPrix(-solde)}</Caption1>}
                     </div>
                   </TableCell>
                   <TableCell className={cadre.derniere}>

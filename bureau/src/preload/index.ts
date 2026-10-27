@@ -25,6 +25,7 @@ const pont: PontAvocatier = {
   etatConnexion: () => ipcRenderer.invoke("connexion:etat"),
   etatMiseAJour: () => ipcRenderer.invoke("mise-a-jour:etat"),
   rechercherMiseAJour: () => ipcRenderer.send("mise-a-jour:rechercher"),
+  mettreAJour: () => ipcRenderer.send("mise-a-jour:mettre-a-jour"),
   installerMiseAJour: () => ipcRenderer.send("mise-a-jour:installer"),
   signalerPrete: () => ipcRenderer.send("fenetre:prete"),
   reduire: () => ipcRenderer.send("fenetre:reduire"),

@@ -60,6 +60,36 @@ export const useAujourdhuiStyles = makeStyles({
   listeSerree: { rowGap: 0 },
   // Demandes à traiter : deux ou trois visibles, la suite défile, pour ne pas étirer toute la rangée du tableau
   listeDefile: { maxHeight: "min(560px, 60vh)", overflowY: "auto", paddingRight: tokens.spacingHorizontalXS },
+  // Cette semaine : six séjours environ visibles, la suite défile
+  listeCourte: { maxHeight: "330px", overflowY: "auto", paddingRight: tokens.spacingHorizontalXS },
+  // État des chambres : tuiles serrées, liseré gauche et point à la couleur de l'état
+  tuiles: {
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(104px, 1fr))",
+    gap: tokens.spacingHorizontalS,
+  },
+  tuile: {
+    display: "flex",
+    alignItems: "center",
+    columnGap: tokens.spacingHorizontalSNudge,
+    minWidth: 0,
+    padding: `${tokens.spacingVerticalSNudge} ${tokens.spacingHorizontalS}`,
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground3,
+    borderLeft: `${tokens.strokeWidthThicker} solid transparent`,
+    cursor: "default",
+  },
+  tuile_propre: { borderLeftColor: tokens.colorPaletteGreenBorderActive },
+  tuile_a_nettoyer: { borderLeftColor: tokens.colorPaletteMarigoldBorderActive, backgroundColor: tokens.colorPaletteMarigoldBackground1 },
+  tuile_maintenance: { borderLeftColor: tokens.colorPaletteRedBorderActive, backgroundColor: tokens.colorPaletteRedBackground1 },
+  point: { width: "8px", height: "8px", borderRadius: tokens.borderRadiusCircular, flexShrink: 0 },
+  point_propre: { backgroundColor: tokens.colorPaletteGreenBackground3 },
+  point_a_nettoyer: { backgroundColor: tokens.colorPaletteMarigoldBackground3 },
+  point_maintenance: { backgroundColor: tokens.colorPaletteRedBackground3 },
+  iconeNote: { marginLeft: "auto", flexShrink: 0, color: tokens.colorNeutralForeground3 },
   demande: {
     display: "flex",
     flexDirection: "column",
@@ -73,6 +103,7 @@ export const useAujourdhuiStyles = makeStyles({
   nom: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalS, flexWrap: "wrap" },
   secondaire: { color: tokens.colorNeutralForeground3 },
   prix: { fontWeight: tokens.fontWeightSemibold, fontVariantNumeric: "tabular-nums" },
+  reste: { color: tokens.colorPaletteDarkOrangeForeground1, whiteSpace: "nowrap" },
   extrait: {
     display: "flex",
     flexDirection: "column",

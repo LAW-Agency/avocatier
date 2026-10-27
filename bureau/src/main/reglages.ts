@@ -7,6 +7,7 @@ import {
   LIBELLES_PLANNING,
   NIVEAUX_ZOOM,
   TRIS_PLANNING,
+  VUES_CHAMBRES,
   VUES_PLANNING,
   type AffichagePlanning,
   type PlaceWidget,
@@ -28,6 +29,7 @@ const PAR_DEFAUT: Reglages = {
   vuePlanning: 21,
   triPlanning: "site",
   affichagePlanning: { densite: "confortable", libelle: "client", disponibilites: true, weekEnds: true, grille: false, replies: [] },
+  vueChambres: "cartes",
   devise: "MGA",
 }
 
@@ -88,6 +90,7 @@ export function modifierReglages(modification: Partial<Reglages>): Reglages {
     if (cle === "zoom" && !(NIVEAUX_ZOOM as readonly number[]).includes(valeur as number)) continue
     if (cle === "vuePlanning" && !(VUES_PLANNING as readonly number[]).includes(valeur as number)) continue
     if (cle === "triPlanning" && !(TRIS_PLANNING as readonly string[]).includes(valeur as string)) continue
+    if (cle === "vueChambres" && !(VUES_CHAMBRES as readonly string[]).includes(valeur as string)) continue
     if (cle === "devise" && !(DEVISES_LOGICIEL as readonly string[]).includes(valeur as string)) continue
     if (cle === "affichagePlanning") {
       suivants.affichagePlanning = lireAffichage(valeur)

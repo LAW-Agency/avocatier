@@ -14,7 +14,7 @@ import {
   saisonsDatees,
   STATUTS_ACTIFS,
 } from "../controles"
-import { aujourdhuiISO } from "../dates"
+import { aujourdhuiISO, formaterPrix } from "../dates"
 import type { GestionHotel, ResultatClient } from "../gestion"
 import type { EvenementExporte } from "../ical"
 import { calculerDevis } from "../regles"
@@ -367,32 +367,47 @@ export const gestionPostgres: GestionHotel = {
     }
   },
 
-  async enregistrerMouvement(reservationId, mouvement, annuler = false) {
-    const [r] = await lignes<{ statut: string; arrivee: string; arriveeLe: Date | null; departLe: Date | null }>(
-      db(),
-      `select statut, arrivee, arrivee_le as "arriveeLe", depart_le as "departLe" from reservations where id = $1`,
-      [reservationId],
-    )
-    if (!r) return { ok: false, erreur: "Réservation introuvable." }
-    if (r.statut !== "confirmee") return { ok: false, erreur: "Seul un séjour confirmé peut être enregistré à la réception." }
+  async enregistrerMouvement(reservationId, mouvement, { annuler = false, auteur, note = "" }) {
+    return transaction<{ ok: true; soldeDu: number } | { ok: false; erreur: string }>(async (tx) => {
+      const [r] = await lignes<{ statut: string; arrivee: string; arriveeLe: Date | null; departLe: Date | null; chambreId: string; solde: number }>(
+        tx,
+        `select statut, arrivee, arrivee_le as "arriveeLe", depart_le as "departLe", chambre_id as "chambreId",
+           montant_total - coalesce((select sum(montant) from paiements p where p.reservation_id = r.id), 0)::int as solde
+         from reservations r where id = $1 for update`,
+        [reservationId],
+      )
+      if (!r) return { ok: false, erreur: "Réservation introuvable." }
+      if (r.statut !== "confirmee") return { ok: false, erreur: "Seul un séjour confirmé peut être enregistré à la réception." }
+      const mot = note.trim().slice(0, 500)
+      let texte: string
 
-    if (mouvement === "arrivee") {
-      if (!annuler && r.arrivee > aujourdhuiISO()) return { ok: false, erreur: "Ce séjour ne commence pas encore aujourd'hui." }
-      if (annuler && r.departLe) return { ok: false, erreur: "Annulez d'abord le départ." }
-      await db().query("update reservations set arrivee_le = $2 where id = $1", [reservationId, annuler ? null : new Date()])
-    } else {
-      if (!annuler && !r.arriveeLe) return { ok: false, erreur: "Enregistrez d'abord l'arrivée du client." }
-      await transaction(async (tx) => {
-        const [{ chambreId }] = await lignes<{ chambreId: string }>(
-          tx,
-          `update reservations set depart_le = $2 where id = $1 returning chambre_id as "chambreId"`,
-          [reservationId, annuler ? null : new Date()],
-        )
+      if (mouvement === "arrivee") {
+        if (!annuler && r.arriveeLe) return { ok: false, erreur: "L'arrivée de ce client est déjà enregistrée." }
+        if (!annuler && r.arrivee > aujourdhuiISO()) return { ok: false, erreur: "Ce séjour ne commence pas encore aujourd'hui." }
+        if (annuler && !r.arriveeLe) return { ok: false, erreur: "Aucune arrivée enregistrée à annuler." }
+        if (annuler && r.departLe) return { ok: false, erreur: "Annulez d'abord le départ." }
+        await tx.query("update reservations set arrivee_le = $2 where id = $1", [reservationId, annuler ? null : new Date()])
+        texte = annuler ? `Arrivée annulée par ${auteur}` : `Arrivée enregistrée par ${auteur}${r.solde > 0 ? `, reste ${formaterPrix(r.solde)} à payer` : ""}`
+      } else {
+        if (!annuler && r.departLe) return { ok: false, erreur: "Le départ de ce client est déjà enregistré." }
+        if (!annuler && !r.arriveeLe) return { ok: false, erreur: "Enregistrez d'abord l'arrivée du client." }
+        if (annuler && !r.departLe) return { ok: false, erreur: "Aucun départ enregistré à annuler." }
+        if (!annuler && r.solde > 0 && !mot) {
+          return { ok: false, erreur: `Il reste ${formaterPrix(r.solde)} à payer : encaissez-le, ou indiquez pourquoi le client part sans avoir soldé.` }
+        }
+        await tx.query("update reservations set depart_le = $2 where id = $1", [reservationId, annuler ? null : new Date()])
         // Client parti : la chambre passe au ménage
-        if (!annuler) await tx.query("update chambres set etat = 'a_nettoyer' where id = $1 and etat = 'propre'", [chambreId])
-      })
-    }
-    return { ok: true }
+        if (!annuler) await tx.query("update chambres set etat = 'a_nettoyer' where id = $1 and etat = 'propre'", [r.chambreId])
+        texte = annuler
+          ? `Départ annulé par ${auteur}`
+          : r.solde > 0
+            ? `Départ enregistré par ${auteur} sans avoir soldé (reste ${formaterPrix(r.solde)})`
+            : `Départ enregistré par ${auteur}, séjour soldé`
+      }
+      if (mot) texte += ` : « ${mot} »`
+      await tx.query("update reservations set historique = historique || $2::jsonb where id = $1", [reservationId, evenement("confirmee", texte)])
+      return { ok: true, soldeDu: Math.max(0, r.solde) }
+    })
   },
 
   async creerChambre({ hebergementId, numero }) {

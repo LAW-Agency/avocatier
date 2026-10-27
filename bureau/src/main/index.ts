@@ -8,7 +8,7 @@ import { appeler, estEnLigne, quandConnexionChange, quandJetonRefuse } from "./a
 import { lireEtatFenetre, suivreEtatFenetre } from "./fenetre"
 import { estClasseur } from "./classeur"
 import { enregistrerPdf, enregistrerXlsx } from "./fichiers"
-import { demarrerMisesAJour, etatMiseAJour, installerMiseAJour, rechercherMiseAJour } from "./misesAJour"
+import { demarrerMisesAJour, etatMiseAJour, installerMiseAJour, mettreAJour, rechercherMiseAJour } from "./misesAJour"
 import { lireReglages, modifierReglages } from "./reglages"
 import { fermer, memoriser, ouvrir, SERVEUR_PAR_DEFAUT, sessionActive } from "./session"
 import { arreterSuivi, demarrerSuivi } from "./suivi"
@@ -282,6 +282,7 @@ ipcMain.handle("logiciel:infos", () => ({ version: app.getVersion(), installe: a
 ipcMain.handle("mise-a-jour:etat", () => etatMiseAJour())
 ipcMain.on("mise-a-jour:rechercher", () => rechercherMiseAJour(true))
 // Quitter pour de bon : sinon la fermeture rangerait la fenêtre dans la zone de notification
+ipcMain.on("mise-a-jour:mettre-a-jour", () => mettreAJour(() => (quitter = true)))
 ipcMain.on("mise-a-jour:installer", () => installerMiseAJour(() => (quitter = true)))
 
 ipcMain.on("fenetre:reduire", () => fenetre?.minimize())

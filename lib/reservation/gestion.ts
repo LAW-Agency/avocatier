@@ -55,8 +55,14 @@ export interface GestionHotel {
   creerReservationDirecte(reservation: ReservationDirecte, auteur: string): Promise<ResultatDemande>
   // Demande ou séjour confirmé modifié (dates, hébergement, chambre, voyageurs, navette, montant), noté dans l'historique
   modifierReservation(id: string, modification: ModificationReservation, auteur: string): Promise<ResultatModification>
-  // Arrivée / départ du client (réservation confirmée) ; `annuler` efface l'enregistrement (erreur de saisie)
-  enregistrerMouvement(reservationId: string, mouvement: "arrivee" | "depart", annuler?: boolean): Promise<ResultatAction>
+  // Arrivée / départ du client (réservation confirmée), noté dans l'historique avec son auteur ; `annuler` efface
+  // l'enregistrement (erreur de saisie). Départ avec un reste à payer : refusé sans `note` (pourquoi le client part
+  // sans avoir soldé). `soldeDu` : reste à payer au moment du mouvement (euros)
+  enregistrerMouvement(
+    reservationId: string,
+    mouvement: "arrivee" | "depart",
+    options: { annuler?: boolean; auteur: string; note?: string },
+  ): Promise<{ ok: true; soldeDu: number } | { ok: false; erreur: string }>
 
   // Chambres numérotées (liste : moteur.listerChambres). Désactiver est refusé tant qu'un séjour à venir y est
   // attribué ; supprimer, dès qu'une réservation y a été faite (désactiver plutôt). Ses dates bloquées et ses

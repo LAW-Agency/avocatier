@@ -6,6 +6,7 @@ import {
   ZoomInRegular,
   ZoomOutRegular,
   ArrowExitRegular,
+  ArrowDownloadRegular,
   ArrowSyncRegular,
   BrightnessHighRegular,
   CurrencyDollarEuroRegular,
@@ -132,6 +133,8 @@ function explicationMiseAJour(etat: EtatMiseAJour | null): string {
       return etat.verifieLe ? `Le logiciel est à jour (vérifié le ${HEURE.format(new Date(etat.verifieLe))}).` : "Recherche automatique au lancement puis toutes les 4 heures."
     case "recherche":
       return "Recherche d'une nouvelle version…"
+    case "disponible":
+      return `Version ${etat.version} disponible : le logiciel la télécharge puis redémarre pour l'installer.`
     case "telechargement":
       return `Téléchargement de la version ${etat.version} : ${etat.pourcent} %`
     case "prete":
@@ -141,7 +144,8 @@ function explicationMiseAJour(etat: EtatMiseAJour | null): string {
   }
 }
 
-// Mises à jour automatiques (src/main/misesAJour.ts) : état suivi en direct, recherche et installation à la demande
+// Mises à jour (src/main/misesAJour.ts) : état suivi en direct, recherche et installation à la demande (la
+// progression s'affiche dans FenetreMiseAJour)
 function MiseAJour() {
   const [etat, setEtat] = useState<EtatMiseAJour | null>(null)
   useEffect(() => {
@@ -151,7 +155,11 @@ function MiseAJour() {
   const occupe = etat?.etat === "recherche" || etat?.etat === "telechargement"
   return (
     <Ligne Icone={ArrowSyncRegular} titre="Mises à jour" explication={explicationMiseAJour(etat)}>
-      {etat?.etat === "prete" ? (
+      {etat?.etat === "disponible" ? (
+        <Button appearance="primary" icon={<ArrowDownloadRegular />} onClick={() => window.avocatier.mettreAJour()}>
+          Mettre à jour
+        </Button>
+      ) : etat?.etat === "prete" ? (
         <Button appearance="primary" icon={<ArrowSyncRegular />} onClick={() => window.avocatier.installerMiseAJour()}>
           Redémarrer et installer
         </Button>

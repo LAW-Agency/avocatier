@@ -168,9 +168,17 @@ export const usePlanningStyles = makeStyles({
   // Séjour qui continue hors de la période affichée : bord coupé net de ce côté
   coupeGauche: { borderTopLeftRadius: 0, borderBottomLeftRadius: 0, marginLeft: 0 },
   coupeDroite: { borderTopRightRadius: 0, borderBottomRightRadius: 0, marginRight: 0 },
-  confirmee: { backgroundColor: tokens.colorBrandBackground2, color: tokens.colorBrandForeground2, cursor: "pointer", ":hover": { backgroundColor: tokens.colorBrandBackground2Hover } },
+  // Séjour confirmé à venir : vert pâle cerné d'un filet de la marque (le fond seul se perdait sur la grille,
+  // en clair comme en sombre ; le jeton de contour suit le thème)
+  confirmee: {
+    backgroundColor: tokens.colorBrandBackground2,
+    color: tokens.colorBrandForeground2,
+    boxShadow: `inset 0 0 0 ${tokens.strokeWidthThin} ${tokens.colorBrandStroke1}`,
+    cursor: "pointer",
+    ":hover": { backgroundColor: tokens.colorBrandBackground2Hover },
+  },
   // Client arrivé (enregistré à la réception) : vert plein
-  surPlace: { backgroundColor: tokens.colorBrandBackground, color: tokens.colorNeutralForegroundOnBrand, ":hover": { backgroundColor: tokens.colorBrandBackgroundHover } },
+  surPlace: { backgroundColor: tokens.colorBrandBackground, color: tokens.colorNeutralForegroundOnBrand, boxShadow: "none", ":hover": { backgroundColor: tokens.colorBrandBackgroundHover } },
   option: {
     backgroundColor: tokens.colorPaletteMarigoldBackground1,
     color: tokens.colorPaletteMarigoldForeground2,

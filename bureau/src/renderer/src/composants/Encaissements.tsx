@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react"
 import { formaterHeure } from "@partage/dates"
 import type { ModePaiement, Paiement, Reservation } from "@partage/types"
 import { numeroRecu } from "../documents"
-import { soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
+import { encaisseDe, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useEncaissementsStyles } from "./useReservationStyles.styles"
@@ -20,7 +20,10 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
   const { imprimerRecu } = useFichiers()
   const paiements = paiementsDe(r)
   const solde = soldeDe(r, d.paiements)
-  const [montant, setMontant] = useState(solde > 0 ? String(solde) : "")
+  const encaisse = encaisseDe(r, d.paiements)
+  const actif = r.statut === "confirmee" || r.statut === "option"
+  // Montant proposé : le reste à payer, ou le trop-perçu à rendre (négatif)
+  const [montant, setMontant] = useState(solde !== 0 ? String(solde) : "")
   const [mode, setMode] = useState<ModePaiement>("especes")
   const [note, setNote] = useState("")
   const [enCours, setEnCours] = useState(false)
@@ -38,7 +41,7 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
     setEnCours(false)
     if (!resultat.ok) return setErreur(resultat.erreur)
     const reste = solde - valeur
-    setMontant(reste > 0 ? String(reste) : "")
+    setMontant(reste !== 0 ? String(reste) : "")
     setNote("")
   }
 
@@ -59,18 +62,27 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
     <div className={styles.root}>
       <div className={styles.totaux}>
         <div className={styles.total}>
-          <Caption1 className={styles.libelle}>Montant du séjour</Caption1>
-          <span className={styles.chiffre}>{formaterPrix(r.montantTotal)}</span>
+          <Caption1 className={styles.libelle}>{actif ? "Montant du séjour" : "Montant dû (séjour annulé)"}</Caption1>
+          <span className={styles.chiffre}>{formaterPrix(actif ? r.montantTotal : 0)}</span>
         </div>
         <div className={styles.total}>
           <Caption1 className={styles.libelle}>Encaissé</Caption1>
-          <span className={styles.chiffre}>{formaterPrix(r.montantTotal - solde)}</span>
+          <span className={styles.chiffre}>{formaterPrix(encaisse)}</span>
         </div>
         <div className={styles.total}>
           <Caption1 className={styles.libelle}>{solde > 0 ? (r.statut === "option" ? "À payer si confirmée" : "Reste à payer") : solde < 0 ? "Trop-perçu" : "Soldé"}</Caption1>
           <span className={mergeClasses(styles.chiffre, solde > 0 ? styles.reste : styles.solde)}>{formaterPrix(Math.abs(solde))}</span>
         </div>
       </div>
+
+      {solde < 0 && (
+        <MessageBar intent="warning">
+          <MessageBarBody>
+            {actif ? "Le client a payé plus que le montant du séjour" : "Ce séjour n'a pas lieu mais des encaissements restent"} : rendez-lui{" "}
+            {formaterPrix(-solde)} et enregistrez le remboursement (montant négatif, déjà proposé ci-dessous).
+          </MessageBarBody>
+        </MessageBar>
+      )}
 
       {paiements.length > 0 && (
         <ul className={styles.liste}>
@@ -135,7 +147,7 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
           </Dropdown>
           <Input className={styles.champ} value={note} onChange={(_e, data) => setNote(data.value)} placeholder="Note (acompte, reçu n°…)" aria-label="Note" />
           <Button type="submit" appearance="primary" disabled={enCours || lectureSeule || !montant.trim()} icon={enCours ? <Spinner size="tiny" /> : <MoneyRegular />}>
-            Encaisser
+            {montant.trim().startsWith("-") ? "Rembourser" : "Encaisser"}
           </Button>
         </form>
       )}

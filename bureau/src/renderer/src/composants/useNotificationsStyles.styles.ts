@@ -1,0 +1,65 @@
+import { createFocusOutlineStyle, makeStyles, tokens } from "@fluentui/react-components"
+
+export const useNotificationsStyles = makeStyles({
+  // Pastille du nombre posée sur le coin de la cloche
+  cloche: { position: "relative", display: "inline-flex" },
+  pastille: { position: "absolute", top: "-2px", right: "-4px", pointerEvents: "none" },
+  // Panneau étroit à droite du contenu, sur la même couche que lui (coins arrondis, filet, marges sur le Mica)
+  panneau: {
+    width: "340px",
+    height: "auto",
+    alignSelf: "stretch",
+    flexShrink: 0,
+    boxSizing: "border-box",
+    marginRight: tokens.spacingHorizontalS,
+    marginBottom: tokens.spacingVerticalS,
+    borderRadius: tokens.borderRadiusXLarge,
+    backgroundColor: tokens.colorNeutralBackground2,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+    overflow: "hidden",
+  },
+  outils: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalXXS },
+  // Écran Notifications : rubriques en cartes, deux par rangée quand la place le permet
+  grille: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: tokens.spacingHorizontalL, alignItems: "start" },
+  corps: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXL, paddingBottom: tokens.spacingVerticalXL },
+  section: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXS },
+  enteteSection: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", columnGap: tokens.spacingHorizontalS },
+  nombre: { color: tokens.colorNeutralForeground3, fontWeight: tokens.fontWeightRegular },
+  liste: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column" },
+  // Ligne entière cliquable (ouvre la fiche), à la manière d'un élément de liste Fluent
+  ligne: {
+    display: "flex",
+    alignItems: "center",
+    columnGap: tokens.spacingHorizontalM,
+    width: "100%",
+    boxSizing: "border-box",
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalS}`,
+    border: "none",
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: "transparent",
+    color: tokens.colorNeutralForeground1,
+    fontFamily: "inherit",
+    textAlign: "start",
+    cursor: "pointer",
+    ":hover": { backgroundColor: tokens.colorSubtleBackgroundHover },
+    ":hover:active": { backgroundColor: tokens.colorSubtleBackgroundPressed },
+    ...createFocusOutlineStyle(),
+  },
+  icone: {
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "32px",
+    height: "32px",
+    borderRadius: tokens.borderRadiusCircular,
+    fontSize: "16px",
+  },
+  texte: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" },
+  detail: { color: tokens.colorNeutralForeground3 },
+  montant: { flexShrink: 0, fontWeight: tokens.fontWeightSemibold, fontVariantNumeric: "tabular-nums", backgroundColor: "transparent" },
+  // Tons : fond pâle et icône de la couleur d'état (le montant reprend la couleur, sans le fond)
+  danger: { color: tokens.colorPaletteDarkOrangeForeground1, backgroundColor: tokens.colorPaletteDarkOrangeBackground1 },
+  attention: { color: tokens.colorStatusWarningForeground1, backgroundColor: tokens.colorStatusWarningBackground1 },
+  info: { color: tokens.colorBrandForeground1, backgroundColor: tokens.colorBrandBackground2 },
+})
