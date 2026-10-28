@@ -402,7 +402,6 @@ async function demonstration() {
       arrive?: boolean // client du jour déjà arrivé
       parti?: boolean // départ du jour déjà enregistré
       sansPaiement?: boolean
-      resteDu?: boolean // séjour terminé avec un solde encore dû
       message?: string
       voyageurs?: { adultes: number; enfants: number }
     }
@@ -462,7 +461,7 @@ async function demonstration() {
         // Arrivée et départ enregistrés par la réception
         if (arrivee < aujourdhui || (arrivee === aujourdhui && o.arrive)) sejour.arriveeLe = auPlusTard(instant(arrivee, heure(13, 18)))
         if (depart < aujourdhui || (depart === aujourdhui && o.parti)) sejour.departLe = auPlusTard(instant(depart, heure(8, 10)))
-        if (!o.sansPaiement) encaisser(sejour, passe, enCours, o.resteDu)
+        if (!o.sansPaiement) encaisser(sejour, passe, enCours)
       }
       marquerSejour(sejour)
       return sejour
@@ -479,16 +478,19 @@ async function demonstration() {
       Madagascar: ["especes", "especes", "mobile_money", "mobile_money"],
       autre: ["especes", "carte", "carte", "especes"],
     }
-    function encaisser(s: Sejour, passe: boolean, enCours: boolean, resteDu?: boolean) {
+    // Un séjour dont le départ est enregistré est toujours soldé
+    function encaisser(s: Sejour, passe: boolean, enCours: boolean) {
       const malgache = s.client.pays === "Madagascar"
       const confirmeLe = s.historique.find((e) => e.statut === "confirmee")?.le ?? s.creeLe
       const ajouter = (montant: number, mode: string, note: string, le: string) => {
-        if (le > maintenant || montant <= 0) return
+        if (le > maintenant || montant <= 0) return 0
         paiements.push({ reservation: s, montant, mode, note, le, par: unMembre().id })
+        return montant
       }
       if (s.source === "airbnb") {
-        // Versé par la plateforme au lendemain de l'arrivée
-        if (s.arriveeLe) ajouter(s.montant, "virement", "Versement Airbnb", instant(ajouterJours(s.arrivee, 1), "09:00"))
+        // Versé par la plateforme au lendemain de l'arrivée (au plus tard au départ, pour une seule nuit)
+        const verse = instant(ajouterJours(s.arrivee, 1), "09:00")
+        if (s.arriveeLe) ajouter(s.montant, "virement", "Versement Airbnb", s.departLe && s.departLe < verse ? s.departLe : verse)
         return
       }
       if (s.source === "booking") {
@@ -503,15 +505,15 @@ async function demonstration() {
       // Site, WhatsApp, téléphone : acompte de 30 % puis solde au départ
       const acompte = Math.round((s.montant * 0.3) / 5) * 5
       const avecAcompte = passe || enCours ? chance(0.75) : chance(0.65)
-      if (avecAcompte) ajouter(acompte, malgache ? "mobile_money" : "virement", "Acompte 30 %", decaler(confirmeLe, entre(3, 48)))
-      if (s.departLe && !resteDu) {
-        ajouter(avecAcompte ? s.montant - acompte : s.montant, parmi(MODES_SOLDE[malgache ? "Madagascar" : "autre"]), "Solde du séjour", s.departLe)
-      }
+      const verse = avecAcompte ? ajouter(acompte, malgache ? "mobile_money" : "virement", "Acompte 30 %", decaler(confirmeLe, entre(3, 48))) : 0
+      if (s.departLe) ajouter(s.montant - verse, parmi(MODES_SOLDE[malgache ? "Madagascar" : "autre"]), "Solde du séjour", s.departLe)
     }
 
     // Une chambre libre d'une catégorie pour ces dates
     const chambreLibre = (hebergementId: string, arrivee: DateISO, depart: DateISO) =>
       chambres.filter((c) => c.hebergementId === hebergementId && libre(c, arrivee, depart))[0]
+    // Nombre de nuits porté au séjour minimum de la saison de l'arrivée
+    const nuitsPermises = (arrivee: DateISO, nuits: number) => Math.max(nuits, saisonDeLaNuit(arrivee, saisons)?.sejourMin ?? 1)
 
     // Compte client de démonstration du site : un séjour passé, un à venir et une demande en attente
     const { rows: demoLignes } = await db.query<{ id: string }>(
@@ -537,8 +539,9 @@ async function demonstration() {
         { h: "h1", arrivee: jour(74), nuits: 4, statut: "option" as const, message: "Pouvez-vous nous réserver une sortie en pirogue ?", creeLe: decaler(maintenant, -5) },
       ]
       for (const p of places) {
-        const c = chambreLibre(p.h, p.arrivee, ajouterJours(p.arrivee, p.nuits))
-        if (c) creerSejour(c, p.arrivee, ajouterJours(p.arrivee, p.nuits), { client: demo, statut: p.statut, source: "site", message: p.message, creeLe: p.creeLe, voyageurs: { adultes: 2, enfants: 0 } })
+        const depart = ajouterJours(p.arrivee, nuitsPermises(p.arrivee, p.nuits))
+        const c = chambreLibre(p.h, p.arrivee, depart)
+        if (c) creerSejour(c, p.arrivee, depart, { client: demo, statut: p.statut, source: "site", message: p.message, creeLe: p.creeLe, voyageurs: { adultes: 2, enfants: 0 } })
       }
     }
 
@@ -552,8 +555,11 @@ async function demonstration() {
       { h: "h1", arrivee: -5, nuits: 5 },
     ]
     for (const p of PLACES_DU_JOUR) {
-      const arrivee = jour(p.arrivee)
-      const depart = jour(p.arrivee + p.nuits)
+      // Un départ du jour reste aujourd'hui : l'arrivée recule si la saison impose plus de nuits
+      const nuits = nuitsPermises(jour(p.arrivee), p.nuits)
+      const debut = p.arrivee + p.nuits === 0 ? -nuits : p.arrivee
+      const arrivee = jour(debut)
+      const depart = jour(debut + nuits)
       const c = chambreLibre(p.h, arrivee, depart)
       if (c) creerSejour(c, arrivee, depart, { arrive: p.arrive, parti: p.parti, source: p.source })
     }
@@ -561,7 +567,7 @@ async function demonstration() {
     // Groupe : deux bungalows Océan demandés ensemble sur le site
     {
       const arrivee = jour(18)
-      const depart = jour(22)
+      const depart = ajouterJours(arrivee, nuitsPermises(arrivee, 4))
       const libres = chambres.filter((c) => c.hebergementId === "h1" && libre(c, arrivee, depart)).slice(0, 2)
       if (libres.length === 2) {
         const groupe = randomUUID()
@@ -574,7 +580,7 @@ async function demonstration() {
     // Demandes du site encore en attente (réponse sous 48 h)
     for (const [h, decalage, nuits, ilYa] of [["h2", 9, 3, 3], ["h5", 26, 4, 20], ["h3", 40, 6, 31]] as const) {
       const arrivee = jour(decalage)
-      const depart = jour(decalage + nuits)
+      const depart = ajouterJours(arrivee, nuitsPermises(arrivee, nuits))
       const c = chambreLibre(h, arrivee, depart)
       if (c) creerSejour(c, arrivee, depart, { statut: "option", source: "site", creeLe: decaler(maintenant, -ilYa) })
     }
@@ -588,7 +594,6 @@ async function demonstration() {
       const base = fetes(d) ? 0.85 : decalage < 0 ? 0.55 : decalage < 15 ? 0.45 : decalage < 45 ? 0.32 : 0.18
       return Math.min(0.95, base * ATTRAIT[h])
     }
-    let resteDuPlace = 0
     for (const c of chambres) {
       let decalage = DEBUT + entre(0, 3)
       while (decalage < FIN) {
@@ -605,11 +610,7 @@ async function demonstration() {
           decalage += 1
           continue
         }
-        const termine = depart < aujourdhui
-        // Deux séjours terminés laissés avec un solde à encaisser (écran Revenus)
-        const resteDu = termine && resteDuPlace < 2 && decalage > -20 && chance(0.15)
-        if (resteDu) resteDuPlace++
-        creerSejour(c, arrivee, depart, { resteDu })
+        creerSejour(c, arrivee, depart)
         decalage += nuits + (chance(0.5) ? 0 : entre(1, 2))
       }
     }
@@ -630,7 +631,7 @@ async function demonstration() {
       const c = parmi(chambres)
       const decalage = entre(-50, 70)
       const arrivee = jour(decalage)
-      const depart = jour(decalage + entre(2, 5))
+      const depart = ajouterJours(arrivee, nuitsPermises(arrivee, entre(2, 5)))
       const client = choisirClient(arrivee, depart, "site")
       const creeLe = auPlusTard(instant(ajouterJours(arrivee, -entre(10, 40)), heure(8, 22)), 72)
       const historique: EvenementReservation[] = [{ statut: "option", le: creeLe }]
