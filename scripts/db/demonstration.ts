@@ -354,8 +354,8 @@ async function demonstration() {
       blocages.push({ chambre: c, debut, fin, raison })
     }
     bloquer("Ocre 2", jour(-1), jour(3), "Climatisation : réparation")
-    bloquer("Famille 3", jour(30), jour(35), "Peinture de la terrasse")
-    bloquer("Jardin 4", `${annee}-12-22`, `${annee}-12-28`, "Famille des propriétaires")
+    bloquer("Famille 2", jour(30), jour(35), "Peinture de la terrasse")
+    bloquer("Jardin 2", `${annee}-12-22`, `${annee}-12-28`, "Famille des propriétaires")
 
     // -----------------------------------------------------------------------------------------------------------
     // Séjours
