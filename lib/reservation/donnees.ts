@@ -106,11 +106,11 @@ export const reglesSaisonsInitiales: RegleSaison[] = [
 // Chambres numérotées de chaque catégorie, créées par db:amorcer pour une catégorie qui n'en a encore aucune
 // (ensuite gérées par les hôtes, logiciel, écran Chambres). TODO client : nombre réel de chambres et numéros
 export const chambresInitiales: Record<string, string[]> = {
-  h1: ["Océan 1", "Océan 2", "Océan 3", "Océan 4", "Océan 5"],
-  h2: ["Jardin 1", "Jardin 2", "Jardin 3", "Jardin 4"],
-  h3: ["Famille 1", "Famille 2", "Famille 3"],
-  h4: ["Verte 1", "Verte 2", "Verte 3", "Verte 4", "Verte 5", "Verte 6"],
-  h5: ["Ocre 1", "Ocre 2"],
+  h1: ["Océan 1", "Océan 2"],
+  h2: ["Jardin 1", "Jardin 2"],
+  h3: ["Famille 1"],
+  h4: ["Verte 1"],
+  h5: ["Ocre 1"],
 }
 
 // Comptes de démonstration (chargés par db:amorcer) : mots de passe connus, à supprimer avant l’ouverture au public
