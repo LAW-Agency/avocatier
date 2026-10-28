@@ -353,8 +353,8 @@ async function demonstration() {
       marquer(c, debut, fin)
       blocages.push({ chambre: c, debut, fin, raison })
     }
-    bloquer("Ocre 2", jour(-1), jour(3), "Climatisation : réparation")
-    bloquer("Famille 2", jour(30), jour(35), "Peinture de la terrasse")
+    bloquer("Ocre 1", jour(-1), jour(3), "Climatisation : réparation")
+    bloquer("Famille 1", jour(30), jour(35), "Peinture de la terrasse")
     bloquer("Jardin 2", `${annee}-12-22`, `${annee}-12-28`, "Famille des propriétaires")
 
     // -----------------------------------------------------------------------------------------------------------
@@ -722,7 +722,7 @@ async function demonstration() {
     await db.query("update chambres set etat = 'a_nettoyer' where id = any($1)", [
       sejours.filter((x) => x.depart === aujourdhui && x.departLe).map((x) => x.chambre.id),
     ])
-    const enPanne = chambreNumero("Ocre 2")
+    const enPanne = chambreNumero("Ocre 1")
     if (enPanne) await db.query("update chambres set etat = 'maintenance', note_etat = 'Climatisation en panne, technicien attendu jeudi' where id = $1", [enPanne.id])
 
     // Journal des sept derniers jours : connexions du matin et actions de l'équipe

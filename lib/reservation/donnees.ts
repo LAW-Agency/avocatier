@@ -108,9 +108,9 @@ export const reglesSaisonsInitiales: RegleSaison[] = [
 export const chambresInitiales: Record<string, string[]> = {
   h1: ["Océan 1", "Océan 2"],
   h2: ["Jardin 1", "Jardin 2"],
-  h3: ["Famille 1", "Famille 2"],
-  h4: ["Verte 1", "Verte 2"],
-  h5: ["Ocre 1", "Ocre 2"],
+  h3: ["Famille 1"],
+  h4: ["Verte 1"],
+  h5: ["Ocre 1"],
 }
 
 // Comptes de démonstration (chargés par db:amorcer) : mots de passe connus, à supprimer avant l’ouverture au public
