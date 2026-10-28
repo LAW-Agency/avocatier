@@ -49,6 +49,7 @@ import { Fragment, useState, type CSSProperties, type FormEvent } from "react"
 import { ajouterJours, chevauche, formaterDate, formaterPlage, nombreNuits, pluriel, versDate } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
 import type { Blocage, Chambre, DateISO, Reservation } from "@partage/types"
+import { moisVoisin, nomDuMois } from "../composants/calendrierMois"
 import Calendriers from "../composants/Calendriers"
 import ChampDate from "../composants/ChampDate"
 import { Carte, EnTete, Vide } from "../composants/commun"
@@ -66,12 +67,15 @@ import {
   type TriPlanning,
   type VuePlanning,
 } from "../../../partage/ipc"
+import PlanningMois from "./PlanningMois"
 import { usePlanningStyles } from "./usePlanningStyles.styles"
 
-const VUES: Record<VuePlanning, { libelle: string; pas: string }> = {
-  7: { libelle: "1 sem.", pas: "Semaine" },
-  14: { libelle: "2 sem.", pas: "2 semaines" },
-  21: { libelle: "3 sem.", pas: "3 semaines" },
+const VUES: Record<VuePlanning, { libelle: string; precedent: string; suivant: string }> = {
+  1: { libelle: "Jour", precedent: "Jour précédent", suivant: "Jour suivant" },
+  7: { libelle: "1 sem.", precedent: "Semaine précédente", suivant: "Semaine suivante" },
+  14: { libelle: "2 sem.", precedent: "2 semaines précédentes", suivant: "2 semaines suivantes" },
+  21: { libelle: "3 sem.", precedent: "3 semaines précédentes", suivant: "3 semaines suivantes" },
+  mois: { libelle: "Mois", precedent: "Mois précédent", suivant: "Mois suivant" },
 }
 
 const TRIS: Record<TriPlanning, string> = {
@@ -90,15 +94,18 @@ const estWeekEnd = (jour: DateISO) => [0, 6].includes(versDate(jour).getUTCDay()
 const estActive = (r: Reservation) => r.statut === "option" || r.statut === "confirmee"
 
 // Planning : une ligne par chambre, regroupées par catégorie (repliables : la catégorie se résume alors à son
-// occupation nuit par nuit), une colonne par nuit ; réservations et blocages en barres. Options d'affichage
-// (menu « Affichage ») gardées sur ce poste.
+// occupation nuit par nuit), une colonne par nuit ; réservations et blocages en barres. Vue « Mois » : le mois en
+// calendrier (PlanningMois). Options d'affichage (menu « Affichage ») gardées sur ce poste.
 export default function Planning() {
   const lectureSeule = useLectureSeule()
   const styles = usePlanningStyles()
   const { d, clientDe, ouvrirNouvelleReservation } = useDonneesChargees()
   const { reglages, modifier } = useReglages()
   const affichage = reglages.affichagePlanning
-  const nbJours = reglages.vuePlanning
+  // Vue « Mois » : calendrier du mois de `debut` ; sinon frise de `nbJours` nuits
+  const vue = reglages.vuePlanning
+  const enMois = vue === "mois"
+  const nbJours = vue === "mois" ? 21 : vue
   const [debut, setDebut] = useState(d.aujourdhui)
   // Colonne d'un jour mise en évidence sur toute la hauteur : au survol de son en-tête, ou gardée par un clic dessus
   const [survole, setSurvole] = useState<DateISO | null>(null)
@@ -219,23 +226,30 @@ export default function Planning() {
 
       <div className={styles.cadre}>
         {/* Barre du calendrier : période affichée et navigation à gauche, date et durée à droite */}
-        <div className={styles.barreOutils}>
+        <div className={styles.barreOutils} data-visite="planning-outils">
           <div className={styles.periode} role="group" aria-label="Période affichée">
-            <Tooltip content={`${VUES[nbJours].pas} précédente${nbJours > 7 ? "s" : ""}`} relationship="label">
-              <Button appearance="subtle" icon={<ChevronLeftRegular />} onClick={() => setDebut(ajouterJours(debut, -nbJours))} />
+            <Tooltip content={VUES[vue].precedent} relationship="label">
+              <Button appearance="subtle" icon={<ChevronLeftRegular />} onClick={() => setDebut(enMois ? moisVoisin(debut, -1) : ajouterJours(debut, -nbJours))} />
             </Tooltip>
-            <Tooltip content={`${VUES[nbJours].pas} suivante${nbJours > 7 ? "s" : ""}`} relationship="label">
-              <Button appearance="subtle" icon={<ChevronRightRegular />} onClick={() => setDebut(ajouterJours(debut, nbJours))} />
+            <Tooltip content={VUES[vue].suivant} relationship="label">
+              <Button appearance="subtle" icon={<ChevronRightRegular />} onClick={() => setDebut(enMois ? moisVoisin(debut, 1) : ajouterJours(debut, nbJours))} />
             </Tooltip>
-            <Button appearance="outline" size="small" onClick={() => setDebut(d.aujourdhui)} disabled={debut === d.aujourdhui}>
+            <Button appearance="outline" size="small" onClick={() => setDebut(d.aujourdhui)} disabled={enMois ? debut.slice(0, 7) === d.aujourdhui.slice(0, 7) : debut === d.aujourdhui}>
               Aujourd&apos;hui
             </Button>
-            <span className={styles.plage}>{formaterPlage(debut, ajouterJours(debut, nbJours - 1))}</span>
+            <span className={mergeClasses(styles.plage, enMois && styles.plageMois)}>
+              {enMois ? nomDuMois(debut) : nbJours === 1 ? formaterDate(debut, { weekday: "long" }) : formaterPlage(debut, ajouterJours(debut, nbJours - 1))}
+            </span>
           </div>
           <div className={styles.periode}>
-            {/* Aller directement à une date : elle devient la première colonne */}
+            {/* Aller directement à une date : elle devient la première colonne (vue « Mois » : son mois) */}
             <ChampDate className={styles.allerA} valeur={debut} onChange={(v) => v && setDebut(v)} />
-            <TabList size="small" selectedValue={String(nbJours)} onTabSelect={(_e, data) => void modifier({ vuePlanning: Number(data.value) as VuePlanning })} aria-label="Durée affichée">
+            <TabList
+              size="small"
+              selectedValue={String(vue)}
+              onTabSelect={(_e, data) => void modifier({ vuePlanning: (data.value === "mois" ? "mois" : Number(data.value)) as VuePlanning })}
+              aria-label="Durée affichée"
+            >
               {VUES_PLANNING.map((v) => (
                 <Tab key={v} value={String(v)}>
                   {VUES[v].libelle}
@@ -244,7 +258,19 @@ export default function Planning() {
             </TabList>
           </div>
         </div>
-        <div className={styles.defilement}>
+        <div className={styles.defilement} data-visite="planning-grille">
+          {enMois ? (
+            <PlanningMois
+              mois={debut}
+              libresLe={(j) => libres(enVente, j)}
+              total={enVente.length}
+              weekEnds={affichage.weekEnds}
+              onVoirSemaine={(j) => {
+                setDebut(j)
+                void modifier({ vuePlanning: 7 })
+              }}
+            />
+          ) : (
           <div className={styles.grille}>
             {/* Jours : initiale, numéro (aujourd'hui entouré), mois au 1er et sur la première colonne */}
             <div className={mergeClasses(styles.rangee, styles.enteteRangee)} style={colonnes}>
@@ -271,7 +297,9 @@ export default function Planning() {
                   <span className={mergeClasses(styles.initiale, i > 0 && j.endsWith("-01") && styles.nouveauMois)}>
                     {i > 0 && j.endsWith("-01")
                       ? formaterDate(j, { weekday: undefined, day: undefined, month: "short", year: undefined })
-                      : formaterDate(j, { weekday: "short", day: undefined, month: undefined, year: undefined }).slice(0, nbJours === 21 ? 1 : 3)}
+                      : nbJours === 1
+                        ? formaterDate(j, { weekday: "long", day: undefined, month: undefined, year: undefined })
+                        : formaterDate(j, { weekday: "short", day: undefined, month: undefined, year: undefined }).slice(0, nbJours === 21 ? 1 : 3)}
                   </span>
                   <span className={mergeClasses(styles.numero, j === d.aujourdhui && styles.numeroAujourdhui)}>{Number(j.slice(8))}</span>
                 </div>
@@ -389,6 +417,7 @@ export default function Planning() {
               )
             })}
           </div>
+          )}
         </div>
         <div className={styles.legende}>
           <Caption1>
@@ -408,12 +437,14 @@ export default function Planning() {
               <span className={mergeClasses(styles.pastille, styles.conflit)} /> Double réservation
             </Caption1>
           )}
-          <Caption1 className={styles.astuce}>Cliquez une nuit libre pour réserver, un nom de catégorie pour la replier.</Caption1>
+          <Caption1 className={styles.astuce}>
+            {enMois ? "Cliquez un numéro pour voir sa semaine, une arrivée pour sa fiche, « + » pour réserver." : "Cliquez une nuit libre pour réserver, un nom de catégorie pour la replier."}
+          </Caption1>
         </div>
       </div>
 
       <div className={styles.bas}>
-        <Carte titre="Bloquer des dates" description="Travaux, fermeture, privatisation : ces nuits ne seront plus proposées sur le site. Pour Booking.com ou Airbnb, reliez plutôt leur calendrier ci-dessous.">
+        <Carte data-visite="planning-blocage" titre="Bloquer des dates" description="Travaux, fermeture, privatisation : ces nuits ne seront plus proposées sur le site. Pour Booking.com ou Airbnb, reliez plutôt leur calendrier ci-dessous.">
           <FormulaireBlocage />
         </Carte>
         <BlocagesAVenir />
@@ -443,7 +474,9 @@ function MenuAffichage({ parCategorie, categories }: { parCategorie: boolean; ca
       }}
     >
       <MenuTrigger disableButtonEnhancement>
-        <Button icon={<OptionsRegular />}>Affichage</Button>
+        <Button icon={<OptionsRegular />} data-visite="planning-affichage">
+          Affichage
+        </Button>
       </MenuTrigger>
       <MenuPopover>
         <MenuList>

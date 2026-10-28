@@ -14,7 +14,7 @@ import type {
   Reservation,
   StatutReservation,
 } from "@partage/types"
-import type { Methode, ResultatApi, RoleEquipe } from "../../partage/ipc"
+import type { FiltreChambres, Methode, ResultatApi, RoleEquipe } from "../../partage/ipc"
 
 // Données du logiciel, chargées en une fois depuis GET /api/hotes/donnees (voir app/api/hotes/donnees),
 // rechargées après chaque action de l'équipe et à chaque nouveauté du suivi en direct
@@ -56,7 +56,7 @@ export type Vue =
   | { page: "aujourdhui" }
   | { page: "reservations"; filtre?: StatutReservation | null }
   | { page: "planning" }
-  | { page: "chambres" }
+  | { page: "chambres"; filtre?: FiltreChambres }
   | { page: "clients" }
   | { page: "client"; id: string }
   | { page: "revenus" }
@@ -92,11 +92,16 @@ type ContexteDonnees = {
   nouvelleReservation: Preremplissage | null
   ouvrirNouvelleReservation: (preremplissage?: Preremplissage) => void
   fermerNouvelleReservation: () => void
+  // Visite guidée sur une base presque vide : données d'exemple affichées à la place des vraies, rien
+  // n'est enregistré tant qu'elles sont là (visite/demonstration.ts)
+  demonstration: boolean
+  setDemonstration: (donnees: Donnees | null) => void
 }
 
 const Contexte = createContext<ContexteDonnees | null>(null)
 
 export const MESSAGE_LECTURE_SEULE = "Hors connexion : le logiciel est en lecture seule. Réessayez une fois la connexion rétablie."
+const MESSAGE_DEMONSTRATION = "Visite guidée : les données affichées sont des exemples, rien n'est enregistré."
 
 export function FournisseurDonnees({ children }: { children: ReactNode }) {
   const [donnees, setDonnees] = useState<Donnees | null>(null)
@@ -106,11 +111,14 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
   const [nouvelleReservation, setNouvelleReservation] = useState<Preremplissage | null>(null)
   const [changementEcran, demarrerChangement] = useTransition()
   const [enLigne, setEnLigne] = useState(true)
-  // Lu au moment de l'action, sans recréer `executer` à chaque changement de connexion
+  const [exemple, setExemple] = useState<Donnees | null>(null)
+  // Lus au moment de l'action, sans recréer `executer` à chaque changement de connexion
   const enLigneActuel = useRef(enLigne)
+  const exempleActuel = useRef(exemple)
   useEffect(() => {
     enLigneActuel.current = enLigne
-  }, [enLigne])
+    exempleActuel.current = exemple
+  }, [enLigne, exemple])
 
   const recharger = useCallback(async () => {
     const resultat = await window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
@@ -122,6 +130,7 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
 
   const executer = useCallback(
     async <T,>(methode: Methode, chemin: string, corps?: unknown): Promise<ResultatApi<T>> => {
+      if (exempleActuel.current) return { ok: false, erreur: MESSAGE_DEMONSTRATION }
       if (!enLigneActuel.current) return { ok: false, erreur: MESSAGE_LECTURE_SEULE }
       const resultat = await window.avocatier.api<T>(methode, chemin, corps)
       if (resultat.ok) await recharger()
@@ -141,7 +150,7 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
 
   // Hors connexion, aucune saisie : la fenêtre ne s'ouvre pas
   const ouvrirNouvelleReservation = useCallback((p: Preremplissage = {}) => {
-    if (enLigneActuel.current) setNouvelleReservation(p)
+    if (enLigneActuel.current && !exempleActuel.current) setNouvelleReservation(p)
   }, [])
   const fermerNouvelleReservation = useCallback(() => setNouvelleReservation(null), [])
 
@@ -152,7 +161,7 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
 
   const valeur = useMemo(
     () => ({
-      donnees,
+      donnees: exemple ?? donnees,
       erreur,
       recharger,
       executer,
@@ -166,8 +175,10 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
       nouvelleReservation,
       ouvrirNouvelleReservation,
       fermerNouvelleReservation,
+      demonstration: exemple !== null,
+      setDemonstration: setExemple,
     }),
-    [donnees, erreur, recharger, executer, vue, naviguer, changementEcran, enLigne, recherche, nouvelleReservation, ouvrirNouvelleReservation, fermerNouvelleReservation],
+    [donnees, exemple, erreur, recharger, executer, vue, naviguer, changementEcran, enLigne, recherche, nouvelleReservation, ouvrirNouvelleReservation, fermerNouvelleReservation],
   )
   return <Contexte value={valeur}>{children}</Contexte>
 }
@@ -195,7 +206,8 @@ export function useDonneesChargees() {
 
 // Hors connexion : boutons qui enregistrent quelque chose désactivés (l'écriture serait refusée de toute façon)
 export function useLectureSeule(): boolean {
-  return !useDonnees().enLigne
+  const { enLigne, demonstration } = useDonnees()
+  return !enLigne || demonstration
 }
 
 export const nomDe = (client?: Pick<ClientPublic, "prenom" | "nom">) => (client ? `${client.prenom} ${client.nom}`.trim() : "Client inconnu")
@@ -228,6 +240,22 @@ export function chambresPrises(
       .map((r) => r.chambreId),
     ...d.blocages.filter((b) => chevauche(arrivee, depart, b.debut, b.fin) && blocageGene(b, source, d.calendriers)).map((b) => b.chambreId),
   ])
+}
+
+// Chambre pas prête pour ce soir : à nettoyer ou en maintenance. Pour une arrivée du jour, elle n'est pas libre tant
+// que son état n'est pas repassé à « Propre » (le serveur refuse aussi, voir chambresLibres de moteurPostgres.ts), sauf
+// pour la réservation modifiée qui l'occupe déjà (`garder`) ; les nuits suivantes, l'état du ménage ne compte pas
+export const pretePour = (c: Chambre, arrivee: DateISO, aujourdhui: DateISO, garder?: string) => arrivee !== aujourdhui || c.etat === "propre" || c.id === garder
+
+// Chambre attribuée à « Première chambre libre » : la première libre et prête (même ordre que le serveur)
+export function premiereChambre(
+  d: Pick<Donnees, "hebergements" | "chambres" | "aujourdhui">,
+  hebergementId: string,
+  prises: Set<string>,
+  arrivee: DateISO,
+  garder?: string,
+): Chambre | undefined {
+  return chambresTriees(d).find((c) => c.hebergementId === hebergementId && c.active && !prises.has(c.id) && pretePour(c, arrivee, d.aujourdhui, garder))
 }
 
 // Fiches proposées dans les listes et les recherches : pas celles des clients effacés (elles ne restent que pour

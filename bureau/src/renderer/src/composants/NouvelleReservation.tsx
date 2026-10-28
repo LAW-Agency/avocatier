@@ -28,8 +28,9 @@ import { useState, type FormEvent } from "react"
 import { ajouterJours, nombreNuits, pluriel } from "@partage/dates"
 import { calculerDevis, deplierSaisons } from "@partage/regles"
 import type { ReservationDirecte } from "@partage/types"
-import { chambresPrises, clientsVisibles, nomDe, useDonneesChargees, useLectureSeule, type Preremplissage } from "../donnees"
+import { chambresPrises, clientsVisibles, nomDe, pretePour, useDonneesChargees, useLectureSeule, type Preremplissage } from "../donnees"
 import { NOMS_SOURCES } from "../libelles"
+import CalendrierDisponibilites from "./CalendrierDisponibilites"
 import ChampDate from "./ChampDate"
 import ChoixChambre, { CHAMBRE_AUTO } from "./ChoixChambre"
 import { ChampsClient, useCreationClient } from "./NouveauClient"
@@ -87,7 +88,7 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
   // Chambres déjà prises (réservation active ou dates bloquées) aux dates choisies ; une réservation
   // Booking.com saisie à la main n'est pas gênée par les dates déjà importées de Booking.com
   const prises = chambresPrises(d, arrivee, depart, { source })
-  const libresDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active && !prises.has(c.id)).length
+  const libresDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active && !prises.has(c.id) && pretePour(c, arrivee, d.aujourdhui)).length
   const totalDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active).length
   const clientsTrouves = clientsVisibles(d.clients)
     .filter((c) => normaliser(`${nomDe(c)} ${c.email} ${c.telephone}`).includes(normaliser(recherche.trim())))
@@ -196,6 +197,20 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
               <Field label="Départ" required>
                 <ChampDate className={styles.champ} valeur={depart} onChange={setDepart} min={arrivee ? ajouterJours(arrivee, 1) : d.aujourdhui} />
               </Field>
+              {/* Mêmes dates, choisies sur le mois avec les chambres libres de chaque nuit */}
+              <div className={styles.pleine}>
+                <CalendrierDisponibilites
+                  hebergementId={hebergementId}
+                  arrivee={arrivee}
+                  depart={depart}
+                  min={ajouterJours(d.aujourdhui, -1)}
+                  source={source}
+                  onChange={(a, dep) => {
+                    setArrivee(a)
+                    setDepart(dep)
+                  }}
+                />
+              </div>
               <Field label="Hébergement" required className={styles.pleine}>
                 <Dropdown
                   className={styles.champ}
@@ -223,7 +238,7 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
                 </Dropdown>
               </Field>
               <Field label="Chambre" className={styles.pleine}>
-                <ChoixChambre className={styles.champ} hebergementId={hebergementId} valeur={chambreId} onChange={setChambreId} prises={prises} />
+                <ChoixChambre className={styles.champ} hebergementId={hebergementId} valeur={chambreId} onChange={setChambreId} prises={prises} arrivee={arrivee} />
               </Field>
               <Field label="Adultes" required>
                 <SpinButton value={adultes} min={1} max={10} onChange={(_e, data) => setAdultes(data.value ?? (Number(data.displayValue) || 1))} />

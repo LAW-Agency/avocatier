@@ -23,7 +23,7 @@ import { libelleEvenement } from "@partage/statuts"
 import type { Reservation } from "@partage/types"
 import { estTermine, nomChambre, nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFichiers } from "../fichiers"
-import { SOURCES } from "../libelles"
+import { SOURCES, provenance } from "../libelles"
 import ActionsReservation, { AnnulerMouvement, BoutonReception } from "./ActionsReservation"
 import { BadgeStatut } from "./commun"
 import Encaissements from "./Encaissements"
@@ -141,6 +141,7 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
                 <Fait titre="Montant">
                   <Text weight="semibold">{formaterPrix(r.montantTotal)}</Text>
                 </Fait>
+                <Fait titre="Provenance">{provenance(r.source)}</Fait>
               </dl>
               {r.navette && (
                 <span className={styles.navette}>

@@ -199,6 +199,10 @@ function creerZoneDeNotification() {
 // notification de Windows en plus si les hôtes l'ont gardée (un clic ouvre la liste concernée)
 function annoncer(annonces: Annonce[]) {
   fenetre?.webContents.send("activite", annonces)
+  notifierWindows(annonces)
+}
+
+function notifierWindows(annonces: Annonce[]) {
   if (fenetre?.isFocused() || !Notification.isSupported() || !lireReglages().notifications) return
   if (annonces.length > 0) fenetre?.flashFrame(true)
   for (const a of annonces) {
@@ -291,6 +295,14 @@ ipcMain.on("fenetre:fermer", () => fenetre?.close())
 ipcMain.on("fenetre:plein-ecran", basculerPleinEcran)
 ipcMain.on("fenetre:zoom", (_e, sens: unknown) => {
   if (sens === "plus" || sens === "moins" || sens === "initial") zoomer(sens)
+})
+
+// Rappel préparé par l'interface : seulement le titre, le détail et un écran connu (l'interface est isolée mais on ne
+// s'y fie pas)
+ipcMain.on("hotes:rappel", (_e, annonce: Partial<Annonce>) => {
+  if (typeof annonce?.id !== "string" || typeof annonce.titre !== "string" || typeof annonce.detail !== "string") return
+  const vers: Annonce["vers"] = annonce.vers?.page === "chambres" ? { page: "chambres", filtre: "a_nettoyer" } : { page: "reservations", filtre: "confirmee" }
+  notifierWindows([{ id: annonce.id.slice(0, 80), titre: annonce.titre.slice(0, 120), detail: annonce.detail.slice(0, 300), vers }])
 })
 
 ipcMain.on("hotes:a-traiter", (_e, nombre: number) => {

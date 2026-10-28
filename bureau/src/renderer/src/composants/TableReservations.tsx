@@ -15,7 +15,7 @@ import {
   mergeClasses,
   tokens,
 } from "@fluentui/react-components"
-import { CalendarCancelRegular } from "@fluentui/react-icons"
+import { CalendarCancelRegular, EditRegular, GlobeRegular } from "@fluentui/react-icons"
 import { useState, type ReactNode } from "react"
 import { formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
 import type { Reservation } from "@partage/types"
@@ -23,6 +23,7 @@ import { estTermine, nomChambre, nomDe, soldeDe, useDonneesChargees } from "../d
 import { AfficherPlus, BadgeStatut, PAR_PAQUET, Vide } from "./commun"
 import FicheReservation from "./FicheReservation"
 import { useApparitionStyles, useCadreTableStyles } from "./useCommunStyles.styles"
+import { provenance } from "../libelles"
 import { usePrix } from "../montants"
 
 const useStyles = makeStyles({
@@ -33,7 +34,19 @@ const useStyles = makeStyles({
   // Fenêtre étroite (navigation ouverte sur un petit portable) : la colonne Hébergement passe sous les dates
   colHebergement: { "@media (max-width: 1240px)": { display: "none" } },
   hebergementSous: { "@media (min-width: 1241px)": { display: "none" } },
+  provenance: { display: "inline-flex", alignItems: "center", columnGap: tokens.spacingHorizontalXXS, color: tokens.colorNeutralForeground3 },
 })
+
+// Site internet ou saisie manuelle (et par quel canal)
+function Provenance({ reservation: r }: { reservation: Reservation }) {
+  const styles = useStyles()
+  const Icone = r.source === "site" ? GlobeRegular : EditRegular
+  return (
+    <span className={styles.provenance}>
+      <Icone aria-hidden /> {provenance(r.source)}
+    </span>
+  )
+}
 
 interface TableReservationsProps {
   reservations: Reservation[]
@@ -55,7 +68,7 @@ export default function TableReservations({ reservations, vide, avecClient = tru
   // Nouvel onglet ou nouvelle recherche (clé donnée par l'écran) : la liste apparaît en fondu
   return (
     <div className={apparition.root}>
-      <div className={cadre.root}>
+      <div className={cadre.root} data-visite="reservations-liste">
         <Table className={styles.table} aria-label="Réservations">
           <TableHeader className={cadre.entete}>
             <TableRow>
@@ -87,6 +100,10 @@ export default function TableReservations({ reservations, vide, avecClient = tru
                         <>
                           <span className={styles.hebergementSous}>{hebergement}, </span>
                           {pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}, {pluriel(r.adultes + r.enfants, "voyageur")}
+                          <span className={styles.hebergementSous}>
+                            <br />
+                            <Provenance reservation={r} />
+                          </span>
                         </>
                       }
                     >
@@ -101,7 +118,9 @@ export default function TableReservations({ reservations, vide, avecClient = tru
                     </TableCell>
                   )}
                   <TableCell className={styles.colHebergement}>
-                    <TableCellLayout truncate>{hebergement}</TableCellLayout>
+                    <TableCellLayout truncate description={<Provenance reservation={r} />}>
+                      {hebergement}
+                    </TableCellLayout>
                   </TableCell>
                   <TableCell>
                     <span className={mergeClasses(cadre.droite, cadre.nombre)}>{formaterPrix(r.montantTotal)}</span>

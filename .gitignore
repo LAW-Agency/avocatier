@@ -58,3 +58,7 @@ next-env.d.ts
 /bureau/out
 /bureau/dist
 /bureau/.env
+
+# Visite guidée : enregistrements bruts ElevenLabs et textes à coller (bureau/scripts/decouper-voix.mjs)
+/bureau/voix-brutes/
+/bureau/voix-a-coller.txt

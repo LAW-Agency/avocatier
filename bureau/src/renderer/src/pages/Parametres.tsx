@@ -1,6 +1,7 @@
 import { Body1, Button, Caption1, Dropdown, Field, Input, MessageBar, MessageBarBody, Option, Spinner, Subtitle2, Switch, Textarea, Tooltip, mergeClasses } from "@fluentui/react-components"
 import {
   AlertRegular,
+  BroomRegular,
   SaveRegular,
   FullScreenMaximizeRegular,
   ZoomInRegular,
@@ -44,10 +45,10 @@ function Ligne({ Icone, titre, explication, children }: { Icone: FluentIcon; tit
   )
 }
 
-function Groupe({ titre, children }: { titre: string; children: ReactNode }) {
+function Groupe({ titre, visite, children }: { titre: string; visite?: string; children: ReactNode }) {
   const styles = useParametresStyles()
   return (
-    <section className={styles.groupe}>
+    <section className={styles.groupe} data-visite={visite}>
       <Subtitle2 as="h2" className={styles.titreGroupe}>
         {titre}
       </Subtitle2>
@@ -192,7 +193,7 @@ export default function Parametres({ onDeconnexion }: { onDeconnexion: () => voi
     <div className={styles.page}>
       <EnTete titre="Paramètres" description="Réglages de ce poste et de votre compte." />
 
-      <Groupe titre="Apparence">
+      <Groupe titre="Apparence" visite="parametres-apparence">
         <Ligne Icone={BrightnessHighRegular} titre="Thème" explication="Aussi accessible par le bouton soleil / lune de la barre de titre.">
           <Dropdown className={styles.choix} value={THEMES[reglages.theme]} selectedOptions={[reglages.theme]} onOptionSelect={(_e, data) => modifier({ theme: data.optionValue as Theme })}>
             {(Object.keys(THEMES) as Theme[]).map((t) => (
@@ -241,6 +242,9 @@ export default function Parametres({ onDeconnexion }: { onDeconnexion: () => voi
       <Groupe titre="Notifications et fenêtre">
         <Ligne Icone={AlertRegular} titre="Notifications de Windows" explication="Nouvelle demande, annulation par un client, option expirée, quand le logiciel est en arrière-plan.">
           <Switch checked={reglages.notifications} onChange={(_e, data) => modifier({ notifications: data.checked })} aria-label="Notifications de Windows" />
+        </Ligne>
+        <Ligne Icone={BroomRegular} titre="Petits rappels" explication="Chambres à nettoyer (en premier avant une arrivée) et navettes à prévoir, rappelées toutes les 2 h tant qu'elles restent.">
+          <Switch checked={reglages.rappels} onChange={(_e, data) => modifier({ rappels: data.checked })} aria-label="Petits rappels" />
         </Ligne>
         <Ligne Icone={WindowRegular} titre="Rester ouvert à la fermeture" explication="La croix range le logiciel près de l'horloge pour continuer à recevoir les demandes.">
           <Switch checked={reglages.rangerDansZone} onChange={(_e, data) => modifier({ rangerDansZone: data.checked })} aria-label="Rester ouvert à la fermeture" />

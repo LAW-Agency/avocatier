@@ -18,18 +18,21 @@ import {
   AlertRegular,
   ArrowMaximizeRegular,
   ArrowUndoRegular,
+  BroomRegular,
   CheckmarkCircleRegular,
   DismissRegular,
   DoorArrowLeftRegular,
   DoorArrowRightRegular,
   MailInboxRegular,
   MoneyRegular,
+  VehicleBusRegular,
+  WrenchRegular,
   type FluentIcon,
 } from "@fluentui/react-icons"
 import type { ReactNode } from "react"
 import { formaterDate, formaterHeure, pluriel, tempsRestant } from "@partage/dates"
 import type { Reservation } from "@partage/types"
-import { alertesDe } from "../alertes"
+import { alertesDe, type ChambreAPreparer } from "../alertes"
 import { nomChambre, nomDe, soldeDe, useDonneesChargees } from "../donnees"
 import { usePrix } from "../montants"
 import { Carte, Vide } from "./commun"
@@ -43,10 +46,10 @@ export function BoutonNotifications({ ouvert, onBasculer }: { ouvert: boolean; o
   const styles = useNotificationsStyles()
   const { d } = useDonneesChargees()
   const alertes = alertesDe(d)
-  const urgentes = alertes.doubles + alertes.aEncaisser.length + alertes.departsOublies.length
+  const urgentes = alertes.doubles + alertes.aEncaisser.length + alertes.departsOublies.length + alertes.rappels.chambres.filter((x) => x.arrivee).length
   return (
     <Tooltip content={alertes.total ? `Notifications : ${pluriel(alertes.total, "point")} à régler` : "Notifications"} relationship="label">
-      <span className={styles.cloche}>
+      <span className={styles.cloche} data-visite="cloche">
         <Button appearance={ouvert ? "secondary" : "subtle"} icon={<AlertRegular />} onClick={onBasculer} aria-expanded={ouvert} />
         {alertes.total > 0 && (
           <CounterBadge count={alertes.total} size="small" color={urgentes ? "danger" : "brand"} overflowCount={99} className={styles.pastille} aria-hidden />
@@ -129,6 +132,26 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
     </li>
   )
 
+  // Rappel de ménage : ouvre l'écran Chambres, filtré sur l'état de la chambre
+  const ligneChambre = ({ chambre: c, arrivee }: ChambreAPreparer) => (
+    <li key={c.id}>
+      <button type="button" className={styles.ligne} onClick={() => naviguer({ page: "chambres", filtre: c.etat === "maintenance" ? "maintenance" : "a_nettoyer" })}>
+        <span className={mergeClasses(styles.icone, styles[arrivee ? "danger" : "info"])}>{c.etat === "maintenance" ? <WrenchRegular /> : <BroomRegular />}</span>
+        <span className={styles.texte}>
+          <Text weight="semibold" truncate wrap={false} block>
+            {nomChambre(d, c.id)}
+          </Text>
+          <Caption1 className={styles.detail} truncate wrap={false} block>
+            {arrivee
+              ? `${c.etat === "maintenance" ? "En maintenance" : "À nettoyer"} avant l'arrivée de ${nomDe(clientDe(arrivee))} aujourd'hui`
+              : "N'oubliez pas de la nettoyer"}
+            {c.noteEtat && ` · ${c.noteEtat}`}
+          </Caption1>
+        </span>
+      </button>
+    </li>
+  )
+
   const sections: { titre: string; aide: string; lignes: ReactNode[]; action?: ReactNode }[] = [
     {
       titre: "Départs à encaisser",
@@ -144,6 +167,16 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
       ),
     },
     {
+      titre: "Chambres à préparer",
+      aide: "Rappel de ménage : passez-les à « Propre » une fois prêtes",
+      lignes: alertes.rappels.chambres.map(ligneChambre),
+      action: (
+        <Button appearance="transparent" size="small" onClick={() => naviguer({ page: "chambres", filtre: "a_nettoyer" })}>
+          Chambres
+        </Button>
+      ),
+    },
+    {
       titre: "Réception à régulariser",
       aide: "Arrivée ou départ jamais enregistré",
       lignes: [
@@ -155,6 +188,13 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
       titre: "Trop-perçus à rembourser",
       aide: "Encaissé plus que le montant dû",
       lignes: alertes.tropPercus.map((r) => ligne(r, ArrowUndoRegular, "attention", `${r.reference} · ${r.statut === "confirmee" ? "séjour" : "réservation annulée"}`, -soldeDe(r, d.paiements))),
+    },
+    {
+      titre: "Navettes à prévoir",
+      aide: "Arrivées d'aujourd'hui et de demain avec navette depuis l'aéroport",
+      lignes: alertes.rappels.navettes.map((r) =>
+        ligne(r, VehicleBusRegular, "info", `${r.arrivee === d.aujourdhui ? "Arrivée aujourd'hui" : "Arrivée demain"} · ${pluriel(r.adultes + r.enfants, "voyageur")}`),
+      ),
     },
     {
       titre: "Demandes à traiter",
@@ -189,7 +229,7 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
       )}
 
       {alertes.total === 0 ? (
-        <Vide Icone={CheckmarkCircleRegular} titre="Rien à signaler" texte="Les départs non soldés, remboursements à faire et oublis de la réception apparaîtront ici." />
+        <Vide Icone={CheckmarkCircleRegular} titre="Rien à signaler" texte="Les départs non soldés, remboursements à faire, oublis de la réception et rappels de ménage apparaîtront ici." />
       ) : pleinePage ? (
         <div className={styles.grille}>
           {visibles.map((s) => (

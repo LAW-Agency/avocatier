@@ -6,6 +6,7 @@ import TableReservations from "../composants/TableReservations"
 import { nomChambre, nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { feuilleReservations } from "../exports"
 import { useFichiers } from "../fichiers"
+import { provenance } from "../libelles"
 
 const FILTRES: { statut: StatutReservation | null; libelle: string }[] = [
   { statut: null, libelle: "Toutes" },
@@ -35,7 +36,7 @@ export default function Reservations({ filtre }: { filtre: StatutReservation | n
   const trouvees = d.reservations.filter((r) => {
     if (!cherche) return true
     const client = clientDe(r)
-    return normaliser([r.reference, nomDe(client), client?.email ?? "", r.telephone, nomChambre(d, r.chambreId)].join(" ")).includes(cherche)
+    return normaliser([r.reference, nomDe(client), client?.email ?? "", r.telephone, nomChambre(d, r.chambreId), provenance(r.source)].join(" ")).includes(cherche)
   })
 
   // À traiter d'abord (option la plus proche de l'échéance), puis par date d'arrivée, la plus récente en haut
@@ -67,7 +68,7 @@ export default function Reservations({ filtre }: { filtre: StatutReservation | n
         }
       />
       <div className={styles.pile}>
-        <TabList selectedValue={filtre ?? "toutes"} onTabSelect={(_e, data) => naviguer({ page: "reservations", filtre: data.value === "toutes" ? null : (data.value as StatutReservation) })}>
+        <TabList data-visite="reservations-onglets" selectedValue={filtre ?? "toutes"} onTabSelect={(_e, data) => naviguer({ page: "reservations", filtre: data.value === "toutes" ? null : (data.value as StatutReservation) })}>
           {FILTRES.map((f) => {
             const nombre = trouvees.filter((r) => !f.statut || r.statut === f.statut).length
             const enAvant = f.statut === "option" && nombre > 0

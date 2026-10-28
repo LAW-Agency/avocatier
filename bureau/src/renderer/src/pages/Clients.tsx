@@ -37,6 +37,7 @@ export default function Clients() {
   return (
     <>
       <EnTete
+        data-visite="clients-outils"
         titre="Clients"
         description={`${pluriel(clients.length, "client")}, dont ${pluriel(comptoir, "enregistré", "enregistrés")} à la réception`}
         actions={
@@ -64,7 +65,7 @@ export default function Clients() {
         />
       ) : (
         <>
-          <div className={cadre.root}>
+          <div className={cadre.root} data-visite="clients-liste">
             <Table aria-label="Clients">
               <TableHeader className={cadre.entete}>
                 <TableRow>

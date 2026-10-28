@@ -87,7 +87,7 @@ export default function Statistiques() {
         <Indicateur Icone={PeopleRegular} libelle="Chiffre d'affaires" valeur={formaterPrix(m.chiffreAffaires)} evolution={evolution(m.chiffreAffaires, p.chiffreAffaires)} />
       </div>
 
-      <Carte titre="Taux d'occupation, 12 derniers mois" description="Nuits vendues sur nuits disponibles, tous hébergements">
+      <Carte data-visite="statistiques-occupation" titre="Taux d'occupation, 12 derniers mois" description="Nuits vendues sur nuits disponibles, tous hébergements">
         <Histogramme
           barres={douzeMois.map((x) => ({
             cle: x.debut,

@@ -73,7 +73,7 @@ export default function Utilisateurs() {
     <>
       <EnTete titre="Utilisateurs" description="Comptes de l'équipe qui se connectent au logiciel." actions={<NouvelUtilisateur />} />
 
-      <Carte>
+      <Carte data-visite="utilisateurs-liste">
         <div className={styles.roles}>
           <div className={styles.role}>
             <ShieldPersonRegular className={styles.icone} />

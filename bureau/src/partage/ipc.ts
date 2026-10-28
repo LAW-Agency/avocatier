@@ -15,8 +15,13 @@ export type Methode = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 export type ResultatApi<T = unknown> = { ok: true; donnees: T } | { ok: false; erreur: string; statut?: number }
 
-// Écran ouvert par un clic sur une annonce : liste des réservations filtrée, ou planning (calendriers des plateformes)
-export type Destination = { page: "reservations"; filtre: StatutReservation } | { page: "planning" }
+// Filtres de l'écran Chambres : situation de ce soir ou état du ménage
+export const FILTRES_CHAMBRES = ["toutes", "disponibles", "occupees", "a_nettoyer", "maintenance"] as const
+export type FiltreChambres = (typeof FILTRES_CHAMBRES)[number]
+
+// Écran ouvert par un clic sur une annonce : liste des réservations filtrée, planning (calendriers des plateformes)
+// ou chambres (rappels de ménage)
+export type Destination = { page: "reservations"; filtre: StatutReservation } | { page: "planning" } | { page: "chambres"; filtre?: FiltreChambres }
 
 // Nouveauté venue des clients, de l'échéance d'une option ou d'une plateforme (Booking.com, Airbnb…), annoncée
 // par le suivi en direct. `alerte` : à régler sans attendre (double réservation)
@@ -42,8 +47,9 @@ export type PlaceWidget = { id: string; taille: TailleWidget }
 // Zoom de l'interface (Ctrl + / Ctrl - / Ctrl 0, Ctrl + molette) : facteurs proposés, comme dans un navigateur
 export const NIVEAUX_ZOOM = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const
 
-// Planning : nombre de nuits affichées (une, deux ou trois semaines) et ordre des hébergements
-export const VUES_PLANNING = [7, 14, 21] as const
+// Planning : nombre de nuits affichées (un jour, une, deux ou trois semaines), ou le mois en calendrier, et ordre
+// des hébergements
+export const VUES_PLANNING = [1, 7, 14, 21, "mois"] as const
 export type VuePlanning = (typeof VUES_PLANNING)[number]
 export const TRIS_PLANNING = ["site", "nom", "type", "occupation"] as const
 export type TriPlanning = (typeof TRIS_PLANNING)[number]
@@ -76,6 +82,7 @@ export type VueChambres = (typeof VUES_CHAMBRES)[number]
 export type Reglages = {
   theme: Theme
   notifications: boolean // notifications de Windows pour les nouveautés
+  rappels: boolean // petits rappels de l'interface (ménage avant une arrivée, navettes)
   rangerDansZone: boolean // fermer la fenêtre la garde dans la zone de notification
   demarrage: boolean // lancer le logiciel à l'ouverture de la session Windows
   seSouvenir: boolean // garder la connexion d'un lancement à l'autre
@@ -113,6 +120,8 @@ export interface PontAvocatier {
   ouvrirLien(url: string): Promise<void>
   // Nombre de demandes à traiter : titre de la fenêtre et info-bulle de l'icône de notification
   signalerATraiter(nombre: number): void
+  // Rappel de l'interface (ménage, navette) : notification de Windows si la fenêtre est au second plan
+  rappeler(annonce: Annonce): void
   // Export pour Excel : classeur .xlsx mis en forme par le processus principal, à l'endroit choisi dans
   // « Enregistrer sous »
   enregistrerXlsx(nom: string, classeur: Classeur): Promise<ResultatFichier>

@@ -10,7 +10,7 @@ export default function Notifications() {
   const { total } = alertesDe(d)
   return (
     <>
-      <EnTete titre="Notifications" description={total ? `${pluriel(total, "point")} à régler : impayés au départ, oublis de la réception, remboursements, demandes.` : "Tout est à jour."} />
+      <EnTete titre="Notifications" description={total ? `${pluriel(total, "point")} à régler : impayés au départ, ménage, oublis de la réception, remboursements, navettes, demandes.` : "Tout est à jour."} />
       <ListeNotifications pleinePage />
     </>
   )
