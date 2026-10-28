@@ -23,6 +23,10 @@ export const NOMS_SOURCES: Record<Reservation["source"], string> = {
   sur_place: "Sur place",
 }
 
+// Provenance en clair dans la liste et la fiche : demande du site, ou réservation saisie à la main par l'équipe
+// (Booking.com et Airbnb compris : leurs calendriers importés ne deviennent que des dates bloquées)
+export const provenance = (source: Reservation["source"]) => (source === "site" ? "Site internet" : `Saisie manuelle · ${NOMS_SOURCES[source]}`)
+
 // Plateformes dont on importe le calendrier
 export const PLATEFORMES: Record<Plateforme, string> = {
   booking: "Booking.com",

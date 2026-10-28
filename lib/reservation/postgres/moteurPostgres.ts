@@ -11,6 +11,7 @@ import {
   saisonsDatees,
   STATUTS_ACTIFS,
 } from "../controles"
+import { aujourdhuiISO } from "../dates"
 import { reglagesDevisesInitiaux } from "../devises"
 import { hebergements as contenuDesFiches } from "../donnees"
 import type { DepotComptes, MoteurReservation } from "../moteur"
@@ -139,18 +140,22 @@ export async function verrouiller(tx: Executant, hebergementId: string) {
 // Chambres actives de la catégorie libres sur tout le séjour, dans l'ordre d'attribution (à appeler sous le verrou
 // de la catégorie). `sauf` : réservation modifiée, qui ne se gêne pas elle-même. `source` : provenance de la
 // réservation (saisie ou modifiée par l'équipe) ; les dates importées du calendrier de cette même plateforme sont
-// les siennes (réservation Booking.com déjà importée de Booking.com) et ne la bloquent pas
+// les siennes (réservation Booking.com déjà importée de Booking.com) et ne la bloquent pas. Arrivée aujourd'hui (heure
+// de Sainte-Marie) : une chambre à nettoyer ou en maintenance n'est pas prête pour ce soir et n'est pas libre, sauf
+// pour la réservation modifiée qui l'occupe déjà (`ignorerEtat` : sans cette règle)
 export async function chambresLibres(
   ex: Executant,
   hebergementId: string,
   debut: DateISO,
   fin: DateISO,
-  { sauf, source }: { sauf?: string; source?: SourceReservation } = {},
+  { sauf, source, ignorerEtat = false }: { sauf?: string; source?: SourceReservation; ignorerEtat?: boolean } = {},
 ): Promise<string[]> {
   const libres = await lignes<{ id: string }>(
     ex,
     `select c.id from chambres c
      where c.hebergement_id = $1 and c.active
+       and ($7::date is null or $2::date <> $7::date or c.etat = 'propre'
+            or exists (select 1 from reservations s where s.id = $5 and s.chambre_id = c.id))
        and not exists (
          select 1 from reservations r
          where r.chambre_id = c.id and r.statut = any($4) and daterange(r.arrivee, r.depart) && daterange($2::date, $3::date)
@@ -160,7 +165,7 @@ export async function chambresLibres(
          where b.chambre_id = c.id and daterange(b.debut, b.fin) && daterange($2::date, $3::date)
            and ($6::text is null or k.plateforme is distinct from $6))
      order by ${ORDRE_CHAMBRES}`,
-    [hebergementId, debut, fin, STATUTS_ACTIFS, sauf ?? null, source ?? null],
+    [hebergementId, debut, fin, STATUTS_ACTIFS, sauf ?? null, source ?? null, ignorerEtat ? null : aujourdhuiISO()],
   )
   return libres.map((c) => c.id)
 }
@@ -175,14 +180,22 @@ export async function attribuerChambre(
   options: { sauf?: string; source?: SourceReservation } = {},
 ): Promise<{ chambreId: string } | { erreur: string }> {
   const libres = await chambresLibres(ex, hebergement.id, debut, fin, options)
-  if (!chambreId) return libres[0] ? { chambreId: libres[0] } : { erreur: `Aucune chambre ${hebergement.nom} n'est libre à ces dates.` }
-  const [chambre] = await lignes<Pick<Chambre, "numero" | "hebergementId" | "active">>(
+  if (!chambreId) {
+    if (libres[0]) return { chambreId: libres[0] }
+    const pasPretes = debut === aujourdhuiISO() && (await chambresLibres(ex, hebergement.id, debut, fin, { ...options, ignorerEtat: true })).length > 0
+    return { erreur: pasPretes ? `Les chambres ${hebergement.nom} libres ce soir ne sont pas prêtes : passez-en une à « Propre » pour une arrivée aujourd'hui.` : `Aucune chambre ${hebergement.nom} n'est libre à ces dates.` }
+  }
+  const [chambre] = await lignes<Pick<Chambre, "numero" | "hebergementId" | "active" | "etat">>(
     ex,
-    `select numero, hebergement_id as "hebergementId", active from chambres where id = $1`,
+    `select numero, hebergement_id as "hebergementId", active, etat from chambres where id = $1`,
     [chambreId],
   )
   if (!chambre || chambre.hebergementId !== hebergement.id) return { erreur: `Choisissez une chambre ${hebergement.nom}.` }
   if (!chambre.active) return { erreur: `La chambre ${chambre.numero} est désactivée.` }
+  // Écartée seulement parce qu'elle n'est pas prête pour ce soir : le dire (sinon, elle est aussi occupée)
+  if (!libres.includes(chambreId) && chambre.etat !== "propre" && (await chambresLibres(ex, hebergement.id, debut, fin, { ...options, ignorerEtat: true })).includes(chambreId)) {
+    return { erreur: `La chambre ${chambre.numero} est ${chambre.etat === "maintenance" ? "en maintenance" : "à nettoyer"} : passez-la à « Propre » pour une arrivée aujourd'hui, ou choisissez-en une autre.` }
+  }
   if (!libres.includes(chambreId)) {
     return { erreur: `La chambre ${chambre.numero} n'est pas libre à ces dates : une autre réservation ou des dates bloquées les occupent.` }
   }

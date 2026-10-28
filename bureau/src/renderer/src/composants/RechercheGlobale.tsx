@@ -15,6 +15,7 @@ import {
   PeopleRegular,
   PeopleTeamRegular,
   PersonRegular,
+  PlayCircleRegular,
   SearchRegular,
   SettingsRegular,
   TagRegular,
@@ -30,6 +31,7 @@ import { ETATS_CHAMBRE, MODES_PAIEMENT } from "../libelles"
 import { SECTIONS_GUIDE, normaliser } from "../pages/Guide"
 import { useReglages } from "../reglages"
 import { usePrix } from "../montants"
+import { lancerVisite } from "./VisiteGuidee"
 
 const useStyles = makeStyles({
   champ: { width: "100%", minWidth: 0 },
@@ -103,6 +105,7 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
       { cle: "action-reservation", libelle: "Nouvelle réservation", detail: "Ctrl + N", mots: "nouvelle réservation créer saisir ajouter", Icone: CalendarAddRegular, ouvrir: () => ouvrirNouvelleReservation() },
       { cle: "action-client", libelle: "Nouveau client", detail: "Écran Clients", mots: "nouveau client créer ajouter", Icone: PersonRegular, ouvrir: aller({ page: "clients" }) },
       { cle: "action-blocage", libelle: "Bloquer des dates", detail: "Écran Planning", mots: "bloquer fermer dates blocage", Icone: CalendarCancelRegular, ouvrir: aller({ page: "planning" }) },
+      { cle: "action-visite", libelle: "Lancer la visite guidée", detail: "Chaque écran expliqué à voix haute", mots: "visite guidée tutoriel découvrir aide voix formation", Icone: PlayCircleRegular, ouvrir: lancerVisite },
       {
         cle: "action-theme",
         libelle: sombre ? "Passer au thème clair" : "Passer au thème sombre",
@@ -260,6 +263,7 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
   return (
     <Combobox
       ref={ref}
+      root={{ "data-visite": "recherche" } as Record<string, string>}
       className={mergeClasses(styles.champ, className)}
       freeform
       disabled={disabled}

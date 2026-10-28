@@ -102,7 +102,7 @@ export default function Revenus() {
         <Indicateur Icone={TagRegular} libelle="Prix moyen par nuit" valeur={formaterPrix(maintenant.prixMoyen)} evolution={evolution(maintenant.prixMoyen, avant.prixMoyen)} note={`RevPAR ${formaterPrix(maintenant.revPar)}`} />
       </div>
 
-      <Carte titre="Les 12 derniers mois" description="Chiffre d'affaires des nuits du mois et encaissements datés du mois">
+      <Carte data-visite="revenus-mois" titre="Les 12 derniers mois" description="Chiffre d'affaires des nuits du mois et encaissements datés du mois">
         <Histogramme
           barres={douzeMois.map((m) => ({
             cle: m.debut,
@@ -183,7 +183,7 @@ export default function Revenus() {
       )}
 
       <div className={styles.deuxColonnes}>
-        <Carte titre="Reste à encaisser" description="Séjours confirmés non soldés">
+        <Carte data-visite="revenus-reste" titre="Reste à encaisser" description="Séjours confirmés non soldés">
           {impayes.length === 0 ? (
             <Vide Icone={CheckmarkCircleRegular} titre="Tout est encaissé" texte="Aucun séjour confirmé n'attend de paiement." />
           ) : (

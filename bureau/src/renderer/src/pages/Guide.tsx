@@ -13,6 +13,7 @@ import {
   MoneyRegular,
   PeopleRegular,
   PeopleTeamRegular,
+  PlayCircleRegular,
   QuestionCircleRegular,
   RocketRegular,
   SearchRegular,
@@ -22,6 +23,7 @@ import {
 } from "@fluentui/react-icons"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { EnTete, Vide } from "../composants/commun"
+import { lancerVisite } from "../composants/VisiteGuidee"
 import { useDonneesChargees, type Vue } from "../donnees"
 
 const useStyles = makeStyles({
@@ -112,7 +114,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     titre: "Premiers pas",
     resume: "Connexion, rôles de l'équipe et organisation de la fenêtre.",
     Icone: RocketRegular,
-    motsCles: "connexion compte mot de passe oublié se souvenir de moi rôle gérant réception navigation fenêtre barre de titre déconnexion serveur",
+    motsCles: "connexion compte mot de passe oublié se souvenir de moi rôle gérant réception navigation fenêtre barre de titre déconnexion serveur visite guidée tutoriel voix découvrir formation",
     contenu: (
       <>
         <p>
@@ -154,6 +156,18 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
           <li>En haut : le logo, la recherche (tous les modules), le bouton Nouvelle réservation, le thème clair / sombre et les boutons de la fenêtre.</li>
           <li>À gauche : la navigation (réductible en icônes avec le bouton ☰), la situation du soir, les Paramètres et votre compte (menu : ouvrir le site, se déconnecter).</li>
           <li>La croix ne quitte pas le logiciel : il reste près de l&apos;horloge de Windows pour continuer à recevoir les demandes (réglable). Pour quitter, clic droit sur l&apos;icône puis Quitter.</li>
+        </ul>
+        <h3>Visite guidée</h3>
+        <ul>
+          <li>
+            Le bouton <strong>Visite guidée</strong>, en haut de ce guide, ouvre chaque écran l&apos;un après l&apos;autre, éclaire chaque partie et l&apos;explique à voix haute, avec
+            les sous-titres. Les écrans des gérants sont sautés pour la réception.
+          </li>
+          <li>
+            Pause, retour, étape suivante et son dans la bulle ; au clavier : <T>Espace</T>, <T>←</T>, <T>→</T>, <T>Échap</T> pour arrêter. Rien n&apos;est modifié pendant la
+            visite.
+          </li>
+          <li>Si l&apos;hôtel n&apos;a encore presque aucune réservation, des données d&apos;exemple s&apos;affichent le temps de la visite (jamais enregistrées) et disparaissent à la fin.</li>
         </ul>
       </>
     ),
@@ -318,8 +332,12 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         </p>
         <ul>
           <li>
-            <strong>Période</strong> : 1, 2 ou 3 semaines (onglets). Les flèches avancent ou reculent d&apos;autant, « Aujourd&apos;hui » revient à la date du jour, et le champ
+            <strong>Période</strong> : un jour, 1, 2 ou 3 semaines (onglets). Les flèches avancent ou reculent d&apos;autant, « Aujourd&apos;hui » revient à la date du jour, et le champ
             de date va directement au jour choisi.
+          </li>
+          <li>
+            <strong>Vue Mois</strong> : le mois en calendrier. Chaque jour montre une jauge des chambres prises et le nombre de chambres libres, les arrivées (cliquez
+            pour la fiche) et les départs ; le numéro du jour ouvre sa semaine, « + » réserve à partir de ce jour.
           </li>
           <li>
             <strong>Catégories repliables</strong> : cliquez le nom d&apos;une catégorie pour la replier ; sa ligne montre alors, nuit par nuit, une jauge des chambres prises
@@ -378,7 +396,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     resume: "Chambres numérotées de chaque catégorie : ménage, maintenance, ajout et retrait.",
     Icone: BedRegular,
     ecran: { page: "chambres" },
-    motsCles: "chambre bungalow numéro ajouter renommer désactiver supprimer catégorie ménage nettoyer propre maintenance état note occupant prochaine arrivée liste compacte affichage cartes",
+    motsCles: "chambre bungalow numéro ajouter renommer désactiver supprimer catégorie ménage nettoyer propre maintenance état note occupant prochaine arrivée liste compacte affichage cartes filtre disponible libre ce soir pas prête",
     contenu: (
       <>
         <p>
@@ -388,6 +406,13 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <ul>
           <li>Chaque chambre est Propre, À nettoyer ou En maintenance, avec une note (« moustiquaire à changer »…).</li>
           <li>Le départ enregistré d&apos;un client passe automatiquement sa chambre « À nettoyer ».</li>
+          <li>
+            Une chambre sans client ce soir n&apos;est <strong>disponible</strong> que propre : à nettoyer ou en maintenance, elle s&apos;affiche « Pas disponible ce soir »
+            et « Première chambre libre » en choisit une autre pour une arrivée du jour. Les nuits suivantes restent réservables.
+          </li>
+          <li>
+            <strong>Filtres</strong> (onglets au-dessus des chambres) : toutes, disponibles ce soir, occupées, à nettoyer, en maintenance.
+          </li>
           <li>Dans la navigation, une pastille orange signale les chambres à nettoyer, une rouge celles en maintenance.</li>
           <li>
             <strong>Liste compacte</strong> (en haut à droite, à côté de « Cartes ») : une ligne par chambre pour voir tout l&apos;hôtel sur une page ; les actions sont
@@ -463,7 +488,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
           litige…), notée dans l&apos;historique de la réservation et le journal.
         </li>
         <li>
-          La <strong>cloche</strong> de la barre de titre compte ce qui reste à régler : départs non soldés, trop-perçus, arrivées ou départs oubliés, demandes à traiter. Le
+          La <strong>cloche</strong> de la barre de titre compte ce qui reste à régler : départs non soldés, chambres à préparer, trop-perçus, arrivées ou départs oubliés, navettes, demandes à traiter. Le
           widget « Départs à encaisser » d&apos;Aujourd&apos;hui reprend les impayés.
         </li>
         <li>Erreur de clic : un gérant peut annuler une arrivée ou un départ depuis la fiche (section Accueil).</li>
@@ -579,7 +604,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     titre: "Notifications et suivi en direct",
     resume: "Comment le logiciel vous prévient des nouveautés.",
     Icone: AlertRegular,
-    motsCles: "notification hors connexion internet coupé connexion perdue suivi en direct toast alerte nouvelle demande annulation option expirée zone de notification icône horloge windows",
+    motsCles: "notification hors connexion internet coupé connexion perdue suivi en direct toast alerte nouvelle demande annulation option expirée zone de notification icône horloge windows rappel rappels ménage nettoyer navette",
     contenu: (
       <ul>
         <li>Le logiciel vérifie les nouveautés toutes les 15 secondes, même fenêtre fermée dans la zone de notification.</li>
@@ -588,6 +613,10 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
           Nouvelles dates bloquées par Booking.com ou Airbnb : même notification, vers le Planning. Une double réservation reste affichée jusqu&apos;à ce que vous la fermiez.
         </li>
         <li>Si la fenêtre n&apos;est pas au premier plan, une notification Windows s&apos;ajoute (désactivable dans Paramètres) ; un clic ouvre la liste.</li>
+        <li>
+          <strong>Petits rappels</strong> : chambres à nettoyer (en premier celles qui reçoivent un client aujourd&apos;hui) et navettes de l&apos;aéroport d&apos;aujourd&apos;hui et
+          demain. Annoncés à l&apos;ouverture, dès qu&apos;un nouveau apparaît, puis toutes les 2 h tant qu&apos;ils restent ; aussi dans la cloche. Désactivables dans Paramètres.
+        </li>
         <li>Le titre de la fenêtre affiche le nombre de demandes à traiter, par exemple « (2) Chez L&apos;Avocatier ».</li>
         <li>
           Si le serveur ne répond plus (Internet coupé), une pastille « Hors connexion » s&apos;affiche dans la barre de titre avec un bandeau : les modifications ne sont pas
@@ -759,11 +788,20 @@ export default function Guide({ section }: { section?: string }) {
       <EnTete
         titre="Guide"
         description="Mode d'emploi complet du logiciel des hôtes et du site Chez L'Avocatier."
-        actions={<SearchBox placeholder="Rechercher dans le guide" value={filtre} onChange={(_e, d) => setFiltre(d.value)} />}
+        actions={
+          <>
+            <SearchBox placeholder="Rechercher dans le guide" value={filtre} onChange={(_e, d) => setFiltre(d.value)} />
+
+            <Button appearance="primary" icon={<PlayCircleRegular />} onClick={lancerVisite} data-visite="guide-visite">
+              Visite guidée
+            </Button>
+          </>
+        }
       />
       <MessageBar intent="info" icon={<BookOpenRegular />}>
         <MessageBarBody>
-          Appuyez sur <T>F1</T> depuis n&apos;importe quel écran pour revenir ici. La recherche de la barre de titre trouve aussi les sections du guide.
+          Appuyez sur <T>F1</T> depuis n&apos;importe quel écran pour revenir ici. La recherche de la barre de titre trouve aussi les sections du guide. Nouveau ? La{" "}
+          <strong>visite guidée</strong> présente chaque écran, à voix haute.
         </MessageBarBody>
       </MessageBar>
       <div className={styles.mise}>

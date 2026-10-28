@@ -43,10 +43,10 @@ export default function Tarifs() {
   return (
     <>
       <EnTete titre="Tarifs" description="Prix par nuit, saisons et devises affichées aux visiteurs du site." />
-      <Carte titre="Prix par nuit" description="Prix de base en euros, appliqué en saison normale. Le site calcule le total de chaque séjour nuit par nuit.">
+      <Carte data-visite="tarifs-prix" titre="Prix par nuit" description="Prix de base en euros, appliqué en saison normale. Le site calcule le total de chaque séjour nuit par nuit.">
         <FormulaireTarifs />
       </Carte>
-      <Carte titre="Devises de la vitrine" description="Les visiteurs choisissent leur région dans le pied de page du site ; les prix s'affichent alors dans leur devise.">
+      <Carte data-visite="tarifs-devises" titre="Devises de la vitrine" description="Les visiteurs choisissent leur région dans le pied de page du site ; les prix s'affichent alors dans leur devise.">
         <FormulaireDevises />
       </Carte>
     </>

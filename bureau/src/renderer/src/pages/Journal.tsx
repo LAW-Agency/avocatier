@@ -267,7 +267,7 @@ export default function Journal() {
         </MessageBar>
       )}
 
-      <div className={styles.filtres}>
+      <div className={styles.filtres} data-visite="journal-filtres">
         <SearchBox className={styles.recherche} placeholder="Rechercher une action, une référence, un nom" value={texte} onChange={(_e, data) => setTexte(data.value)} />
         <Dropdown
           className={styles.liste}

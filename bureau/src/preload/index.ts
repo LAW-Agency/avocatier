@@ -17,6 +17,7 @@ const pont: PontAvocatier = {
   api: (methode, chemin, corps) => ipcRenderer.invoke("api", methode, chemin, corps),
   ouvrirLien: (url) => ipcRenderer.invoke("lien:ouvrir", url),
   signalerATraiter: (nombre) => ipcRenderer.send("hotes:a-traiter", nombre),
+  rappeler: (annonce) => ipcRenderer.send("hotes:rappel", annonce),
   enregistrerXlsx: (nom, classeur) => ipcRenderer.invoke("fichier:xlsx", nom, classeur),
   enregistrerPdf: (nom, html) => ipcRenderer.invoke("fichier:pdf", nom, html),
   reglages: () => ipcRenderer.invoke("reglages:lire"),

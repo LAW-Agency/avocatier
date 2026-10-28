@@ -20,6 +20,7 @@ import {
 const PAR_DEFAUT: Reglages = {
   theme: "systeme",
   notifications: true,
+  rappels: true,
   rangerDansZone: true,
   demarrage: false,
   seSouvenir: true,
@@ -85,10 +86,11 @@ export function modifierReglages(modification: Partial<Reglages>): Reglages {
   const suivants = { ...lireReglages() }
   for (const cle of Object.keys(PAR_DEFAUT) as (keyof Reglages)[]) {
     const valeur = modification[cle]
-    if (valeur === undefined || typeof valeur !== typeof PAR_DEFAUT[cle]) continue
+    // Vue du planning : un nombre de nuits ou « mois », vérifiée juste après
+    if (valeur === undefined || (cle !== "vuePlanning" && typeof valeur !== typeof PAR_DEFAUT[cle])) continue
     if (cle === "theme" && !["systeme", "clair", "sombre"].includes(valeur as string)) continue
     if (cle === "zoom" && !(NIVEAUX_ZOOM as readonly number[]).includes(valeur as number)) continue
-    if (cle === "vuePlanning" && !(VUES_PLANNING as readonly number[]).includes(valeur as number)) continue
+    if (cle === "vuePlanning" && !(VUES_PLANNING as readonly unknown[]).includes(valeur)) continue
     if (cle === "triPlanning" && !(TRIS_PLANNING as readonly string[]).includes(valeur as string)) continue
     if (cle === "vueChambres" && !(VUES_CHAMBRES as readonly string[]).includes(valeur as string)) continue
     if (cle === "devise" && !(DEVISES_LOGICIEL as readonly string[]).includes(valeur as string)) continue

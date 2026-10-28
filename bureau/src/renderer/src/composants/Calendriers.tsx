@@ -91,6 +91,7 @@ export default function Calendriers() {
 
   return (
     <Carte
+      data-visite="planning-calendriers"
       titre="Calendriers Booking.com, Airbnb…"
       description="Leurs réservations ferment les dates ici, et les nôtres ferment les dates chez eux. Synchronisés toutes les 10 minutes tant que le logiciel est ouvert, et chaque nuit."
     >

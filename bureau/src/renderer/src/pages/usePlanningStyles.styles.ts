@@ -16,6 +16,7 @@ export const usePlanningStyles = makeStyles({
   },
   // Période affichée, en titre de la barre
   plage: { marginLeft: tokens.spacingHorizontalS, fontSize: tokens.fontSizeBase400, fontWeight: tokens.fontWeightSemibold, whiteSpace: "nowrap" },
+  plageMois: { textTransform: "capitalize" },
   // Aller à une date : champ court à côté des flèches
   allerA: { width: "168px" },
   cadre: {
@@ -33,7 +34,8 @@ export const usePlanningStyles = makeStyles({
   nomHebergement: {
     position: "sticky",
     left: 0,
-    zIndex: 2,
+    // Au-dessus des barres (1) et du trait d'aujourd'hui (2) qui défilent dessous
+    zIndex: 3,
     display: "flex",
     alignItems: "center",
     columnGap: tokens.spacingHorizontalS,
@@ -69,7 +71,8 @@ export const usePlanningStyles = makeStyles({
   nomCategorie: {
     position: "sticky",
     left: 0,
-    zIndex: 2,
+    // Au-dessus des barres (1) et du trait d'aujourd'hui (2) qui défilent dessous
+    zIndex: 3,
     display: "flex",
     alignItems: "center",
     columnGap: tokens.spacingHorizontalS,

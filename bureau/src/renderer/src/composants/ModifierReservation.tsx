@@ -28,7 +28,7 @@ import { changementsReservation } from "@partage/controles"
 import { ajouterJours, nombreNuits, pluriel } from "@partage/dates"
 import { calculerDevis, deplierSaisons } from "@partage/regles"
 import type { Reservation } from "@partage/types"
-import { chambresPrises, useDonneesChargees, useLectureSeule } from "../donnees"
+import { chambresPrises, premiereChambre, pretePour, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useAnnoncer } from "../toasts"
 import ChampDate from "./ChampDate"
 import ChoixChambre, { CHAMBRE_AUTO } from "./ChoixChambre"
@@ -84,12 +84,12 @@ function Formulaire({ r, onFin }: { r: Reservation; onFin: () => void }) {
 
   // Chambres prises aux nouvelles dates, sans compter cette réservation elle-même
   const prises = chambresPrises(d, arrivee, depart, { sauf: r.id, source: r.source })
-  const libresDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active && !prises.has(c.id)).length
+  const libresDans = (id: string) => d.chambres.filter((c) => c.hebergementId === id && c.active && !prises.has(c.id) && pretePour(c, arrivee, d.aujourdhui, r.chambreId)).length
   // Chambre annoncée dans le résumé : la choisie, sinon la première libre de la catégorie (attribuée par le serveur)
   const chambreVisee =
     chambreId !== CHAMBRE_AUTO
       ? chambreId
-      : (d.chambres.find((c) => c.hebergementId === hebergementId && c.active && !prises.has(c.id))?.id ?? r.chambreId)
+      : (premiereChambre(d, hebergementId, prises, arrivee, r.chambreId)?.id ?? r.chambreId)
 
   const valeurMontant = lireMontant(montant)
   const montantValide = montant.trim() !== "" && Number.isInteger(valeurMontant) && valeurMontant >= 0
@@ -170,7 +170,7 @@ function Formulaire({ r, onFin }: { r: Reservation; onFin: () => void }) {
                 </Dropdown>
               </Field>
               <Field label="Chambre" className={styles.pleine}>
-                <ChoixChambre className={styles.champ} hebergementId={hebergementId} valeur={chambreId} onChange={setChambreId} prises={prises} />
+                <ChoixChambre className={styles.champ} hebergementId={hebergementId} valeur={chambreId} onChange={setChambreId} prises={prises} arrivee={arrivee} garder={r.chambreId} />
               </Field>
               <Field label="Adultes" required>
                 <SpinButton value={adultes} min={1} max={10} onChange={(_e, data) => setAdultes(data.value ?? (Number(data.displayValue) || 1))} />

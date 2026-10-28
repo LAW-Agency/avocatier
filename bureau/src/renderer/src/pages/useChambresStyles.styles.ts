@@ -1,7 +1,8 @@
 import { makeStyles, tokens } from "@fluentui/react-components"
 
 export const useChambresStyles = makeStyles({
-  resume: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
+  resume: { display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
+  onglet: { display: "inline-flex", alignItems: "center", columnGap: tokens.spacingHorizontalSNudge },
   grille: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", columnGap: tokens.spacingHorizontalL, rowGap: tokens.spacingVerticalL },
   // Une catégorie (« Bungalow Océan ») et ses chambres
   categorie: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },

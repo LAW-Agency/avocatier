@@ -72,6 +72,7 @@ import FenetreMiseAJour from "./composants/FenetreMiseAJour"
 import { BoutonNotifications, PanneauNotifications } from "./composants/Notifications"
 import NouvelleReservation from "./composants/NouvelleReservation"
 import { RechercheGlobale } from "./composants/RechercheGlobale"
+import VisiteGuidee from "./composants/VisiteGuidee"
 import { useApparitionStyles } from "./composants/useCommunStyles.styles"
 import { PAGES_GERANTS, useDonnees, type Vue } from "./donnees"
 import { ROLES } from "./libelles"
@@ -89,6 +90,7 @@ import Revenus from "./pages/Revenus"
 import Statistiques from "./pages/Statistiques"
 import Tarifs from "./pages/Tarifs"
 import Utilisateurs from "./pages/Utilisateurs"
+import { useRappels } from "./rappels"
 import { situationDuJour } from "./situation"
 import { useAnnoncer } from "./toasts"
 import { useCoquilleStyles } from "./useCoquilleStyles.styles"
@@ -182,6 +184,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const aNettoyer = donnees?.chambres.filter((c) => c.active && c.etat === "a_nettoyer").length ?? 0
   const enMaintenance = donnees?.chambres.filter((c) => c.active && c.etat === "maintenance").length ?? 0
   useEffect(() => window.avocatier.signalerATraiter(aTraiter), [aTraiter])
+  useRappels(donnees, naviguer)
 
   // Suivi en direct (processus principal) : données rechargées, nouveautés annoncées une minute
   const surActivite = useEffectEvent((annonces: Annonce[]) => {
@@ -267,7 +270,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   else if (vue.page === "aujourdhui") ecran = <Aujourdhui />
   else if (vue.page === "reservations") ecran = <Reservations filtre={vue.filtre ?? null} />
   else if (vue.page === "planning") ecran = <Planning />
-  else if (vue.page === "chambres") ecran = <Chambres />
+  else if (vue.page === "chambres") ecran = <Chambres filtre={vue.filtre ?? "toutes"} />
   else if (vue.page === "clients") ecran = <Clients />
   else if (vue.page === "client") ecran = <FicheClient id={vue.id} />
   else if (vue.page === "revenus") ecran = <Revenus />
@@ -295,7 +298,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
               </Tooltip>
             )}
             <Tooltip content="Nouvelle réservation (Ctrl + N)" relationship="label">
-              <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees || !enLigne} onClick={() => ouvrirNouvelleReservation()} />
+              <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees || !enLigne} onClick={() => ouvrirNouvelleReservation()} data-visite="barre-nouvelle-reservation" />
             </Tooltip>
             {donnees && <BoutonNotifications ouvert={notificationsOuvertes} onBasculer={() => setNotificationsOuvertes((o) => !o)} />}
           </>
@@ -304,7 +307,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
 
       <div className={styles.corps}>
         {navOuverte ? (
-          <NavDrawer type="inline" open selectedValue={rubriqueActive} onNavItemSelect={(_e, d) => naviguer({ page: d.value as PageNav } as Vue)} className={styles.nav}>
+          <NavDrawer type="inline" open selectedValue={rubriqueActive} onNavItemSelect={(_e, d) => naviguer({ page: d.value as PageNav } as Vue)} className={styles.nav} data-visite="navigation">
             <NavDrawerHeader>
               <Tooltip content="Réduire la navigation" relationship="label">
                 <Hamburger onClick={() => setNavOuverte(false)} />
@@ -368,7 +371,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
                 </Skeleton>
               )}
               {situation && (
-                <div className={styles.ceSoir}>
+                <div className={styles.ceSoir} data-visite="ce-soir">
                   <Caption1>Ce soir</Caption1>
                   <Text weight="semibold">
                     {situation.occupes} sur {situation.total} occupées
@@ -399,7 +402,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
           </NavDrawer>
         ) : (
           // Navigation réduite : icônes seules, libellés en info-bulle
-          <nav className={styles.rail} aria-label="Navigation">
+          <nav className={styles.rail} aria-label="Navigation" data-visite="navigation">
             <Tooltip content="Ouvrir la navigation" relationship="label">
               <Hamburger onClick={() => setNavOuverte(true)} />
             </Tooltip>
@@ -474,6 +477,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
       </div>
 
       {donnees && <NouvelleReservation />}
+      {donnees && <VisiteGuidee />}
       <FenetreMiseAJour />
     </div>
   )

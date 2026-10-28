@@ -440,6 +440,7 @@ export default function Aujourdhui() {
   return (
     <>
       <EnTete
+        data-visite="aujourdhui-entete"
         titre={`Bonjour ${d.hote.prenom}`}
         description={`${formaterDate(d.aujourdhui, { weekday: "long", month: "long" })} · ${
           aTraiter.length > 0 ? `${pluriel(aTraiter.length, "demande attend", "demandes attendent")} votre réponse` : "aucune demande en attente"
@@ -447,7 +448,7 @@ export default function Aujourdhui() {
         actions={
           edition ? undefined : (
             <>
-              <Button icon={<GridRegular />} onClick={() => setEdition(true)}>
+              <Button icon={<GridRegular />} onClick={() => setEdition(true)} data-visite="aujourdhui-personnaliser">
                 Personnaliser
               </Button>
               <Button icon={<CalendarLtrRegular />} onClick={() => naviguer({ page: "planning" })}>
@@ -530,7 +531,7 @@ export default function Aujourdhui() {
           }
         />
       ) : (
-        <div className={styles.tableau}>
+        <div className={styles.tableau} data-visite="aujourdhui-widgets">
           {visibles.map((w, rang) => {
             const id = w.id as IdWidget
             const { titre } = WIDGETS[id]

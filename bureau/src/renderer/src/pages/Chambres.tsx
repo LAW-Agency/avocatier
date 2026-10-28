@@ -1,6 +1,7 @@
 import {
   Badge,
   Body1,
+  CounterBadge,
   Button,
   Caption1,
   Dialog,
@@ -44,6 +45,7 @@ import {
   DeleteRegular,
   DoorArrowLeftRegular,
   DoorArrowRightRegular,
+  DoorRegular,
   GridRegular,
   MoreHorizontalRegular,
   NoteRegular,
@@ -58,8 +60,8 @@ import {
 import { useState, type FormEvent } from "react"
 import { formaterDate, pluriel } from "@partage/dates"
 import type { Chambre, EtatChambre } from "@partage/types"
-import type { VueChambres } from "../../../partage/ipc"
-import { EnTete } from "../composants/commun"
+import type { FiltreChambres, VueChambres } from "../../../partage/ipc"
+import { EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
 import { Indicateur } from "../composants/graphiques"
 import { useFormulairesStyles } from "../composants/useFormulairesStyles.styles"
@@ -82,6 +84,25 @@ const occupantDe = (d: Donnees, chambreId: string) =>
     (r) => r.chambreId === chambreId && r.statut === "confirmee" && !r.departLe && r.arrivee <= d.aujourdhui && r.depart > d.aujourdhui,
   )
 
+// Situation de la chambre ce soir. Une chambre sans client n'est disponible que propre : à nettoyer ou en
+// maintenance, elle n'est pas prête pour ce soir (les nuits suivantes restent réservables)
+type Disponibilite = "occupee" | "disponible" | "pas_prete" | "bloquee" | "desactivee"
+function disponibiliteDe(d: Donnees, c: Chambre): Disponibilite {
+  if (!c.active) return "desactivee"
+  if (occupantDe(d, c.id) || d.reservations.some((r) => r.chambreId === c.id && r.statut === "confirmee" && r.depart === d.aujourdhui && !r.departLe)) return "occupee"
+  if (d.blocages.some((b) => b.chambreId === c.id && b.debut <= d.aujourdhui && b.fin > d.aujourdhui)) return "bloquee"
+  return c.etat === "propre" ? "disponible" : "pas_prete"
+}
+
+// Filtres de l'écran : situation de ce soir ou état du ménage
+const FILTRES: { valeur: FiltreChambres; libelle: string; garde: (d: Donnees, c: Chambre) => boolean }[] = [
+  { valeur: "toutes", libelle: "Toutes", garde: () => true },
+  { valeur: "disponibles", libelle: "Disponibles ce soir", garde: (d, c) => disponibiliteDe(d, c) === "disponible" },
+  { valeur: "occupees", libelle: "Occupées", garde: (d, c) => disponibiliteDe(d, c) === "occupee" },
+  { valeur: "a_nettoyer", libelle: "À nettoyer", garde: (_d, c) => c.active && c.etat === "a_nettoyer" },
+  { valeur: "maintenance", libelle: "En maintenance", garde: (_d, c) => c.active && c.etat === "maintenance" },
+]
+
 // Numéro proposé pour une nouvelle chambre : celui qui suit le plus grand de la catégorie (« Océan 5 » → « Océan 6 »),
 // sinon le nom court de la catégorie (« Bungalow Océan » → « Océan 1 »)
 function numeroSuivant(d: Donnees, hebergementId: string): string {
@@ -101,16 +122,18 @@ function numeroSuivant(d: Donnees, hebergementId: string): string {
 // Gestion des chambres : chambres numérotées de chaque catégorie (ajout, numéro, désactivation, suppression pour
 // les gérants), état du ménage et de la maintenance, occupant du jour, prochaine arrivée. Le départ enregistré à la
 // réception passe la chambre « À nettoyer » (côté serveur).
-export default function Chambres() {
+export default function Chambres({ filtre }: { filtre: FiltreChambres }) {
   const lectureSeule = useLectureSeule()
   const styles = useChambresStyles()
-  const { d, gerant } = useDonneesChargees()
+  const { d, gerant, naviguer } = useDonneesChargees()
   const { reglages, modifier } = useReglages()
   const [ajout, setAjout] = useState<string | null>(null) // catégorie de la chambre à ajouter
   const actives = d.chambres.filter((c) => c.active)
   const compte = (etat: EtatChambre) => actives.filter((c) => c.etat === etat).length
   const occupees = actives.filter((c) => occupantDe(d, c.id)).length
-  const triees = chambresTriees(d)
+  const garde = FILTRES.find((f) => f.valeur === filtre)!.garde
+  const triees = chambresTriees(d).filter((c) => garde(d, c))
+  const disponibles = actives.filter((c) => disponibiliteDe(d, c) === "disponible").length
   const vue: VueChambres = reglages.vueChambres === "liste" ? "liste" : "cartes"
 
   return (
@@ -121,7 +144,7 @@ export default function Chambres() {
         actions={
           <div className={styles.actionsEnTete}>
             {/* Affichage gardé sur ce poste : cartes détaillées ou liste compacte (tout l'hôtel sur une page) */}
-            <TabList size="small" selectedValue={vue} onTabSelect={(_e, data) => void modifier({ vueChambres: data.value as VueChambres })} aria-label="Affichage">
+            <TabList data-visite="chambres-affichage" size="small" selectedValue={vue} onTabSelect={(_e, data) => void modifier({ vueChambres: data.value as VueChambres })} aria-label="Affichage">
               <Tab value="cartes" icon={<GridRegular />}>
                 Cartes
               </Tab>
@@ -140,6 +163,7 @@ export default function Chambres() {
       {vue === "cartes" ? (
         <div className={styles.resume}>
           <Indicateur Icone={BedRegular} libelle="Occupées ce soir" valeur={`${occupees} / ${actives.length}`} />
+          <Indicateur Icone={DoorRegular} libelle="Disponibles ce soir" valeur={disponibles} />
           <Indicateur Icone={CheckmarkCircleRegular} libelle="Propres" valeur={compte("propre")} />
           <Indicateur Icone={BroomRegular} libelle="À nettoyer" valeur={compte("a_nettoyer")} />
           <Indicateur Icone={WrenchRegular} libelle="En maintenance" valeur={compte("maintenance")} />
@@ -149,6 +173,9 @@ export default function Chambres() {
         <div className={styles.resumeCompact}>
           <Badge appearance="tint" color="brand" shape="rounded" size="large" icon={<BedRegular />}>
             {occupees} / {actives.length} occupées ce soir
+          </Badge>
+          <Badge appearance="tint" color="brand" shape="rounded" size="large" icon={<DoorRegular />}>
+            {disponibles} disponible{disponibles > 1 ? "s" : ""} ce soir
           </Badge>
           {(Object.keys(ETATS_CHAMBRE) as EtatChambre[]).map((etat) => {
             const { couleur, Icone } = STYLE_ETAT[etat]
@@ -160,9 +187,28 @@ export default function Chambres() {
           })}
         </div>
       )}
-      {d.hebergements.map((h) => (
-        <Categorie key={h.id} hebergement={h} chambres={triees.filter((c) => c.hebergementId === h.id)} vue={vue} onAjouter={() => setAjout(h.id)} />
-      ))}
+      <TabList data-visite="chambres-filtres" selectedValue={filtre} onTabSelect={(_e, data) => naviguer({ page: "chambres", filtre: data.value as FiltreChambres })} aria-label="Filtrer les chambres">
+        {FILTRES.map((f) => {
+          const nombre = d.chambres.filter((c) => (f.valeur === "toutes" ? true : f.garde(d, c))).length
+          return (
+            <Tab key={f.valeur} value={f.valeur}>
+              <span className={styles.onglet}>
+                {f.libelle}
+                <CounterBadge count={nombre} showZero size="small" appearance="ghost" color="informative" />
+              </span>
+            </Tab>
+          )
+        })}
+      </TabList>
+      {/* Filtré : seules les catégories qui gardent une chambre restent affichées */}
+      {d.hebergements
+        .filter((h) => filtre === "toutes" || triees.some((c) => c.hebergementId === h.id))
+        .map((h) => (
+          <Categorie key={h.id} hebergement={h} chambres={triees.filter((c) => c.hebergementId === h.id)} vue={vue} onAjouter={() => setAjout(h.id)} />
+        ))}
+      {filtre !== "toutes" && triees.length === 0 && (
+        <Vide Icone={BedRegular} titre="Aucune chambre" texte={`Aucune chambre ne correspond au filtre « ${FILTRES.find((f) => f.valeur === filtre)!.libelle} ».`} />
+      )}
       {ajout !== null && <FenetreChambre hebergementId={ajout} onFin={() => setAjout(null)} />}
     </>
   )
@@ -178,7 +224,7 @@ function Categorie({ hebergement: h, chambres, vue, onAjouter }: { hebergement: 
   const Titre = compacte ? Subtitle2 : Subtitle1
 
   return (
-    <section className={mergeClasses(styles.categorie, compacte && styles.categorieCompacte)} aria-labelledby={`categorie-${h.id}`}>
+    <section className={mergeClasses(styles.categorie, compacte && styles.categorieCompacte)} aria-labelledby={`categorie-${h.id}`} data-visite="chambres-categorie">
       <div className={styles.enteteCategorie}>
         <div className={compacte ? styles.titreLigne : styles.titre}>
           <Titre as="h2" id={`categorie-${h.id}`} className={styles.nom}>
@@ -240,8 +286,16 @@ function useSituation(c: Chambre) {
     situation = { Icone: NoteRegular, titre: "Dates bloquées", detail: `${bloquee.raison} · jusqu'au ${formaterDate(bloquee.fin, { year: undefined })}` }
   } else if (!c.active) {
     situation = { Icone: ProhibitedRegular, titre: "Désactivée", detail: "Plus proposée sur le site ni attribuée aux réservations" }
+  } else if (c.etat !== "propre") {
+    // Personne ce soir, mais chambre pas prête : pas disponible pour ce soir tant qu'elle n'est pas propre
+    situation = {
+      Icone: c.etat === "a_nettoyer" ? BroomRegular : WrenchRegular,
+      titre: "Pas disponible ce soir",
+      detail: c.etat === "a_nettoyer" ? "À nettoyer : disponible dès qu'elle est propre" : "En maintenance",
+    }
   } else {
-    situation = { Icone: BedRegular, titre: "Libre ce soir", detail: prochaine ? `Prochaine arrivée le ${formaterDate(prochaine.arrivee, { year: undefined })}` : "Aucune arrivée prévue" }
+    const suite = prochaine ? `Prochaine arrivée le ${formaterDate(prochaine.arrivee, { year: undefined })}` : "Aucune arrivée prévue"
+    situation = { Icone: BedRegular, titre: "Libre ce soir", detail: suite }
   }
   return { situation, reservationDuJour: occupant ?? departAujourdhui }
 }
