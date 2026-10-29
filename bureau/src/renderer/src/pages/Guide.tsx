@@ -516,7 +516,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     Icone: FoodRegular,
     ecran: { page: "restaurant" },
     motsCles:
-      "restaurant bar caisse caissier vente ticket carte menu article plats boissons prix ariary encaisser monnaie rendue chambre note poste imprimante 80 mm fond de caisse ouverture clôture écart annuler",
+      "restaurant bar caisse caissier vue d'ensemble bilan vente ticket carte menu article plats boissons prix ariary encaisser monnaie rendue chambre note poste imprimante 80 mm fond de caisse ouverture clôture écart annuler",
     contenu: (
       <ul>
         <li>
@@ -540,6 +540,10 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <li>
           <strong>Clôture</strong> : en fin de service, comptez les espèces de chaque devise. Le logiciel calcule ce qui doit être dans le tiroir (fond + espèces reçues − monnaie rendue) et
           l&apos;écart ; un écart demande une explication. Le rapport de clôture s&apos;imprime sur le ticket, avec la signature.
+        </li>
+        <li>
+          <strong>Vue d&apos;ensemble</strong> (gérants, premier onglet) : ventes de tous les postes sur la période choisie, évolution, ventes par jour, par poste, par caissier,
+          par catégorie et par mode de paiement, articles les plus vendus et caisses clôturées avec un écart.
         </li>
         <li>
           <strong>Carte</strong> : prix en ariary, rangés par catégorie. Un article déjà vendu se retire de la carte (interrupteur) au lieu d&apos;être supprimé. Les ventes de la période

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:migrer": "tsx scripts/db/migrer.ts",
     "db:amorcer": "tsx scripts/db/amorcer.ts",
-    "db:demo": "tsx scripts/db/demonstration.ts"
+    "db:demo": "tsx scripts/db/demonstration.ts",
+    "db:demo-caisse": "tsx scripts/db/demonstrationCaisse.ts"
   },
   "dependencies": {
     "@neon/config": "^1.9.2",

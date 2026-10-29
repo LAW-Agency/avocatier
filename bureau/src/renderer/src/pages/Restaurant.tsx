@@ -1,26 +1,30 @@
 import { Badge, Body1, Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody, Spinner, Tab, TabList } from "@fluentui/react-components"
-import { DesktopRegular, FoodRegular, LockClosedRegular, ReceiptRegular, TextBulletListSquareRegular } from "@fluentui/react-icons"
+import { DataBarVerticalRegular, DesktopRegular, FoodRegular, LockClosedRegular, ReceiptRegular, TextBulletListSquareRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import type { DateISO } from "@partage/types"
 import { useCaisse, type Caisse } from "../caisse"
 import CaisseCarte from "../composants/CaisseCarte"
 import CaisseCloture, { OuvertureCaisse } from "../composants/CaisseCloture"
+import CaisseEnsemble from "../composants/CaisseEnsemble"
 import CaisseTickets from "../composants/CaisseTickets"
 import CaisseVente from "../composants/CaisseVente"
 import { Carte, ChargementLogo, EnTete } from "../composants/commun"
+import { useDonneesChargees } from "../donnees"
 import { useRestaurantStyles } from "./useRestaurantStyles.styles"
 
-type Onglet = "vente" | "tickets" | "cloture" | "carte"
+type Onglet = "ensemble" | "vente" | "tickets" | "cloture" | "carte"
 
 const heure = (instant: string) =>
   new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Indian/Antananarivo" }).format(new Date(instant))
 
-// Restaurant et Bar : caisse de ce poste (vente, tickets du jour, clôture, carte). Caissiers, réception et gérants.
-// Un poste s'enregistre une fois (nom : Bar, Restaurant…) : le serveur lui donne le préfixe de ses tickets. On ne
-// vend qu'avec la caisse ouverte (fond de caisse), clôturée en fin de service avec les espèces comptées
+// Restaurant et Bar : caisse de ce poste (vente, tickets du jour, clôture, carte) pour les caissiers, la réception
+// et les gérants, plus une vue d'ensemble de tous les postes pour les gérants (ouverte en premier). Un poste
+// s'enregistre une fois (nom : Bar, Restaurant…), depuis l'onglet Vente : le serveur lui donne le préfixe de ses
+// tickets. On ne vend qu'avec la caisse ouverte (fond de caisse), clôturée en fin de service avec les espèces comptées
 export default function Restaurant() {
   const styles = useRestaurantStyles()
-  const [onglet, setOnglet] = useState<Onglet>("vente")
+  const { gerant } = useDonneesChargees()
+  const [onglet, setOnglet] = useState<Onglet>(gerant ? "ensemble" : "vente")
   // Jour des tickets affichés ; null : aujourd'hui (date de Sainte-Marie donnée par le serveur)
   const [jour, setJour] = useState<DateISO | null>(null)
   const caisse = useCaisse(jour)
@@ -50,11 +54,14 @@ export default function Restaurant() {
       )}
       {!donnees || !poste ? (
         !erreur && <ChargementLogo texte="Chargement de la caisse…" />
-      ) : !poste.prefixe || !nomPoste ? (
-        <EnregistrementPoste caisse={caisse} />
       ) : (
         <>
           <TabList selectedValue={onglet} onTabSelect={(_e, data) => setOnglet(data.value as Onglet)} data-visite="restaurant-onglets">
+            {gerant && (
+              <Tab value="ensemble" icon={<DataBarVerticalRegular />}>
+                Vue d&apos;ensemble
+              </Tab>
+            )}
             <Tab value="vente" icon={<ReceiptRegular />}>
               Vente
             </Tab>
@@ -68,7 +75,16 @@ export default function Restaurant() {
               Carte
             </Tab>
           </TabList>
-          {onglet === "vente" && (session ? <CaisseVente caisse={caisse} donnees={donnees} /> : <OuvertureCaisse caisse={caisse} />)}
+          {onglet === "ensemble" && gerant && <CaisseEnsemble aujourdhui={donnees.aujourdhui} />}
+          {/* Cet ordinateur vend : enregistré comme poste, puis caisse ouverte */}
+          {onglet === "vente" &&
+            (!poste.prefixe || !nomPoste ? (
+              <EnregistrementPoste caisse={caisse} />
+            ) : session ? (
+              <CaisseVente caisse={caisse} donnees={donnees} />
+            ) : (
+              <OuvertureCaisse caisse={caisse} />
+            ))}
           {onglet === "tickets" && <CaisseTickets caisse={caisse} donnees={donnees} jour={jour ?? donnees.aujourdhui} onJour={setJour} />}
           {onglet === "cloture" && <CaisseCloture caisse={caisse} donnees={donnees} />}
           {onglet === "carte" && <CaisseCarte caisse={caisse} donnees={donnees} />}

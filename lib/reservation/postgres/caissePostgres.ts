@@ -142,14 +142,17 @@ export const caissePostgres: CaisseRestaurant = {
 
   async bilanPeriode({ du, au }) {
     const jour = `(t.le at time zone '${FUSEAU}')::date between $1 and $2`
-    const [[totaux], parCategorie] = await Promise.all([
-      lignes<Omit<BilanRestaurant, "parCategorie">>(
+    const valides = `t.statut <> 'annule' and ${jour}`
+    const nom = (alias: string) => `coalesce(nullif(trim(${alias}.prenom || ' ' || ${alias}.nom), ''), 'Compte supprimé')`
+    const [[totaux], parCategorie, parJour, parPoste, parCaissier, parMode, articles, sessions] = await Promise.all([
+      lignes<Pick<BilanRestaurant, "ventes" | "encaisse" | "surChambres" | "tickets" | "annules" | "montantAnnule">>(
         db(),
         `select coalesce(sum(total) filter (where statut <> 'annule'), 0)::int as ventes,
            coalesce(sum(total) filter (where statut = 'paye'), 0)::int as encaisse,
            coalesce(sum(total) filter (where statut = 'chambre'), 0)::int as "surChambres",
            (count(*) filter (where statut <> 'annule'))::int as tickets,
-           (count(*) filter (where statut = 'annule'))::int as annules
+           (count(*) filter (where statut = 'annule'))::int as annules,
+           coalesce(sum(total) filter (where statut = 'annule'), 0)::int as "montantAnnule"
          from tickets t where ${jour}`,
         [du, au],
       ),
@@ -162,8 +165,57 @@ export const caissePostgres: CaisseRestaurant = {
          group by 1 order by 2 desc`,
         [du, au],
       ),
+      lignes<BilanRestaurant["parJour"][number]>(
+        db(),
+        `select (t.le at time zone '${FUSEAU}')::date::text as jour, sum(t.total)::int as ventes,
+           coalesce(sum(t.total) filter (where t.statut = 'chambre'), 0)::int as "surChambres"
+         from tickets t where ${valides} group by 1 order by 1`,
+        [du, au],
+      ),
+      lignes<BilanRestaurant["parPoste"][number]>(
+        db(),
+        `select p.id as "posteId", p.nom, sum(t.total)::int as ventes, count(*)::int as tickets
+         from tickets t join postes_caisse p on p.id = t.poste_id where ${valides} group by 1, 2 order by 3 desc`,
+        [du, au],
+      ),
+      lignes<BilanRestaurant["parCaissier"][number]>(
+        db(),
+        `select t.caissier_id as "membreId", ${nom("c")} as nom, sum(t.total)::int as ventes, count(*)::int as tickets
+         from tickets t left join clients c on c.id = t.caissier_id where ${valides} group by 1, 2 order by 3 desc`,
+        [du, au],
+      ),
+      lignes<BilanRestaurant["parMode"][number]>(
+        db(),
+        `select g.mode, g.devise, sum(g.montant)::numeric as montant, sum(g.contre_valeur - g.rendu)::int as "contreValeur", count(*)::int as nombre
+         from reglements_tickets g join tickets t on t.id = g.ticket_id where ${valides} group by 1, 2 order by 4 desc`,
+        [du, au],
+      ),
+      lignes<BilanRestaurant["articles"][number]>(
+        db(),
+        `select l.libelle, sum(l.quantite)::int as quantite, sum(l.prix_unitaire * l.quantite)::int as montant
+         from lignes_ticket l join tickets t on t.id = l.ticket_id where ${valides} group by 1 order by 3 desc limit 10`,
+        [du, au],
+      ),
+      lignes<Omit<BilanRestaurant["sessions"][number], "ouverteLe" | "fermeeLe"> & { ouverteLe: Date; fermeeLe: Date | null }>(
+        db(),
+        `select s.id, p.nom as poste, s.ouverte_le as "ouverteLe", s.fermee_le as "fermeeLe", ${nom("c")} as caissier,
+           coalesce((s.bilan ->> 'ventes')::int, (select coalesce(sum(t.total), 0)::int from tickets t where t.session_id = s.id and t.statut <> 'annule')) as ventes,
+           coalesce(s.bilan -> 'ecarts', '{}'::jsonb) as ecarts, s.commentaire
+         from sessions_caisse s join postes_caisse p on p.id = s.poste_id left join clients c on c.id = s.ouverte_par
+         where (s.ouverte_le at time zone '${FUSEAU}')::date between $1 and $2 order by s.ouverte_le desc`,
+        [du, au],
+      ),
     ])
-    return { ...totaux, parCategorie }
+    return {
+      ...totaux,
+      parCategorie,
+      parJour,
+      parPoste,
+      parCaissier,
+      parMode,
+      articles,
+      sessions: sessions.map(({ ouverteLe, fermeeLe, ...s }) => ({ ...s, ouverteLe: ouverteLe.toISOString(), ...(fermeeLe && { fermeeLe: fermeeLe.toISOString() }) })),
+    }
   },
 
   async nomPoste(id) {

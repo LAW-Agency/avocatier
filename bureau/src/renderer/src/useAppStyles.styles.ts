@@ -25,4 +25,12 @@ export const useFenetresLimitees = makeStaticStyles({
   ".fui-DialogSurface": { maxHeight: `calc(100dvh - 2 * ${MARGE_FENETRE})` },
   ".fui-DialogBody": { maxHeight: `calc(100dvh - 2 * ${MARGE_FENETRE} - 2 * 24px)` },
   ".fui-DialogContent": { minHeight: 0 },
+  // Fluent cantonne les boutons à la moitié droite de la fenêtre (colonnes 2 à 4) : leurs libellés passaient
+  // sur plusieurs lignes. Toute la largeur, libellés sur une ligne, et s'il manque vraiment de place c'est le
+  // bouton entier qui passe à la ligne. Deux classes pour l'emporter sur les classes atomiques de Fluent.
+  ".fui-DialogBody > .fui-DialogActions": { gridColumnStart: 1, flexWrap: "wrap" },
+  ".fui-DialogActions .fui-Button, .fui-DialogActions .fui-MenuButton, .fui-DialogActions .fui-SplitButton": {
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  },
 })

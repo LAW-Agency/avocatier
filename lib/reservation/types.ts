@@ -433,14 +433,22 @@ export type SessionCaisse = {
 export type NouvelleSession = Pick<SessionCaisse, "id" | "posteId" | "ouverteLe" | "fondCaisse">
 export type ClotureSession = { fermeeLe: string; especesComptees: Partial<Record<CodeDevise, number>>; commentaire: string }
 
-// Restaurant et bar sur une période (écran Revenus des gérants), en ariary
+// Restaurant et bar sur une période (Revenus et vue d'ensemble de la caisse, gérants), en ariary ; tickets annulés
+// exclus des ventes
 export type BilanRestaurant = {
   ventes: number // payées sur place et mises sur les chambres
   encaisse: number
   surChambres: number
   tickets: number
   annules: number
+  montantAnnule: number
   parCategorie: { categorie: string; montant: number }[]
+  parJour: { jour: DateISO; ventes: number; surChambres: number }[] // jours avec des ventes
+  parPoste: { posteId: string; nom: string; ventes: number; tickets: number }[]
+  parCaissier: { membreId: string | null; nom: string; ventes: number; tickets: number }[]
+  parMode: { mode: ModePaiement; devise: CodeDevise; montant: number; contreValeur: number; nombre: number }[]
+  articles: { libelle: string; quantite: number; montant: number }[] // les plus vendus
+  sessions: { id: string; poste: string; ouverteLe: string; fermeeLe?: string; caissier: string; ventes: number; ecarts: Partial<Record<CodeDevise, number>>; commentaire: string }[]
 }
 
 // Ce qu'affiche l'écran Restaurant et Bar

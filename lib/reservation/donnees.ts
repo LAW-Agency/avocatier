@@ -119,6 +119,9 @@ export const COMPTE_DEMO = { email: "demo@avocatier.test", motDePasse: "vohilava
 export const COMPTE_HOTE = { email: "hotes@avocatier.test", motDePasse: "avocatier-hotes" }
 // Compte de la réception (rôle « reception ») : créé depuis le logiciel, écran Utilisateurs
 export const COMPTE_RECEPTION = { email: "reception@avocatier.test", motDePasse: "avocatier-reception" }
+// Comptes Caisse (rôle « caissier ») des postes Restaurant et Bar : créés par npm run db:demo-caisse
+export const COMPTE_CAISSE_RESTAURANT = { email: "restaurant@avocatier.test", motDePasse: "avocatier-restaurant", prenom: "Fanja", nom: "Rakotomalala" }
+export const COMPTE_CAISSE_BAR = { email: "bar@avocatier.test", motDePasse: "avocatier-bar", prenom: "Tojo", nom: "Rakotondrabe" }
 
 export function creerCompteHote(): Client {
   return {
