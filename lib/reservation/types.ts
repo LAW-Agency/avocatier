@@ -327,3 +327,82 @@ export type ReglagesFacturation = {
   identifiants: string // NIF, STAT, RCS…
   mentions: string // pied des factures
 }
+
+// --- Caisse Restaurant et Bar (logiciel des hôtes, migration 007) ---
+// Montants de la caisse en ariary (entiers). Identifiants des postes, sessions et tickets créés par le logiciel :
+// une vente faite hors connexion s'envoie plus tard sans doublon.
+
+export type Article = {
+  id: string
+  nom: string
+  categorie: string // « Plats », « Cocktails »… : regroupe les boutons de la caisse
+  prix: number // ariary
+  description: string
+  actif: boolean // désactivé : plus proposé, les tickets passés le gardent
+  ordre: number
+}
+
+export type NouvelArticle = Pick<Article, "nom" | "categorie" | "prix" | "description"> & { ordre?: number }
+export type ModificationArticle = Partial<Pick<Article, "nom" | "categorie" | "prix" | "description" | "actif" | "ordre">>
+
+// Ordinateur de caisse ; ses tickets sont numérotés « <prefixe>-000042 »
+export type PosteCaisse = { id: string; nom: string; prefixe: string; dernierTicket: number }
+
+// paye : réglé sur place ; chambre : sur la note du séjour, réglé au départ ; annule : avec un motif
+export type StatutTicket = "paye" | "chambre" | "annule"
+
+export type LigneTicket = { articleId?: string; libelle: string; prixUnitaire: number; quantite: number }
+
+// Argent reçu dans sa devise ; contre-valeur en ariary imputée sur le ticket ; monnaie rendue en ariary (espèces)
+export type ReglementTicket = { mode: ModePaiement; devise: CodeDevise; montant: number; contreValeur: number; rendu: number }
+
+export type Ticket = {
+  id: string
+  numero: string
+  posteId: string
+  sessionId?: string
+  caissierId?: string
+  le: string // date-heure ISO de la vente sur le poste
+  recuLe: string // arrivée au serveur
+  statut: StatutTicket
+  reservationId?: string // statut « chambre » (et un ticket de chambre annulé)
+  libelle: string // « Table 4 », nom d'un client de passage
+  total: number // ariary
+  lignes: LigneTicket[]
+  reglements: ReglementTicket[]
+  annuleLe?: string
+  annulePar?: string
+  motifAnnulation: string
+  factureId?: string // sur une facture de séjour : plus modifiable
+}
+
+// Vente envoyée par un poste : réglée sur place (reglements) ou mise sur la chambre (reservationId).
+// differe : vente faite hors connexion, envoyée au retour du réseau (le séjour n'est plus vérifié : la vente a eu
+// lieu, un ticket arrivé après le départ ou la facture remonte comme anomalie)
+export type NouveauTicket = Pick<Ticket, "id" | "numero" | "posteId" | "le" | "libelle"> & {
+  sessionId?: string
+  lignes: LigneTicket[]
+  reservationId?: string
+  reglements: ReglementTicket[]
+  differe?: boolean
+}
+
+// Séjour en cours sur lequel la caisse peut mettre un ticket (sans autre donnée du client que son nom)
+export type SejourCaisse = {
+  reservationId: string
+  reference: string
+  chambre: string // « Océan 3 »
+  client: string // prénom et nom
+  arrivee: DateISO
+  depart: DateISO
+  facture: boolean // déjà facturé : plus rien ne s'y ajoute
+}
+
+// Ce qu'affiche l'écran Restaurant et Bar
+export type DonneesCaisse = {
+  articles: Article[]
+  postes: PosteCaisse[]
+  tickets: Ticket[] // de la période demandée, du plus récent au plus ancien
+  sejours: SejourCaisse[]
+  devises: ReglagesDevises
+}

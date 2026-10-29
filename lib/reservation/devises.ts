@@ -54,3 +54,11 @@ export function formaterMontant(montantEuros: number, devise: CodeDevise, reglag
 export function deviseAffichee(choix: string | null, reglages: ReglagesDevises): CodeDevise {
   return estCodeDevise(choix) && reglages.actives.includes(choix) ? choix : reglages.parDefaut
 }
+
+// Montant déjà dans sa devise (caisse, encaissements) : « 45 000 Ar », « 12,50 € », sans conversion ni arrondi au
+// pas d'affichage de la vitrine
+export function formaterDansDevise(montant: number, devise: CodeDevise): string {
+  const decimales = devise === "MGA" || Number.isInteger(montant) ? 0 : 2
+  const nombre = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales }).format(montant)
+  return `${nombre} ${DEVISES[devise].symbole}`
+}
