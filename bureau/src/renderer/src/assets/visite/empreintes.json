@@ -28,5 +28,17 @@
   "27-devises": "913965863742f88a",
   "28-utilisateurs": "7e7c4d9201102f7f",
   "29-parametres": "56e98cc69eb5331c",
-  "30-fin": "98b9e3fe00bc2271"
+  "30-fin": "98b9e3fe00bc2271",
+  "19b-restaurant": "81fd4a3fd3d773b9",
+  "19c-caisse-ensemble": "b5f7601a9929093b",
+  "19d-caisse-details": "c9e0c2e045c492f1",
+  "19e-caisse-poste": "9e15dcdb1823d5f7",
+  "19f-caisse-articles": "86d7d0b12b11139d",
+  "19g-caisse-ticket": "75c45fb0ea87f292",
+  "19h-caisse-chambre": "5300bac574202f83",
+  "19i-caisse-tickets": "eb646ecf749715e6",
+  "19j-caisse-annulation": "ccdd5311612c3300",
+  "19k-caisse-cloture": "22c62d738777d47a",
+  "19l-caisse-sessions": "2f56d96c5574d199",
+  "19m-caisse-carte": "2f544f2b3170b7dd"
 }

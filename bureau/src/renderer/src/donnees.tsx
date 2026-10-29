@@ -56,13 +56,16 @@ export type Donnees = {
   facturation: ReglagesFacturation // coordonnées imprimées sur les factures et les reçus
 }
 
+// Onglets de Restaurant et Bar (la visite guidée les ouvre l'un après l'autre)
+export type OngletCaisse = "ensemble" | "vente" | "tickets" | "cloture" | "carte"
+
 // Écrans du logiciel ; `filtre` : statut affiché dans Réservations
 export type Vue =
   | { page: "aujourdhui" }
   | { page: "reservations"; filtre?: StatutReservation | null }
   | { page: "planning" }
   | { page: "chambres"; filtre?: FiltreChambres }
-  | { page: "restaurant" }
+  | { page: "restaurant"; onglet?: OngletCaisse }
   | { page: "clients" }
   | { page: "client"; id: string }
   | { page: "revenus" }
@@ -79,6 +82,13 @@ export const PAGES_GERANTS: Vue["page"][] = ["revenus", "statistiques", "tarifs"
 
 // Seuls écrans d'un caissier (il ne reçoit ni réservations ni clients ; l'API refuse le reste)
 export const PAGES_CAISSIER: Vue["page"][] = ["restaurant", "guide", "parametres"]
+
+// Écran ouvert à ce rôle (même règle que la navigation de la Coquille ; reprise par le Guide et la visite guidée)
+export function pageAutorisee(role: RoleEquipe, page: Vue["page"]): boolean {
+  if (role === "caissier") return PAGES_CAISSIER.includes(page)
+  if (role === "reception") return !PAGES_GERANTS.includes(page)
+  return true
+}
 
 // Fenêtre « Nouvelle réservation », éventuellement préremplie (client, hébergement et chambre, date)
 export type Preremplissage = { clientId?: string; hebergementId?: string; chambreId?: string; arrivee?: string }
@@ -112,6 +122,13 @@ const Contexte = createContext<ContexteDonnees | null>(null)
 export const MESSAGE_LECTURE_SEULE = "Hors connexion : le logiciel est en lecture seule. Réessayez une fois la connexion rétablie."
 const MESSAGE_DEMONSTRATION = "Visite guidée : les données affichées sont des exemples, rien n'est enregistré."
 
+// Données demandées dès la connexion validée (pendant que l'écran de connexion s'efface), reprises par le
+// premier chargement du fournisseur au lieu d'un second appel
+let prechargement: Promise<ResultatApi<Donnees>> | null = null
+export function prechargerDonnees() {
+  prechargement = window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
+}
+
 export function FournisseurDonnees({ children }: { children: ReactNode }) {
   const [donnees, setDonnees] = useState<Donnees | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -130,7 +147,9 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
   }, [enLigne, exemple])
 
   const recharger = useCallback(async () => {
-    const resultat = await window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
+    const appel = prechargement ?? window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
+    prechargement = null
+    const resultat = await appel
     if (resultat.ok) {
       setDonnees(resultat.donnees)
       setErreur(null)

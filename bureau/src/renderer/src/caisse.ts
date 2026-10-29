@@ -63,6 +63,8 @@ export function useCaisse(jour: DateISO | null) {
   const [donnees, setDonnees] = useState<DonneesEcranCaisse | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [poste, setPoste] = useState<PosteLocal | null>(null)
+  // Jour des tickets reçus (null : aujourd'hui) : différent de jour pendant le chargement d'un autre jour
+  const [jourCharge, setJourCharge] = useState<DateISO | null | undefined>(undefined)
 
   const charger = useCallback(async () => {
     const [resultat, local] = await Promise.all([
@@ -75,6 +77,7 @@ export function useCaisse(jour: DateISO | null) {
       return
     }
     setDonnees(resultat.donnees)
+    setJourCharge(jour)
     setErreur(null)
     // Préfixe et plus haut numéro reçus par le serveur : la numérotation du poste reste devant
     const connu = resultat.donnees.postes.find((p) => p.id === local.posteId)
@@ -152,7 +155,7 @@ export function useCaisse(jour: DateISO | null) {
     [lectureSeule, poste, session, ecrire],
   )
 
-  return { donnees, erreur, poste, session, charger, ecrire, enregistrerPoste, ouvrir, cloturer, vendre, lectureSeule }
+  return { donnees, erreur, poste, session, jourEnCours: jourCharge !== jour, charger, ecrire, enregistrerPoste, ouvrir, cloturer, vendre, lectureSeule }
 }
 
 export type Caisse = ReturnType<typeof useCaisse>

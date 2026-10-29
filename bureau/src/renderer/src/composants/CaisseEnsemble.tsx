@@ -134,7 +134,7 @@ export default function CaisseEnsemble({ aujourdhui }: { aujourdhui: DateISO }) 
         <Vide Icone={ReceiptRegular} titre="Aucune vente sur la période" texte="Les ventes de tous les postes de caisse s'afficheront ici." />
       ) : (
         <>
-          <div className={gestion.chiffres}>
+          <div className={gestion.chiffres} data-visite="caisse-chiffres">
             <Indicateur Icone={MoneyRegular} libelle="Ventes" valeur={ariary(b.ventes)} evolution={evolution(b.ventes, a.ventes)} note={`${b.tickets} tickets${b.annules ? ` · ${b.annules} annulés (${ariary(b.montantAnnule)})` : ""}`} />
             <Indicateur Icone={WalletRegular} libelle="Payé sur place" valeur={ariary(b.encaisse)} evolution={evolution(b.encaisse, a.encaisse)} note="Espèces, carte, mobile money" />
             <Indicateur Icone={BedRegular} libelle="Sur les chambres" valeur={ariary(b.surChambres)} evolution={evolution(b.surChambres, a.surChambres)} note="Réglé avec le séjour" />
@@ -142,7 +142,7 @@ export default function CaisseEnsemble({ aujourdhui }: { aujourdhui: DateISO }) 
           </div>
 
           {jours.length > 1 && (
-            <Carte titre="Ventes par jour" description="Tous les postes ; la part mise sur les chambres en plus clair">
+            <Carte data-visite="caisse-details" titre="Ventes par jour" description="Tous les postes ; la part mise sur les chambres en plus clair">
               <Histogramme
                 barres={jours.map((j) => ({
                   cle: j,

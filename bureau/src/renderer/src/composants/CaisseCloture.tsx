@@ -55,7 +55,7 @@ export function OuvertureCaisse({ caisse }: { caisse: Caisse }) {
   }
 
   return (
-    <Carte titre="Ouvrir la caisse" className={styles.accueil}>
+    <Carte titre="Ouvrir la caisse" className={styles.accueil} data-visite="caisse-poste">
       <Body1>Comptez les espèces du tiroir avant le service : c&apos;est le fond de caisse. À la clôture, le logiciel calcule ce qui doit s&apos;y trouver.</Body1>
       <form className={styles.champLigne} onSubmit={envoyer}>
         <Field label="Fond de caisse" style={{ flex: 1 }}>
@@ -97,7 +97,7 @@ export default function CaisseCloture({ caisse, donnees }: { caisse: Caisse; don
       {caisse.session ? (
         <ClotureEnCours caisse={caisse} session={caisse.session} nomPoste={nomPoste(caisse.session.posteId)} ouvertePar={nom(caisse.session.ouvertePar)} />
       ) : (
-        <MessageBar intent="info">
+        <MessageBar intent="info" data-visite="caisse-cloture">
           <MessageBarBody>La caisse de ce poste est fermée. Elle s&apos;ouvre depuis l&apos;onglet Vente, avec le fond de caisse.</MessageBarBody>
         </MessageBar>
       )}
@@ -106,7 +106,7 @@ export default function CaisseCloture({ caisse, donnees }: { caisse: Caisse; don
       {sessions.length === 0 ? (
         <Vide Icone={LockClosedRegular} titre="Aucune caisse ce jour-là" texte="Chaque ouverture et chaque clôture de caisse s'affichent ici, avec leur écart." />
       ) : (
-        <div className={cadre.root}>
+        <div className={cadre.root} data-visite="caisse-sessions">
           <Table aria-label="Caisses du jour">
             <TableHeader className={cadre.entete}>
               <TableRow>
@@ -221,6 +221,7 @@ function ClotureEnCours({ caisse, session, nomPoste, ouvertePar }: { caisse: Cai
 
   return (
     <Carte
+      data-visite="caisse-cloture"
       titre={`Caisse ouverte · ${nomPoste}`}
       description={`Depuis ${heure(session.ouverteLe)}${ouvertePar ? `, ouverte par ${ouvertePar}` : ""} · fond de caisse ${ariary(session.fondCaisse)}`}
     >

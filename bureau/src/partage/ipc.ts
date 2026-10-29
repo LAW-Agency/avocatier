@@ -97,6 +97,7 @@ export type Reglages = {
   devise: DeviseLogiciel
   imprimanteTicket: string // imprimante des tickets de caisse ; "" : boîte d'impression de Windows
   impressionAuto: boolean // imprimer le ticket dès l'encaissement
+  versionPresentee: string // dernière version présentée par la fenêtre de bienvenue ; "" : jamais (premier lancement)
 }
 
 // Poste de caisse de cet ordinateur (src/main/caisse.ts) : préfixe donné par le serveur à son enregistrement

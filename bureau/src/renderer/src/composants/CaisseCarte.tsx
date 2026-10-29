@@ -11,42 +11,50 @@ import {
   DialogTitle,
   Field,
   Input,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   MessageBar,
   MessageBarBody,
   Option,
+  SearchBox,
   Spinner,
   Subtitle2,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
   Tooltip,
   mergeClasses,
 } from "@fluentui/react-components"
-import { AddRegular, DeleteRegular, EditRegular, FoodRegular, SaveRegular } from "@fluentui/react-icons"
+import { AddRegular, DeleteRegular, EditRegular, FoodRegular, MoreHorizontalRegular, SaveRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import { formaterDansDevise } from "@partage/devises"
 import type { Article } from "@partage/types"
 import type { Caisse, DonneesEcranCaisse } from "../caisse"
 import { useRestaurantStyles } from "../pages/useRestaurantStyles.styles"
 import { Vide } from "./commun"
-import { useCadreTableStyles } from "./useCommunStyles.styles"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
 
 const ariary = (montant: number) => formaterDansDevise(montant, "MGA")
 
-// Carte du restaurant et du bar, modifiée par toute l'équipe de la caisse : articles par catégorie, prix en
-// ariary. Un article déjà vendu se retire de la carte (interrupteur) au lieu d'être supprimé
+const sansAccents = (texte: string) => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr")
+
+// Carte du restaurant et du bar, modifiée par toute l'équipe de la caisse : catégories en colonnes, une ligne par
+// article (prix en ariary, interrupteur « à la carte », modifier / supprimer dans le menu …). Un article déjà vendu
+// se retire de la carte au lieu d'être supprimé
 export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donnees: DonneesEcranCaisse }) {
   const styles = useRestaurantStyles()
-  const cadre = useCadreTableStyles()
   const [edition, setEdition] = useState<Article | "nouveau" | null>(null)
   const [enCours, setEnCours] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [recherche, setRecherche] = useState("")
   const categories = [...new Set(donnees.articles.map((a) => a.categorie))]
+  const mots = sansAccents(recherche.trim()).split(/\s+/).filter(Boolean)
+  const trouves = donnees.articles.filter((a) => {
+    const texte = sansAccents(`${a.nom} ${a.categorie} ${a.description}`)
+    return mots.every((m) => texte.includes(m))
+  })
+  const retires = donnees.articles.filter((a) => !a.actif).length
 
   async function modifier(a: Article, modification: Partial<Article>) {
     setEnCours(a.id)
@@ -65,7 +73,12 @@ export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donne
   return (
     <div className={styles.page}>
       <div className={styles.barreOutils}>
-        <Body1 className={styles.secondaire}>Prix en ariary. Un article retiré de la carte n&apos;est plus proposé à la vente ; les tickets passés le gardent.</Body1>
+        <div className={styles.filtres}>
+          <SearchBox className={styles.recherche} placeholder="Chercher un article" value={recherche} onChange={(_e, data) => setRecherche(data.value)} />
+          <Caption1 className={styles.secondaire}>
+            {donnees.articles.length} articles en ariary{retires ? `, dont ${retires} retiré${retires > 1 ? "s" : ""} de la carte` : ""}
+          </Caption1>
+        </div>
         <Button appearance="primary" icon={<AddRegular />} disabled={caisse.lectureSeule} onClick={() => setEdition("nouveau")}>
           Nouvel article
         </Button>
@@ -77,67 +90,63 @@ export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donne
       )}
       {donnees.articles.length === 0 ? (
         <Vide Icone={FoodRegular} titre="La carte est vide" texte="Ajoutez les plats, les boissons et les desserts, rangés par catégorie." />
+      ) : trouves.length === 0 ? (
+        <Vide Icone={FoodRegular} titre="Aucun article ne correspond" texte="Changez la recherche." />
       ) : (
-        categories.map((categorie) => (
-          <section key={categorie} className={styles.page}>
-            <Subtitle2>{categorie}</Subtitle2>
-            <div className={cadre.root}>
-              <Table aria-label={categorie}>
-                <TableHeader className={cadre.entete}>
-                  <TableRow>
-                    <TableHeaderCell className={cadre.premiere}>Article</TableHeaderCell>
-                    <TableHeaderCell style={{ width: "140px" }}>
-                      <span className={cadre.droite}>Prix</span>
-                    </TableHeaderCell>
-                    <TableHeaderCell style={{ width: "150px" }}>À la carte</TableHeaderCell>
-                    <TableHeaderCell style={{ width: "88px" }} aria-label="Actions" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {donnees.articles
-                    .filter((a) => a.categorie === categorie)
-                    .map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell className={cadre.premiere}>
-                          <Body1 block className={a.actif ? undefined : styles.secondaire}>
-                            {a.nom}
-                          </Body1>
-                          {a.description && <Caption1 className={styles.secondaire}>{a.description}</Caption1>}
-                        </TableCell>
-                        <TableCell>
-                          <span className={mergeClasses(cadre.droite, cadre.nombre)}>{ariary(a.prix)}</span>
-                        </TableCell>
-                        <TableCell>
+        <div className={styles.colonnesCarte} data-visite="caisse-carte">
+          {categories
+            .filter((categorie) => trouves.some((a) => a.categorie === categorie))
+            .map((categorie) => {
+              const articles = trouves.filter((a) => a.categorie === categorie)
+              return (
+                <section key={categorie} className={styles.categorie} aria-label={categorie}>
+                  <div className={styles.enteteCategorie}>
+                    <Subtitle2>{categorie}</Subtitle2>
+                    <Caption1 className={styles.secondaire}>{articles.length}</Caption1>
+                  </div>
+                  <ul className={styles.listeArticles}>
+                    {articles.map((a) => (
+                      <li key={a.id} className={styles.ligneArticle}>
+                        <Tooltip content={a.description || a.nom} relationship="description" positioning="above-start">
+                          <Body1 className={mergeClasses(styles.nomCarte, !a.actif && styles.retire)}>{a.nom}</Body1>
+                        </Tooltip>
+                        <Body1 className={mergeClasses(styles.prixCarte, !a.actif && styles.retire)}>{ariary(a.prix)}</Body1>
+                        <Tooltip content={a.actif ? "Proposé à la vente : cliquer pour le retirer" : "Retiré de la carte : cliquer pour le proposer"} relationship="label">
                           <Switch
+                            className={styles.interrupteur}
                             checked={a.actif}
                             disabled={enCours === a.id || caisse.lectureSeule}
-                            label={a.actif ? "Proposé" : "Retiré"}
                             onChange={(_e, data) => modifier(a, { actif: data.checked })}
                           />
-                        </TableCell>
-                        <TableCell>
-                          <div className={styles.actionsLigne}>
-                            <Tooltip content="Modifier" relationship="label">
-                              <Button appearance="subtle" size="small" icon={<EditRegular />} disabled={caisse.lectureSeule} onClick={() => setEdition(a)} />
-                            </Tooltip>
-                            <Tooltip content="Supprimer (article jamais vendu)" relationship="label">
-                              <Button
-                                appearance="subtle"
-                                size="small"
-                                disabled={enCours === a.id || caisse.lectureSeule}
-                                icon={enCours === a.id ? <Spinner size="tiny" /> : <DeleteRegular />}
-                                onClick={() => supprimer(a)}
-                              />
-                            </Tooltip>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                        </Tooltip>
+                        <Menu>
+                          <MenuTrigger disableButtonEnhancement>
+                            <Button
+                              appearance="subtle"
+                              size="small"
+                              aria-label={`Actions pour ${a.nom}`}
+                              disabled={enCours === a.id}
+                              icon={enCours === a.id ? <Spinner size="tiny" /> : <MoreHorizontalRegular />}
+                            />
+                          </MenuTrigger>
+                          <MenuPopover>
+                            <MenuList>
+                              <MenuItem icon={<EditRegular />} disabled={caisse.lectureSeule} onClick={() => setEdition(a)}>
+                                Modifier
+                              </MenuItem>
+                              <MenuItem icon={<DeleteRegular />} disabled={caisse.lectureSeule} onClick={() => supprimer(a)}>
+                                Supprimer (jamais vendu)
+                              </MenuItem>
+                            </MenuList>
+                          </MenuPopover>
+                        </Menu>
+                      </li>
                     ))}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
-        ))
+                  </ul>
+                </section>
+              )
+            })}
+        </div>
       )}
       {edition && <FenetreArticle article={edition === "nouveau" ? null : edition} categories={categories} caisse={caisse} onFin={() => setEdition(null)} />}
     </div>

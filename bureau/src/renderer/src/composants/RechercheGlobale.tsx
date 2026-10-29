@@ -29,7 +29,7 @@ import { libelleStatutHote } from "@partage/statuts"
 import { PAGES_GERANTS, chambresTriees, clientsVisibles, nomChambre, nomDe, useDonnees, type Vue } from "../donnees"
 import { numeroRecu } from "../documents"
 import { ETATS_CHAMBRE, MODES_PAIEMENT } from "../libelles"
-import { SECTIONS_GUIDE, normaliser } from "../pages/Guide"
+import { SECTIONS_GUIDE, normaliser, sectionVisible } from "../pages/Guide"
 import { useReglages } from "../reglages"
 import { usePrix } from "../montants"
 import { lancerVisite } from "./VisiteGuidee"
@@ -237,7 +237,7 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
 
     groupes.push({
       titre: "Guide",
-      resultats: SECTIONS_GUIDE.filter((s) => trouve(s.titre, s.resume, s.motsCles)).map((s) => ({
+      resultats: SECTIONS_GUIDE.filter((s) => sectionVisible(s, d.hote.role) && trouve(s.titre, s.resume, s.motsCles)).map((s) => ({
         cle: `guide-${s.id}`,
         libelle: s.titre,
         detail: s.resume,

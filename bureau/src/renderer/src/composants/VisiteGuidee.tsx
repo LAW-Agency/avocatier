@@ -1,7 +1,7 @@
 import { Button, Caption1, ProgressBar, Subtitle2, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components"
 import { ChevronLeftRegular, ChevronRightRegular, DismissRegular, PauseRegular, PlayRegular, Speaker2Regular, SpeakerMuteRegular } from "@fluentui/react-icons"
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react"
-import { useDonneesChargees, type Vue } from "../donnees"
+import { pageAutorisee, useDonneesChargees, type Vue } from "../donnees"
 import { useAnnoncer } from "../toasts"
 import { donneesAssezFournies, donneesDeDemonstration } from "../visite/demonstration"
 import { ETAPES_VISITE, VOIX_VISITE, type EtapeVisite } from "../visite/etapes"
@@ -84,10 +84,18 @@ export default function VisiteGuidee() {
 
 function Visite() {
   const styles = useStyles()
-  const { d, gerant, vue, naviguer, demonstration, setDemonstration } = useDonneesChargees()
+  const { d, vue, naviguer, demonstration, setDemonstration } = useDonneesChargees()
   const { annoncer } = useAnnoncer()
-  // Étapes des écrans de gérants sautées pour la réception
-  const etapes = useMemo(() => ETAPES_VISITE.filter((e) => !e.gerants || gerant), [gerant])
+  // Seulement ce que le rôle a le droit de voir : étapes d'un écran qui lui est fermé (écran de l'étape ou hérité de
+  // la précédente), réservées aux gérants, ou d'éléments qu'il n'a pas (`pour`)
+  const role = d.hote.role
+  const etapes = useMemo(() => {
+    let page: Vue["page"] | undefined
+    return ETAPES_VISITE.filter((e) => {
+      page = e.page ?? page
+      return (!e.gerants || role === "hote") && (!e.pour || e.pour.includes(role)) && (!page || pageAutorisee(role, page))
+    })
+  }, [role])
   const [index, setIndex] = useState(0)
   const [pause, setPause] = useState(false)
   const [muet, setMuet] = useState(false)
@@ -103,7 +111,8 @@ function Visite() {
 
   // Base presque vide : exemples le temps de la visite, vraies données rendues à la fin
   const demarrer = useEffectEvent(() => {
-    if (!donneesAssezFournies(d)) setDemonstration(donneesDeDemonstration(d))
+    // La caisse ne montre ni réservations ni clients : pas d'exemples pour elle
+    if (role !== "caissier" && !donneesAssezFournies(d)) setDemonstration(donneesDeDemonstration(d))
   })
   const finir = useEffectEvent(() => {
     if (demonstration) annoncer({ id: "visite", titre: "Visite terminée", texte: "Les données d'exemple ont été retirées.", intent: "success" })
@@ -114,11 +123,15 @@ function Visite() {
     return () => finir()
   }, [])
 
-  // Écran de l'étape : le sien, ou celui de la dernière étape qui en ouvre un (retour en arrière compris)
-  const page = etapes.slice(0, index + 1).findLast((e) => e.page)?.page
+  // Écran de l'étape : le sien, ou celui de la dernière étape qui en ouvre un (retour en arrière compris) ; de même
+  // pour l'onglet de Restaurant et Bar, depuis cette étape
+  const depuisPage = etapes.slice(0, index + 1).findLastIndex((e) => e.page)
+  const page = etapes[depuisPage]?.page
+  const onglet = depuisPage < 0 ? undefined : etapes.slice(depuisPage, index + 1).findLast((e) => e.onglet)?.onglet
+  const ongletAffiche = vue.page === "restaurant" ? vue.onglet : undefined
   useEffect(() => {
-    if (page && vue.page !== page) naviguer({ page } as Vue)
-  }, [page, vue.page, naviguer])
+    if (page && (vue.page !== page || (onglet && ongletAffiche !== onglet))) naviguer({ page, onglet } as Vue)
+  }, [page, onglet, vue.page, ongletAffiche, naviguer])
 
   // Recherche de l'élément (l'écran se prépare en transition), défilement jusqu'à lui une fois, puis suivi
   // de sa position (données rechargées, fenêtre redimensionnée…) ; introuvable au bout de 3 s : bulle au centre

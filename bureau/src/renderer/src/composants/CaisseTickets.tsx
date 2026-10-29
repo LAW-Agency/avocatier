@@ -9,9 +9,12 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Dropdown,
   Field,
   MessageBar,
   MessageBarBody,
+  Option,
+  SearchBox,
   Spinner,
   Table,
   TableBody,
@@ -23,18 +26,18 @@ import {
   Tooltip,
   mergeClasses,
 } from "@fluentui/react-components"
-import { DismissCircleRegular, ReceiptRegular, TextBulletListSquareRegular } from "@fluentui/react-icons"
+import { ChevronLeftRegular, ChevronRightRegular, DismissCircleRegular, ReceiptRegular, TextBulletListSquareRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
-import { formaterDate } from "@partage/dates"
+import { ajouterJours, formaterDate } from "@partage/dates"
 import { formaterDansDevise } from "@partage/devises"
-import type { DateISO, Ticket } from "@partage/types"
+import type { DateISO, StatutTicket, Ticket } from "@partage/types"
 import { resumeTicket, type Caisse, type DonneesEcranCaisse } from "../caisse"
 import { useDonneesChargees } from "../donnees"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useRestaurantStyles } from "../pages/useRestaurantStyles.styles"
 import ChampDate from "./ChampDate"
-import { Carte, Vide } from "./commun"
+import { AfficherPlus, ChargementLogo, PAR_PAQUET, Vide } from "./commun"
 import { useCadreTableStyles } from "./useCommunStyles.styles"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
 
@@ -43,7 +46,12 @@ const ariary = (montant: number) => formaterDansDevise(montant, "MGA")
 const heure = (instant: string) =>
   new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Indian/Antananarivo" }).format(new Date(instant))
 
-// Tickets d'un jour : ce qui a été encaissé, mis sur les chambres et annulé ; réimpression et annulation (motif
+const sansAccents = (texte: string) => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr")
+
+type Filtre = "tous" | StatutTicket
+
+// Tickets d'un jour (jour précédent / suivant d'un clic) : totaux qui servent aussi de filtres, recherche par numéro,
+// article, table ou chambre, choix du poste ; plus récents en premier. Réimpression et annulation (motif
 // obligatoire, ticket barré mais gardé)
 export default function CaisseTickets({ caisse, donnees, jour, onJour }: { caisse: Caisse; donnees: DonneesEcranCaisse; jour: DateISO; onJour: (jour: DateISO) => void }) {
   const styles = useRestaurantStyles()
@@ -52,11 +60,11 @@ export default function CaisseTickets({ caisse, donnees, jour, onJour }: { caiss
   const { imprimerTicket } = useFichiers()
   const [aAnnuler, setAAnnuler] = useState<Ticket | null>(null)
   const [impression, setImpression] = useState<string | null>(null)
-
-  const valides = donnees.tickets.filter((t) => t.statut !== "annule")
-  const encaisse = valides.filter((t) => t.statut === "paye").reduce((s, t) => s + t.total, 0)
-  const surChambres = valides.filter((t) => t.statut === "chambre").reduce((s, t) => s + t.total, 0)
-  const annules = donnees.tickets.length - valides.length
+  const [filtre, setFiltre] = useState<Filtre>("tous")
+  const [recherche, setRecherche] = useState("")
+  const [posteId, setPosteId] = useState("tous")
+  const [affichees, setAffichees] = useState(PAR_PAQUET)
+  const aujourdhui = jour === donnees.aujourdhui
 
   // Chambre d'un ticket : séjour en cours, ou réservation connue de la réception et des gérants
   function chambreDe(t: Ticket): string | undefined {
@@ -68,6 +76,33 @@ export default function CaisseTickets({ caisse, donnees, jour, onJour }: { caiss
   }
 
   const caissierDe = (t: Ticket) => d.equipe.find((m) => m.id === t.caissierId)?.prenom ?? (t.caissierId === d.hote.id ? d.hote.prenom : undefined)
+  const posteDe = (t: Ticket) => donnees.postes.find((p) => p.id === t.posteId)?.nom
+
+  // Totaux du jour (du poste choisi), puis filtre et recherche sur la liste
+  const duPoste = donnees.tickets.filter((t) => posteId === "tous" || t.posteId === posteId)
+  const deStatut = (statut: StatutTicket) => duPoste.filter((t) => t.statut === statut)
+  const somme = (statut: StatutTicket) => deStatut(statut).reduce((s, t) => s + t.total, 0)
+  const nombre = (n: number) => `${n} ticket${n > 1 ? "s" : ""}`
+  const pastilles: { filtre: Filtre; libelle: string; valeur: string; detail: string }[] = [
+    { filtre: "tous", libelle: "Ventes du jour", valeur: ariary(somme("paye") + somme("chambre")), detail: nombre(duPoste.length - deStatut("annule").length) },
+    { filtre: "paye", libelle: "Encaissé sur place", valeur: ariary(somme("paye")), detail: nombre(deStatut("paye").length) },
+    { filtre: "chambre", libelle: "Sur les chambres", valeur: ariary(somme("chambre")), detail: nombre(deStatut("chambre").length) },
+    { filtre: "annule", libelle: "Annulés", valeur: String(deStatut("annule").length), detail: deStatut("annule").length ? ariary(somme("annule")) : "aucun" },
+  ]
+  const mots = sansAccents(recherche.trim()).split(/\s+/).filter(Boolean)
+  const tickets = duPoste
+    .filter((t) => filtre === "tous" || t.statut === filtre)
+    .filter((t) => {
+      if (!mots.length) return true
+      const texte = sansAccents([t.numero, t.libelle, resumeTicket(t), chambreDe(t) ?? "", caissierDe(t) ?? ""].join(" "))
+      return mots.every((m) => texte.includes(m))
+    })
+    .sort((a, b) => b.le.localeCompare(a.le))
+
+  function changerJour(nouveau: DateISO) {
+    setAffichees(PAR_PAQUET)
+    onJour(nouveau)
+  }
 
   async function reimprimer(t: Ticket) {
     setImpression(t.id)
@@ -76,105 +111,166 @@ export default function CaisseTickets({ caisse, donnees, jour, onJour }: { caiss
   }
 
   // Hors gérants, seuls les tickets du jour s'annulent (vérifié aussi par le serveur)
-  const annulable = (t: Ticket) => t.statut !== "annule" && !t.factureId && (gerant || jour === donnees.aujourdhui)
+  const annulable = (t: Ticket) => t.statut !== "annule" && !t.factureId && (gerant || aujourdhui)
 
   return (
     <div className={styles.page}>
-      <div className={styles.barreOutils}>
-        <Field label="Jour">
-          <ChampDate valeur={jour} onChange={(valeur) => valeur && onJour(valeur)} />
-        </Field>
-        <Caption1 className={styles.secondaire}>{jour === donnees.aujourdhui ? "Aujourd'hui" : formaterDate(jour, { month: "long" })}</Caption1>
-      </div>
-
-      <div className={styles.resume}>
-        <Carte titre="Encaissé sur place">
-          <span className={styles.chiffre}>{ariary(encaisse)}</span>
-        </Carte>
-        <Carte titre="Sur les chambres">
-          <span className={styles.chiffre}>{ariary(surChambres)}</span>
-        </Carte>
-        <Carte titre="Tickets">
-          <span className={styles.chiffre}>{valides.length}</span>
-        </Carte>
-        <Carte titre="Annulés">
-          <span className={styles.chiffre}>{annules}</span>
-        </Carte>
-      </div>
-
-      {donnees.tickets.length === 0 ? (
-        <Vide Icone={TextBulletListSquareRegular} titre="Aucun ticket ce jour-là" texte="Les ventes de tous les postes de caisse s'affichent ici." />
-      ) : (
-        <div className={cadre.root}>
-          <Table aria-label="Tickets du jour">
-            <TableHeader className={cadre.entete}>
-              <TableRow>
-                <TableHeaderCell className={cadre.premiere} style={{ width: "72px" }}>
-                  Heure
-                </TableHeaderCell>
-                <TableHeaderCell style={{ width: "120px" }}>Ticket</TableHeaderCell>
-                <TableHeaderCell>Détail</TableHeaderCell>
-                <TableHeaderCell style={{ width: "190px" }}>Règlement</TableHeaderCell>
-                <TableHeaderCell style={{ width: "120px" }}>
-                  <span className={cadre.droite}>Total</span>
-                </TableHeaderCell>
-                <TableHeaderCell style={{ width: "88px" }} aria-label="Actions" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {donnees.tickets.map((t) => {
-                const chambre = chambreDe(t)
-                const caissier = caissierDe(t)
-                const annule = t.statut === "annule"
-                return (
-                  <TableRow key={t.id}>
-                    <TableCell className={mergeClasses(cadre.premiere, cadre.nombre)}>{heure(t.le)}</TableCell>
-                    <TableCell>
-                      <Body1 block className={annule ? styles.annule : undefined}>
-                        {t.numero}
-                      </Body1>
-                      {caissier && <Caption1 className={styles.secondaire}>{caissier}</Caption1>}
-                    </TableCell>
-                    <TableCell>
-                      <Body1 block className={annule ? styles.annule : undefined}>
-                        {t.libelle && <strong>{t.libelle} · </strong>}
-                        {resumeTicket(t)}
-                      </Body1>
-                      {annule && <Caption1 className={styles.secondaire}>Annulé : « {t.motifAnnulation} »</Caption1>}
-                    </TableCell>
-                    <TableCell>
-                      {t.reservationId ? (
-                        <Badge appearance="tint" color={annule ? "subtle" : "informative"} shape="rounded">
-                          Chambre {chambre ?? ""}
-                        </Badge>
-                      ) : (
-                        <Caption1>
-                          {t.reglements.map((r) => `${MODES_PAIEMENT[r.mode]} ${formaterDansDevise(r.montant, r.devise)}`).join(", ")}
-                          {t.reglements.some((r) => r.rendu) && ` · rendu ${ariary(t.reglements.reduce((s, r) => s + r.rendu, 0))}`}
-                        </Caption1>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className={mergeClasses(cadre.droite, cadre.nombre, annule && styles.annule)}>{ariary(t.total)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className={styles.actionsLigne}>
-                        <Tooltip content="Réimprimer le ticket" relationship="label">
-                          <Button appearance="subtle" size="small" disabled={impression === t.id} icon={impression === t.id ? <Spinner size="tiny" /> : <ReceiptRegular />} onClick={() => reimprimer(t)} />
-                        </Tooltip>
-                        {annulable(t) && (
-                          <Tooltip content="Annuler le ticket" relationship="label">
-                            <Button appearance="subtle" size="small" disabled={caisse.lectureSeule} icon={<DismissCircleRegular />} onClick={() => setAAnnuler(t)} />
-                          </Tooltip>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+      <div className={styles.barreOutils} data-visite="caisse-tickets-outils">
+        <div className={styles.navigationJour}>
+          <Tooltip content="Jour précédent" relationship="label">
+            <Button appearance="subtle" icon={<ChevronLeftRegular />} onClick={() => changerJour(ajouterJours(jour, -1))} />
+          </Tooltip>
+          <ChampDate className={styles.champJour} valeur={jour} onChange={(valeur) => valeur && changerJour(valeur)} />
+          <Tooltip content="Jour suivant" relationship="label">
+            <Button appearance="subtle" icon={<ChevronRightRegular />} disabled={aujourdhui} onClick={() => changerJour(ajouterJours(jour, 1))} />
+          </Tooltip>
+          {aujourdhui ? (
+            <Caption1 className={styles.secondaire}>Aujourd&apos;hui</Caption1>
+          ) : (
+            <Button appearance="transparent" onClick={() => changerJour(donnees.aujourdhui)}>
+              Revenir à aujourd&apos;hui
+            </Button>
+          )}
         </div>
+        <div className={styles.navigationJour}>
+          {donnees.postes.length > 1 && (
+            <Dropdown
+              className={styles.choixPoste}
+              aria-label="Poste de caisse"
+              value={posteId === "tous" ? "Tous les postes" : (donnees.postes.find((p) => p.id === posteId)?.nom ?? "")}
+              selectedOptions={[posteId]}
+              onOptionSelect={(_e, data) => {
+                setPosteId(data.optionValue ?? "tous")
+                setAffichees(PAR_PAQUET)
+              }}
+            >
+              <Option value="tous">Tous les postes</Option>
+              {donnees.postes.map((p) => (
+                <Option key={p.id} value={p.id}>
+                  {p.nom}
+                </Option>
+              ))}
+            </Dropdown>
+          )}
+          <SearchBox
+            className={styles.recherche}
+            placeholder="N°, article, table, chambre"
+            value={recherche}
+            onChange={(_e, data) => {
+              setRecherche(data.value)
+              setAffichees(PAR_PAQUET)
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Autre jour demandé : emblème en squelette tant que ses tickets ne sont pas arrivés */}
+      {caisse.jourEnCours && !caisse.erreur ? (
+        <ChargementLogo texte={`Tickets du ${formaterDate(jour, { month: "long" })}…`} taille="moyen" />
+      ) : (
+        <>
+          <div className={styles.pastilles} role="radiogroup" aria-label="Filtrer les tickets">
+            {pastilles.map((p) => (
+              <button
+                key={p.filtre}
+                type="button"
+                role="radio"
+                aria-checked={filtre === p.filtre}
+                className={mergeClasses(styles.pastille, filtre === p.filtre && styles.pastilleActive)}
+                onClick={() => {
+                  setFiltre(p.filtre)
+                  setAffichees(PAR_PAQUET)
+                }}
+              >
+                <Caption1 className={styles.secondaire}>{p.libelle}</Caption1>
+                <span className={styles.chiffre}>{p.valeur}</span>
+                <Caption1 className={styles.secondaire}>{p.detail}</Caption1>
+              </button>
+            ))}
+          </div>
+
+          {tickets.length === 0 ? (
+            donnees.tickets.length === 0 ? (
+              <Vide Icone={TextBulletListSquareRegular} titre="Aucun ticket ce jour-là" texte="Les ventes de tous les postes de caisse s'affichent ici." />
+            ) : (
+              <Vide Icone={TextBulletListSquareRegular} titre="Aucun ticket ne correspond" texte="Changez le filtre, le poste ou la recherche." />
+            )
+          ) : (
+            <>
+              <div className={cadre.root} data-visite="caisse-tickets-liste">
+                <Table aria-label="Tickets du jour" size="small">
+                  <TableHeader className={cadre.entete}>
+                    <TableRow>
+                      <TableHeaderCell className={cadre.premiere} style={{ width: "64px" }}>
+                        Heure
+                      </TableHeaderCell>
+                      <TableHeaderCell style={{ width: "140px" }}>Ticket</TableHeaderCell>
+                      <TableHeaderCell>Détail</TableHeaderCell>
+                      <TableHeaderCell style={{ width: "210px" }}>Règlement</TableHeaderCell>
+                      <TableHeaderCell style={{ width: "110px" }}>
+                        <span className={cadre.droite}>Total</span>
+                      </TableHeaderCell>
+                      <TableHeaderCell style={{ width: "80px" }} aria-label="Actions" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tickets.slice(0, affichees).map((t) => {
+                      const chambre = chambreDe(t)
+                      const annule = t.statut === "annule"
+                      const origine = [donnees.postes.length > 1 ? posteDe(t) : undefined, caissierDe(t)].filter(Boolean).join(" · ")
+                      return (
+                        <TableRow key={t.id}>
+                          <TableCell className={mergeClasses(cadre.premiere, cadre.nombre)}>{heure(t.le)}</TableCell>
+                          <TableCell>
+                            <Body1 block className={mergeClasses(styles.nombre, annule && styles.annule)}>
+                              {t.numero}
+                            </Body1>
+                            {origine && <Caption1 className={styles.secondaire}>{origine}</Caption1>}
+                          </TableCell>
+                          <TableCell>
+                            <Body1 block className={annule ? styles.annule : undefined}>
+                              {t.libelle && <strong>{t.libelle} · </strong>}
+                              {resumeTicket(t)}
+                            </Body1>
+                            {annule && <Caption1 className={styles.secondaire}>Annulé : « {t.motifAnnulation} »</Caption1>}
+                          </TableCell>
+                          <TableCell>
+                            {t.reservationId ? (
+                              <Badge appearance="tint" color={annule ? "subtle" : "informative"} shape="rounded">
+                                Chambre {chambre ?? ""}
+                              </Badge>
+                            ) : (
+                              <Caption1>
+                                {t.reglements.map((r) => `${MODES_PAIEMENT[r.mode]} ${formaterDansDevise(r.montant, r.devise)}`).join(", ")}
+                                {t.reglements.some((r) => r.rendu) && ` · rendu ${ariary(t.reglements.reduce((s, r) => s + r.rendu, 0))}`}
+                              </Caption1>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className={mergeClasses(cadre.droite, cadre.nombre, styles.montantTicket, annule && styles.annule)}>{ariary(t.total)}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className={styles.actionsLigne}>
+                              <Tooltip content="Réimprimer le ticket" relationship="label">
+                                <Button appearance="subtle" size="small" disabled={impression === t.id} icon={impression === t.id ? <Spinner size="tiny" /> : <ReceiptRegular />} onClick={() => reimprimer(t)} />
+                              </Tooltip>
+                              {annulable(t) && (
+                                <Tooltip content="Annuler le ticket" relationship="label">
+                                  <Button appearance="subtle" size="small" disabled={caisse.lectureSeule} icon={<DismissCircleRegular />} onClick={() => setAAnnuler(t)} />
+                                </Tooltip>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <AfficherPlus affichees={affichees} total={tickets.length} unite={["ticket", "tickets"]} onPlus={() => setAffichees((n) => n + PAR_PAQUET)} />
+            </>
+          )}
+        </>
       )}
       {aAnnuler && <FenetreAnnulation ticket={aAnnuler} caisse={caisse} onFin={() => setAAnnuler(null)} />}
     </div>

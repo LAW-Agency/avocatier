@@ -22,7 +22,9 @@ function pool(): Pool {
   if (!globalPg.__avocatierPg) {
     // Sans adresse, pg tenterait silencieusement localhost:5432
     if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL manquante : la définir dans .env (neon env pull) ou chez l'hébergeur.")
-    const nouveau = new Pool({ connectionString: process.env.DATABASE_URL, types: conversions, allowExitOnIdle: true })
+    // Connexions gardées une minute au lieu de 10 s : chaque nouvelle connexion à Neon coûte plusieurs
+    // allers-retours (TLS), et le logiciel des hôtes interroge le site toutes les 15 s
+    const nouveau = new Pool({ connectionString: process.env.DATABASE_URL, types: conversions, allowExitOnIdle: true, idleTimeoutMillis: 60_000 })
     // Sur Vercel, garde la fonction en vie le temps de fermer les connexions inactives (sans effet ailleurs)
     attachDatabasePool(nouveau)
     globalPg.__avocatierPg = nouveau

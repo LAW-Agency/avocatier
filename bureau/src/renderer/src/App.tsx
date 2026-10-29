@@ -2,8 +2,8 @@ import { FluentProvider, Toaster, tokens } from "@fluentui/react-components"
 import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react"
 import type { Reglages, Session } from "../../partage/ipc"
 import Connexion from "./Connexion"
+import { EcranLancement } from "./composants/EcranLancement"
 import Coquille from "./Coquille"
-import { ChargementLogo } from "./composants/commun"
 import { FournisseurDonnees } from "./donnees"
 import { ROLES } from "./libelles"
 import { ContexteReglages } from "./reglages"
@@ -98,14 +98,15 @@ export default function App() {
     // (fenêtres, menus, notifications), qui devenaient des calques plein écran bloquant les clics
     <FluentProvider theme={sombre ? themeSombre : themeClair} style={{ height: "100%", backgroundColor: MICA ? "transparent" : tokens.colorNeutralBackground3 }}>
       <ContexteReglages value={{ reglages, sombre, modifier: (m) => window.avocatier.modifierReglages(m).then(setReglages) }}>
-        {etat.chargement || !reglages ? (
-          <ChargementLogo texte="Un instant…" />
+        {/* Rien avant les réglages (fenêtre encore cachée) : le logo et la barre de titre dépendent du thème */}
+        {!reglages ? null : etat.chargement ? (
+          <EcranLancement />
         ) : etat.session ? (
           <FournisseurDonnees key={etat.session.hote.email}>
             <Coquille
               onDeconnexion={async () => {
                 const prenom = etat.session?.hote.prenom
-                // Écran d'attente (Spinner) le temps de fermer la session
+                // Écran de lancement (logo seul) le temps de fermer la session
                 setEtat({ chargement: true })
                 await window.avocatier.deconnexion()
                 setEtat({ ...etat, session: null, expiree: false })

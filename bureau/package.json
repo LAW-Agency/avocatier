@@ -1,7 +1,7 @@
 {
   "name": "avocatier-hotes",
   "productName": "Chez L'Avocatier",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Logiciel des hôtes de Chez L'Avocatier : demandes, planning, clients et tarifs",
   "author": "LAW Agency",
   "private": true,
@@ -14,6 +14,7 @@
     "paquet": "electron-vite build && electron-builder --win --publish never",
     "publier": "npm run paquet && node scripts/publier.mjs",
     "voix": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/voix-visite.mjs",
+    "voix:textes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/textes-voix.mjs",
     "voix:decouper": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/decouper-voix.mjs"
   },
   "devDependencies": {

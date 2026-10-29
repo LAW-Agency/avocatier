@@ -102,7 +102,7 @@ export default function CaisseVente({ caisse, donnees }: { caisse: Caisse; donne
 
   return (
     <div className={styles.vente}>
-      <div className={styles.articles}>
+      <div className={styles.articles} data-visite="caisse-articles">
         <div className={styles.filtres}>
           <SearchBox className={styles.recherche} placeholder="Chercher un article" value={recherche} onChange={(_e, data) => setRecherche(data.value)} />
           {!filtre && categories.length > 1 && (
@@ -132,7 +132,7 @@ export default function CaisseVente({ caisse, donnees }: { caisse: Caisse; donne
         )}
       </div>
 
-      <aside className={styles.ticket} aria-label="Ticket en cours">
+      <aside className={styles.ticket} aria-label="Ticket en cours" data-visite="caisse-ticket">
         <Subtitle2>Ticket en cours</Subtitle2>
         <Input value={libelle} onChange={(_e, data) => setLibelle(data.value)} placeholder="Table, nom du client (facultatif)" aria-label="Table ou nom du client" />
         <ul className={styles.lignes}>
@@ -167,7 +167,7 @@ export default function CaisseVente({ caisse, donnees }: { caisse: Caisse; donne
             Encaisser
           </Button>
           <Tooltip content={donnees.sejours.length ? "Sur la note du séjour, réglé au départ" : "Aucun client sur place aujourd'hui"} relationship="description">
-            <Button icon={<BedRegular />} disabled={!lignes.length || caisse.lectureSeule || !donnees.sejours.length} onClick={() => setFenetre("chambre")}>
+            <Button icon={<BedRegular />} disabled={!lignes.length || caisse.lectureSeule || !donnees.sejours.length} onClick={() => setFenetre("chambre")} data-visite="caisse-chambre">
               Sur la chambre
             </Button>
           </Tooltip>

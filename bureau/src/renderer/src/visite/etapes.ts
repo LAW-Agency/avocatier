@@ -19,14 +19,21 @@ export type PageVisite =
   | "parametres"
   | "guide"
 
+// Rôles de l'équipe (RoleEquipe, redit ici : ce fichier n'importe rien)
+export type RoleVisite = "hote" | "reception" | "caissier"
+// Barre de titre et navigation de l'hôtel (recherche, nouvelle réservation, cloche, situation du soir) : pas pour la caisse
+const HOTEL: RoleVisite[] = ["hote", "reception"]
+
 export type EtapeVisite = {
   id: string // nom du fichier audio
   page?: PageVisite // écran à ouvrir (sinon : celui de l'étape précédente)
+  onglet?: "ensemble" | "vente" | "tickets" | "cloture" | "carte" // onglet de Restaurant et Bar à ouvrir (même règle)
   cible?: string // valeur de data-visite ; absente ou introuvable : bulle au centre
   titre: string
   texte: string // sous-titre affiché
   voix?: string // texte dit, quand il diffère de l'affichage (raccourcis, sigles)
   gerants?: boolean // écran réservé aux gérants : étape sautée pour la réception
+  pour?: RoleVisite[] // rôles à qui la montrer (tous par défaut) ; étape d'un écran interdit au rôle sautée de toute façon
 }
 
 // Voix et modèle ElevenLabs de la génération
@@ -42,6 +49,7 @@ export const ETAPES_VISITE: EtapeVisite[] = [
   },
   {
     id: "02-navigation",
+    pour: HOTEL,
     cible: "navigation",
     titre: "La navigation",
     texte:
@@ -49,6 +57,7 @@ export const ETAPES_VISITE: EtapeVisite[] = [
   },
   {
     id: "03-recherche",
+    pour: HOTEL,
     cible: "recherche",
     titre: "La recherche",
     texte: "En haut, la recherche trouve tout : un client, une référence de réservation, un téléphone, une chambre, ou une page du guide. Raccourci : Ctrl + F.",
@@ -56,6 +65,7 @@ export const ETAPES_VISITE: EtapeVisite[] = [
   },
   {
     id: "04-nouvelle-reservation",
+    pour: HOTEL,
     cible: "barre-nouvelle-reservation",
     titre: "Nouvelle réservation",
     texte: "Ce bouton saisit une réservation depuis n'importe quel écran : un client au téléphone, sur WhatsApp, venu de Booking.com ou au comptoir. Raccourci : Ctrl + N.",
@@ -63,12 +73,14 @@ export const ETAPES_VISITE: EtapeVisite[] = [
   },
   {
     id: "05-cloche",
+    pour: HOTEL,
     cible: "cloche",
     titre: "Les notifications",
     texte: "La cloche compte ce qui reste à régler : demandes à traiter, départs non soldés, chambres à préparer, navettes du jour. Un clic ouvre le panneau des notifications.",
   },
   {
     id: "06-ce-soir",
+    pour: HOTEL,
     cible: "ce-soir",
     titre: "La situation du soir",
     texte: "En bas de la navigation, la situation du soir : le nombre de chambres occupées, et les arrivées et départs du jour.",
@@ -169,7 +181,93 @@ export const ETAPES_VISITE: EtapeVisite[] = [
     cible: "restaurant-onglets",
     titre: "Restaurant et Bar",
     texte:
-      "Restaurant et Bar, c'est la caisse. On ouvre la caisse avec le fond, on vend en touchant les articles, puis on encaisse sur place ou on met sur la chambre : le montant s'ajoute à la note du séjour et figure sur la facture du départ. En fin de service, la clôture compte le tiroir et calcule l'écart.",
+      "Restaurant et Bar, c'est la caisse du restaurant et du bar : les ventes sont payées sur place, ou mises sur la note d'une chambre. Les onglets : vue d'ensemble, réservée aux gérants, vente, tickets du jour, clôture et carte.",
+  },
+  {
+    id: "19c-caisse-ensemble",
+    page: "restaurant",
+    onglet: "ensemble",
+    cible: "caisse-chiffres",
+    gerants: true,
+    titre: "Vue d'ensemble",
+    texte:
+      "La vue d'ensemble réunit les ventes de tous les postes sur la période choisie : le total vendu, ce qui est payé sur place, ce qui est mis sur les chambres, et le ticket moyen, comparés à la période précédente.",
+  },
+  {
+    id: "19d-caisse-details",
+    cible: "caisse-details",
+    gerants: true,
+    titre: "Le détail des ventes",
+    texte:
+      "Plus bas : les ventes jour par jour, par poste, par caissier, par catégorie et par mode de paiement, les articles les plus vendus, et les caisses à surveiller, celles dont la clôture a montré un écart.",
+  },
+  {
+    id: "19e-caisse-poste",
+    page: "restaurant",
+    onglet: "vente",
+    cible: "caisse-poste",
+    titre: "Le poste et l'ouverture",
+    texte:
+      "Chaque ordinateur qui vend est un poste de caisse : il s'enregistre une fois sous un nom, Bar ou Restaurant, et numérote ses tickets à part. Avant le premier client, ouvrez la caisse en comptant le fond du tiroir. En haut, le poste et l'heure d'ouverture.",
+  },
+  {
+    id: "19f-caisse-articles",
+    cible: "caisse-articles",
+    titre: "Les articles",
+    texte: "Dans l'onglet Vente, la carte s'affiche en boutons. Cherchez un article ou choisissez une catégorie : chaque clic en ajoute un au ticket.",
+  },
+  {
+    id: "19g-caisse-ticket",
+    cible: "caisse-ticket",
+    titre: "Le ticket en cours",
+    texte:
+      "À droite, le ticket en cours : la table ou le nom du client, les quantités et le total en ariary. Encaisser ouvre le paiement : espèces, carte ou mobile money, en ariary ou dans une autre devise, avec la monnaie à rendre calculée.",
+  },
+  {
+    id: "19h-caisse-chambre",
+    cible: "caisse-chambre",
+    titre: "Sur la chambre",
+    texte:
+      "Sur la chambre met le ticket sur la note d'un client présent à l'hôtel : le montant s'ajoute à son séjour, et il le règle au départ, sur la même facture que l'hébergement.",
+  },
+  {
+    id: "19i-caisse-tickets",
+    page: "restaurant",
+    onglet: "tickets",
+    cible: "caisse-tickets-outils",
+    titre: "Tickets du jour",
+    texte:
+      "Tickets du jour liste les ventes de tous les postes. Changez de jour avec les flèches ; les totaux servent de filtres, et la recherche trouve un numéro, un article, une table ou une chambre.",
+  },
+  {
+    id: "19j-caisse-annulation",
+    cible: "caisse-tickets-liste",
+    titre: "Réimprimer ou annuler",
+    texte: "Chaque ticket se réimprime. Une erreur s'annule avec un motif obligatoire : le ticket reste visible, barré. Hors gérants, seuls les tickets du jour s'annulent.",
+  },
+  {
+    id: "19k-caisse-cloture",
+    page: "restaurant",
+    onglet: "cloture",
+    cible: "caisse-cloture",
+    titre: "Clôture",
+    texte:
+      "En fin de service, la Clôture fait le bilan de la caisse : les ventes, et les espèces attendues, c'est-à-dire le fond, plus les espèces reçues, moins la monnaie rendue, devise par devise. Comptez le tiroir : l'écart se calcule tout seul, et un écart demande une explication. Le rapport s'imprime sur l'imprimante à tickets.",
+  },
+  {
+    id: "19l-caisse-sessions",
+    cible: "caisse-sessions",
+    titre: "Caisses du jour",
+    texte: "Dessous, toutes les caisses du jour, de tous les postes : l'heure d'ouverture et de clôture, les ventes et l'écart de chacune.",
+  },
+  {
+    id: "19m-caisse-carte",
+    page: "restaurant",
+    onglet: "carte",
+    cible: "caisse-carte",
+    titre: "La carte",
+    texte:
+      "Enfin, la Carte : plats et boissons rangés par catégorie, avec leur prix en ariary. Ajoutez un article, changez son prix, ou retirez-le de la vente avec l'interrupteur. Un article déjà vendu se retire de la carte au lieu d'être supprimé.",
   },
   {
     id: "20-clients",

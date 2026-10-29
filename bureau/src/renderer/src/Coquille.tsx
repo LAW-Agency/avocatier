@@ -65,11 +65,12 @@ import {
   bundleIcon,
   type FluentIcon,
 } from "@fluentui/react-icons"
-import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react"
 import { pluriel } from "@partage/dates"
 import type { Annonce, Destination } from "../../partage/ipc"
 import { BarreTitre } from "./composants/BarreTitre"
-import { ChargementLogo } from "./composants/commun"
+import { EcranLancement } from "./composants/EcranLancement"
+import FenetreBienvenue from "./composants/FenetreBienvenue"
 import FenetreMiseAJour from "./composants/FenetreMiseAJour"
 import { BoutonNotifications, PanneauNotifications } from "./composants/Notifications"
 import NouvelleReservation from "./composants/NouvelleReservation"
@@ -96,6 +97,7 @@ import Utilisateurs from "./pages/Utilisateurs"
 import { useRappels } from "./rappels"
 import { situationDuJour } from "./situation"
 import { useAnnoncer } from "./toasts"
+import { MONTEE, SORTIE, logoRetenu, mouvementReduit, retenirLogo, transformationVers } from "./ouverture"
 import { useCoquilleStyles } from "./useCoquilleStyles.styles"
 
 type PageNav = Exclude<Vue["page"], "client">
@@ -174,8 +176,63 @@ const PARAMETRES: Rubrique = {
   Icone: bundleIcon(SettingsFilled, SettingsRegular),
 }
 
+// Arrivée dans le logiciel (connexion validée, ou lancement avec la session gardée) : le grand logo de l'écran
+// d'attente s'envole vers sa place dans la barre de titre, puis la recherche, la navigation et l'écran apparaissent
+function useEnvol(racine: RefObject<HTMLDivElement | null>, affichee: boolean) {
+  useLayoutEffect(() => {
+    const r = racine.current
+    const depart = logoRetenu()?.rect
+    if (!affichee || !r || !depart || mouvementReduit()) return
+    const [barre, corps] = Array.from(r.children) as HTMLElement[]
+    const logo = barre?.firstElementChild?.firstElementChild as HTMLElement | null
+    if (!barre || !corps || !logo) return
+    const centre = barre.children[1] as HTMLElement | undefined
+    const actions = barre.children[2]?.firstElementChild as HTMLElement | null
+    const [nav, ...contenu] = Array.from(corps.children) as HTMLElement[]
+
+    // Le logo a déjà attendu en grand le temps du chargement : il s'envole aussitôt les données arrivées
+    const pause = 80
+    const envol = 1000
+    const suite = pause + envol - 350
+    // `translate` et `filter` plutôt que `transform` et `opacity` : le tiroir de navigation de Fluent anime déjà
+    // ces deux-là à son montage et l'emporterait
+    const apparaitre = (el: HTMLElement | null | undefined, de: string, delai: number, duree = 800) =>
+      el?.animate(
+        [
+          { filter: "opacity(0)", translate: de },
+          { filter: "opacity(1)", translate: "0 0" },
+        ],
+        { duration: duree, delay: delai, easing: SORTIE, fill: "backwards" },
+      )
+    const animations = [
+      logo.animate([{ transform: transformationVers(logo, depart) }, { transform: "none" }], { duration: envol, delay: pause, easing: MONTEE, fill: "backwards" }),
+      apparaitre(centre, "0 -8px", suite),
+      apparaitre(actions, "0 -8px", suite + 80),
+      apparaitre(nav, "-32px 0", suite, 900),
+      ...contenu.map((el, i) => apparaitre(el, "0 32px", suite + 150 + i * 80, 900)),
+    ]
+    return () => animations.forEach((a) => a?.cancel())
+  }, [racine, affichee])
+}
+
+// Déconnexion : tout s'efface sauf le logo de la barre de titre, qui repart ensuite vers le centre (EcranLancement)
+async function sortie(racine: HTMLDivElement | null) {
+  const [barre, corps] = Array.from(racine?.children ?? []) as HTMLElement[]
+  const logo = barre?.firstElementChild?.firstElementChild ?? null
+  if (barre && corps && !mouvementReduit()) {
+    const parties = [barre.children[1], barre.children[2]?.firstElementChild, ...Array.from(corps.children)] as (HTMLElement | null | undefined)[]
+    await Promise.all(
+      parties.map(
+        (el) =>
+          el?.animate([{ filter: "opacity(1)" }, { filter: "opacity(0)" }], { duration: 280, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }).finished.catch(() => {}),
+      ),
+    )
+  }
+  retenirLogo(logo, true)
+}
+
 // Fenêtre principale une fois connecté : barre de titre avec recherche, navigation à gauche, écran courant
-export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void }) {
+export default function Coquille({ onDeconnexion: deconnecter }: { onDeconnexion: () => void }) {
   const styles = useCoquilleStyles()
   const apparition = useApparitionStyles()
   const { donnees, erreur, recharger, vue, naviguer, changementEcran, enLigne, setEnLigne, ouvrirNouvelleReservation } = useDonnees()
@@ -184,6 +241,8 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const [notificationsOuvertes, setNotificationsOuvertes] = useState(false)
   const champRecherche = useRef<HTMLInputElement>(null)
   const zoneDefilement = useRef<HTMLElement>(null)
+  const racine = useRef<HTMLDivElement>(null)
+  const onDeconnexion = () => sortie(racine.current).then(deconnecter)
   const { annoncer } = useAnnoncer()
   const gerant = donnees?.hote.role === "hote"
   // Caissier : ni réservations ni clients, rien de l'activité de l'hôtel
@@ -276,7 +335,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
         </MessageBarActions>
       </MessageBar>
     ) : (
-      <ChargementLogo texte="Chargement des réservations…" />
+      <EcranLancement />
     )
   } else if (caissier && !PAGES_CAISSIER.includes(vue.page)) ecran = <Restaurant />
   else if (!gerant && PAGES_GERANTS.includes(vue.page)) ecran = <Aujourdhui />
@@ -284,7 +343,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   else if (vue.page === "reservations") ecran = <Reservations filtre={vue.filtre ?? null} />
   else if (vue.page === "planning") ecran = <Planning />
   else if (vue.page === "chambres") ecran = <Chambres filtre={vue.filtre ?? "toutes"} />
-  else if (vue.page === "restaurant") ecran = <Restaurant />
+  else if (vue.page === "restaurant") ecran = <Restaurant onglet={vue.onglet} />
   else if (vue.page === "clients") ecran = <Clients />
   else if (vue.page === "client") ecran = <FicheClient id={vue.id} />
   else if (vue.page === "revenus") ecran = <Revenus />
@@ -296,8 +355,13 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   else if (vue.page === "guide") ecran = <Guide key={vue.section} section={vue.section} />
   else ecran = <Parametres onDeconnexion={onDeconnexion} />
 
+  // Premier chargement : le grand logo seul (même écran qu'au lancement), puis l'envol vers la barre de titre
+  const premierChargement = !donnees && !erreur
+  useEnvol(racine, !premierChargement)
+  if (premierChargement) return <EcranLancement />
+
   return (
-    <div className={styles.coquille}>
+    <div ref={racine} className={styles.coquille}>
       <BarreTitre
         centre={
           <RechercheGlobale ref={champRecherche} className={styles.recherche} disabled={!donnees || caissier} />
@@ -494,6 +558,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
 
       {donnees && <NouvelleReservation />}
       {donnees && <VisiteGuidee />}
+      {donnees && <FenetreBienvenue role={donnees.hote.role} />}
       <FenetreMiseAJour />
     </div>
   )
