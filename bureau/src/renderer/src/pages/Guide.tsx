@@ -5,6 +5,7 @@ import {
   BookOpenRegular,
   CalendarLtrRegular,
   DataTrendingRegular,
+  FoodRegular,
   GlobeRegular,
   HistoryRegular,
   HomeRegular,
@@ -24,7 +25,9 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { EnTete, Vide } from "../composants/commun"
 import { lancerVisite } from "../composants/VisiteGuidee"
-import { useDonneesChargees, type Vue } from "../donnees"
+import type { RoleEquipe } from "../../../partage/ipc"
+import { pageAutorisee, useDonneesChargees, type Vue } from "../donnees"
+import { ROLES } from "../libelles"
 
 const useStyles = makeStyles({
   mise: { display: "grid", gridTemplateColumns: "240px minmax(0, 1fr)", columnGap: tokens.spacingHorizontalXXL, alignItems: "start", "@media (max-width: 1100px)": { gridTemplateColumns: "minmax(0, 1fr)" } },
@@ -103,7 +106,22 @@ export type SectionGuide = {
   motsCles: string // pour la recherche (barre du haut et recherche du guide)
   ecran?: Vue // bouton « Ouvrir l'écran »
   gerants?: boolean // écran réservé aux gérants
-  contenu: ReactNode
+  pour?: RoleEquipe[] // rôles qui voient la section (tous par défaut) ; avec `ecran`, il faut aussi y avoir accès
+  contenu: ReactNode | ((role: RoleEquipe) => ReactNode)
+}
+
+// Section montrée à ce rôle : seulement ce qu'il a le droit d'ouvrir (Guide, recherche de la barre de titre)
+export function sectionVisible(s: SectionGuide, role: RoleEquipe): boolean {
+  return (!s.pour || s.pour.includes(role)) && (!s.gerants || role === "hote") && (!s.ecran || pageAutorisee(role, s.ecran.page))
+}
+
+const HOTEL: RoleEquipe[] = ["hote", "reception"]
+
+// Accès de chaque rôle (Premiers pas)
+const ACCES_ROLES: Record<RoleEquipe, string> = {
+  hote: "Tout le logiciel : Revenus, Statistiques, Tarifs, Utilisateurs, vue d'ensemble du restaurant et du bar, suppression des encaissements et du journal compris.",
+  reception: "Aujourd'hui, Réservations, Planning, Chambres, Clients, encaissements, Restaurant et Bar, Journal (en lecture), Guide et Paramètres.",
+  caissier: "Restaurant et Bar (vente, tickets du jour, clôture et carte), Guide et Paramètres.",
 }
 
 // Guide complet du logiciel et du site : une section par écran, plus la réservation en ligne, les
@@ -114,12 +132,13 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     titre: "Premiers pas",
     resume: "Connexion, rôles de l'équipe et organisation de la fenêtre.",
     Icone: RocketRegular,
-    motsCles: "connexion compte mot de passe oublié se souvenir de moi rôle gérant réception navigation fenêtre barre de titre déconnexion serveur visite guidée tutoriel voix découvrir formation",
-    contenu: (
+    motsCles: "connexion compte mot de passe oublié se souvenir de moi rôle gérant réception caisse navigation fenêtre barre de titre déconnexion serveur visite guidée tutoriel voix découvrir formation",
+    contenu: (role) => (
       <>
         <p>
-          Le logiciel des hôtes est relié au site <strong>Chez L&apos;Avocatier</strong> : il lit et modifie les mêmes réservations, en direct. Rien n&apos;est gardé seulement sur cet
-          ordinateur, à part vos préférences d&apos;affichage.
+          Le logiciel des hôtes est relié au site <strong>Chez L&apos;Avocatier</strong> :{" "}
+          {role === "caissier" ? "les ventes du restaurant et du bar sont enregistrées sur le serveur, en direct." : "il lit et modifie les mêmes réservations, en direct."} Rien
+          n&apos;est gardé seulement sur cet ordinateur, à part vos préférences d&apos;affichage.
         </p>
         <h3>Se connecter</h3>
         <ul>
@@ -132,48 +151,66 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
           </li>
           <li>Une notification confirme chaque connexion, déconnexion ou refus. Si le serveur refuse votre session (mot de passe changé, compte désactivé), vous revenez à l&apos;écran de connexion.</li>
         </ul>
-        <h3>Deux rôles</h3>
-        <Tableau>
-          <thead>
-            <tr>
-              <th>Rôle</th>
-              <th>Accès</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Gérant</td>
-              <td>Tout le logiciel : Revenus, Statistiques, Tarifs, Utilisateurs, suppression des encaissements et du journal compris.</td>
-            </tr>
-            <tr>
-              <td>Réception</td>
-              <td>Aujourd&apos;hui, Réservations, Planning, Chambres, Clients, encaissements, Journal (en lecture), Guide et Paramètres.</td>
-            </tr>
-          </tbody>
-        </Tableau>
+        {role === "hote" ? (
+          <>
+            <h3>Trois rôles</h3>
+            <Tableau>
+              <thead>
+                <tr>
+                  <th>Rôle</th>
+                  <th>Accès</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(ACCES_ROLES) as RoleEquipe[]).map((r) => (
+                  <tr key={r}>
+                    <td>{ROLES[r]}</td>
+                    <td>{ACCES_ROLES[r]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Tableau>
+          </>
+        ) : (
+          <>
+            <h3>Votre rôle : {ROLES[role]}</h3>
+            <p>{ACCES_ROLES[role]}</p>
+          </>
+        )}
         <h3>La fenêtre</h3>
-        <ul>
-          <li>En haut : le logo, la recherche (tous les modules), le bouton Nouvelle réservation, le thème clair / sombre et les boutons de la fenêtre.</li>
-          <li>À gauche : la navigation (réductible en icônes avec le bouton ☰), la situation du soir, les Paramètres et votre compte (menu : ouvrir le site, se déconnecter).</li>
-          <li>La croix ne quitte pas le logiciel : il reste près de l&apos;horloge de Windows pour continuer à recevoir les demandes (réglable). Pour quitter, clic droit sur l&apos;icône puis Quitter.</li>
-        </ul>
+        {role === "caissier" ? (
+          <ul>
+            <li>En haut : le logo, le thème clair / sombre et les boutons de la fenêtre.</li>
+            <li>À gauche : Restaurant et Bar, le Guide, les Paramètres et votre compte (menu : ouvrir le site, se déconnecter).</li>
+            <li>La croix ne quitte pas le logiciel : il reste près de l&apos;horloge de Windows (réglable). Pour quitter, clic droit sur l&apos;icône puis Quitter.</li>
+          </ul>
+        ) : (
+          <ul>
+            <li>En haut : le logo, la recherche (tous les modules), le bouton Nouvelle réservation, la cloche des notifications, le thème clair / sombre et les boutons de la fenêtre.</li>
+            <li>À gauche : la navigation (réductible en icônes avec le bouton ☰), la situation du soir, les Paramètres et votre compte (menu : ouvrir le site, se déconnecter).</li>
+            <li>La croix ne quitte pas le logiciel : il reste près de l&apos;horloge de Windows pour continuer à recevoir les demandes (réglable). Pour quitter, clic droit sur l&apos;icône puis Quitter.</li>
+          </ul>
+        )}
         <h3>Visite guidée</h3>
         <ul>
           <li>
             Le bouton <strong>Visite guidée</strong>, en haut de ce guide, ouvre chaque écran l&apos;un après l&apos;autre, éclaire chaque partie et l&apos;explique à voix haute, avec
-            les sous-titres. Les écrans des gérants sont sautés pour la réception.
+            les sous-titres. Seuls les écrans de votre rôle sont présentés.
           </li>
           <li>
             Pause, retour, étape suivante et son dans la bulle ; au clavier : <T>Espace</T>, <T>←</T>, <T>→</T>, <T>Échap</T> pour arrêter. Rien n&apos;est modifié pendant la
             visite.
           </li>
-          <li>Si l&apos;hôtel n&apos;a encore presque aucune réservation, des données d&apos;exemple s&apos;affichent le temps de la visite (jamais enregistrées) et disparaissent à la fin.</li>
+          {role !== "caissier" && (
+            <li>Si l&apos;hôtel n&apos;a encore presque aucune réservation, des données d&apos;exemple s&apos;affichent le temps de la visite (jamais enregistrées) et disparaissent à la fin.</li>
+          )}
         </ul>
       </>
     ),
   },
   {
     id: "site",
+    pour: HOTEL,
     titre: "Le site et la réservation en ligne",
     resume: "Ce que voient les clients, et comment une demande arrive dans le logiciel.",
     Icone: GlobeRegular,
@@ -471,6 +508,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
   },
   {
     id: "encaissements",
+    pour: HOTEL,
     titre: "Encaissements",
     resume: "Paiements, remboursements et reste dû d'une réservation.",
     Icone: MoneyRegular,
@@ -478,14 +516,23 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
       "encaissement paiement remboursement espèces carte mobile money virement solde reste dû acompte reçu pdf imprimer non soldé trop-perçu départ arrivée notifications cloche alerte annuler départ",
     contenu: (
       <ul>
-        <li>Dans la fiche d&apos;une réservation : montant total, déjà payé, reste dû, et la saisie d&apos;un paiement (espèces, carte, mobile money, virement…).</li>
+        <li>
+          Dans la fiche d&apos;une réservation : montant du séjour (plus le restaurant et le bar mis sur la chambre), déjà payé, reste dû, et la saisie d&apos;un paiement (espèces, carte,
+          mobile money, virement…) <strong>en ariary, en euros ou en dollars</strong>. Le montant proposé est le reste dans la devise choisie ; il est converti en euros au taux de Tarifs, et le
+          reçu indique le montant dans sa devise.
+        </li>
         <li>Un montant négatif enregistre un remboursement. Un séjour annulé ne doit plus rien : ce qui a été encaissé dessus apparaît en « Trop-perçu », à rembourser.</li>
         <li>
           <strong>Arrivée</strong> : la fenêtre rappelle l&apos;acompte reçu et le reste à payer ; on peut encaisser tout de suite, sans obligation.
         </li>
         <li>
-          <strong>Départ</strong> : s&apos;il reste à payer, encaissez-le dans la fenêtre (« Encaisser maintenant »). « Départ quand même » demande la raison (virement promis,
-          litige…), notée dans l&apos;historique de la réservation et le journal.
+          <strong>Départ</strong> : s&apos;il reste à payer (séjour et restaurant), encaissez-le dans la fenêtre (« Encaisser maintenant »). « Départ quand même » demande la raison
+          (virement promis, litige…), notée dans l&apos;historique de la réservation et le journal.
+        </li>
+        <li>
+          <strong>Facture complète</strong> : « Éditer la facture » (fenêtre de départ ou fiche) demande la devise du client (ariary, euro, dollar). La facture reprend le séjour, chaque ticket du
+          restaurant et du bar mis sur la chambre, les règlements et le reste, au taux du jour ; un groupe de chambres réservé par une même personne est facturé en une fois. Elle est figée :
+          encaissez d&apos;abord, puis éditez. La même facture se réimprime ensuite à l&apos;identique, et ses tickets ne s&apos;annulent plus.
         </li>
         <li>
           La <strong>cloche</strong> de la barre de titre compte ce qui reste à régler : départs non soldés, chambres à préparer, trop-perçus, arrivées ou départs oubliés, navettes, demandes à traiter. Le
@@ -496,6 +543,49 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
           Chaque encaissement a un numéro de reçu (RE-000042) ; l&apos;icône de reçu à côté du montant enregistre le <strong>reçu PDF</strong>, à imprimer ou envoyer au client.
         </li>
         <li>Seuls les gérants suppriment un encaissement saisi par erreur ; la réception corrige par un remboursement.</li>
+      </ul>
+    ),
+  },
+  {
+    id: "restaurant",
+    titre: "Restaurant et Bar",
+    resume: "Caisse du restaurant et du bar : ventes, carte, tickets, clôture.",
+    Icone: FoodRegular,
+    ecran: { page: "restaurant" },
+    motsCles:
+      "restaurant bar caisse caissier vue d'ensemble bilan vente ticket carte menu article plats boissons prix ariary encaisser monnaie rendue chambre note poste imprimante 80 mm fond de caisse ouverture clôture écart annuler",
+    contenu: (
+      <ul>
+        <li>
+          Pour la réception, les gérants et les comptes <strong>Caisse</strong> (créés dans Utilisateurs) : un caissier ne voit que cet écran, sans réservations ni clients.
+        </li>
+        <li>
+          <strong>Premier passage</strong> sur un ordinateur : donnez-lui un nom (Bar, Restaurant…). Ses tickets sont numérotés à part (C1-000001, C2-000001…). L&apos;imprimante à tickets de
+          80 mm se choisit dans Paramètres, avec un ticket d&apos;essai et l&apos;impression automatique à chaque vente.
+        </li>
+        <li>
+          <strong>Ouvrir la caisse</strong> avant le service avec le fond de caisse (les espèces du tiroir). Sans caisse ouverte, on ne vend pas.
+        </li>
+        <li>
+          <strong>Vente</strong> : touchez les articles (un clic = un de plus), indiquez la table si besoin, puis « Encaisser » (espèces, carte, mobile money ; en ariary, euros ou dollars, la
+          monnaie se rend en ariary) ou « Sur la chambre » : le montant s&apos;ajoute à la note du séjour et se règle au départ, avec la facture.
+        </li>
+        <li>
+          <strong>Tickets du jour</strong> : totaux, réimpression et annulation (motif obligatoire ; le ticket reste, barré). La réception et les caissiers annulent les tickets du jour, les
+          gérants n&apos;importe lequel ; un ticket déjà sur une facture ne s&apos;annule plus.
+        </li>
+        <li>
+          <strong>Clôture</strong> : en fin de service, comptez les espèces de chaque devise. Le logiciel calcule ce qui doit être dans le tiroir (fond + espèces reçues − monnaie rendue) et
+          l&apos;écart ; un écart demande une explication. Le rapport de clôture s&apos;imprime sur le ticket, avec la signature.
+        </li>
+        <li>
+          <strong>Vue d&apos;ensemble</strong> (gérants, premier onglet) : ventes de tous les postes sur la période choisie, évolution, ventes par jour, par poste, par caissier,
+          par catégorie et par mode de paiement, articles les plus vendus et caisses clôturées avec un écart.
+        </li>
+        <li>
+          <strong>Carte</strong> : prix en ariary, rangés par catégorie. Un article déjà vendu se retire de la carte (interrupteur) au lieu d&apos;être supprimé. Les ventes de la période
+          apparaissent dans Revenus (gérants), à part du chiffre d&apos;affaires des séjours.
+        </li>
       </ul>
     ),
   },
@@ -582,6 +672,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
   },
   {
     id: "recherche",
+    pour: HOTEL,
     titre: "Recherche",
     resume: "Retrouver n'importe quoi depuis la barre de titre.",
     Icone: SearchRegular,
@@ -601,6 +692,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
   },
   {
     id: "notifications",
+    pour: HOTEL,
     titre: "Notifications et suivi en direct",
     resume: "Comment le logiciel vous prévient des nouveautés.",
     Icone: AlertRegular,
@@ -658,7 +750,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     resume: "Aller plus vite au clavier.",
     Icone: KeyboardRegular,
     motsCles: "raccourci clavier zoom agrandir réduire plein écran f11 ctrl plus moins recherche nouvelle réservation",
-    contenu: (
+    contenu: (role) => (
       <Tableau>
         <thead>
           <tr>
@@ -697,18 +789,22 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
             </td>
             <td>Entrer en plein écran ou en sortir</td>
           </tr>
-          <tr>
-            <td>
-              <T>Ctrl</T> + <T>F</T>
-            </td>
-            <td>Rechercher dans tous les modules</td>
-          </tr>
-          <tr>
-            <td>
-              <T>Ctrl</T> + <T>N</T>
-            </td>
-            <td>Nouvelle réservation</td>
-          </tr>
+          {role !== "caissier" && (
+            <>
+              <tr>
+                <td>
+                  <T>Ctrl</T> + <T>F</T>
+                </td>
+                <td>Rechercher dans tous les modules</td>
+              </tr>
+              <tr>
+                <td>
+                  <T>Ctrl</T> + <T>N</T>
+                </td>
+                <td>Nouvelle réservation</td>
+              </tr>
+            </>
+          )}
           <tr>
             <td>
               <T>F1</T>
@@ -758,13 +854,14 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
 // Guide complet : sommaire à gauche, sections à droite ; `section` : ancre ouverte depuis la recherche
 export default function Guide({ section }: { section?: string }) {
   const styles = useStyles()
-  const { gerant, naviguer } = useDonneesChargees()
+  const { d, naviguer } = useDonneesChargees()
+  const role = d.hote.role
   const [filtre, setFiltre] = useState("")
   const [active, setActive] = useState(section ?? SECTIONS_GUIDE[0].id)
   const refs = useRef(new Map<string, HTMLElement>())
 
   const cherche = normaliser(filtre.trim())
-  const sections = SECTIONS_GUIDE.filter((s) => !cherche || normaliser(`${s.titre} ${s.resume} ${s.motsCles}`).includes(cherche))
+  const sections = SECTIONS_GUIDE.filter((s) => sectionVisible(s, role) && (!cherche || normaliser(`${s.titre} ${s.resume} ${s.motsCles}`).includes(cherche)))
 
   useEffect(() => {
     if (section) refs.current.get(section)?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -800,7 +897,7 @@ export default function Guide({ section }: { section?: string }) {
       />
       <MessageBar intent="info" icon={<BookOpenRegular />}>
         <MessageBarBody>
-          Appuyez sur <T>F1</T> depuis n&apos;importe quel écran pour revenir ici. La recherche de la barre de titre trouve aussi les sections du guide. Nouveau ? La{" "}
+          Appuyez sur <T>F1</T> depuis n&apos;importe quel écran pour revenir ici.{role !== "caissier" && " La recherche de la barre de titre trouve aussi les sections du guide."} Nouveau ? La{" "}
           <strong>visite guidée</strong> présente chaque écran, à voix haute.
         </MessageBarBody>
       </MessageBar>
@@ -842,8 +939,8 @@ export default function Guide({ section }: { section?: string }) {
                 {s.resume}
                 {s.gerants && " Réservé aux gérants."}
               </Caption1>
-              <div className={styles.texte}>{s.contenu}</div>
-              {s.ecran && (!s.gerants || gerant) && (
+              <div className={styles.texte}>{typeof s.contenu === "function" ? s.contenu(role) : s.contenu}</div>
+              {s.ecran && (
                 <Button className={styles.aller} onClick={() => naviguer(s.ecran!)}>
                   <Text>Ouvrir l&apos;écran</Text>
                 </Button>

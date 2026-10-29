@@ -14,13 +14,15 @@ import {
   Tooltip,
 } from "@fluentui/react-components"
 import { EyeOffRegular, EyeRegular, GlobeRegular, LockClosedRegular, MailRegular } from "@fluentui/react-icons"
-import { useState, type FormEvent } from "react"
+import { useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from "react"
 import type { Session } from "../../partage/ipc"
 import photo from "./assets/connexion.jpeg"
 import { BarreTitre } from "./composants/BarreTitre"
 import { Logotype } from "./composants/Logotype"
 import { useReglages } from "./reglages"
 import { useAnnoncer } from "./toasts"
+import { prechargerDonnees } from "./donnees"
+import { AGRANDI, HAUTEUR_LOGO, MONTEE, SORTIE, logoRetenu, mouvementReduit, retenirLogo, transformationVers } from "./ouverture"
 import { useConnexionStyles } from "./useConnexionStyles.styles"
 
 // Récupération du mot de passe sur le site (même parcours que les clients) ; adresse saisie illisible :
@@ -33,13 +35,80 @@ function lienRecuperation(serveur: string, parDefaut: string): string {
   }
 }
 
+// Ouverture : le logo est déjà là, grand, au centre de l'écran ; il monte à sa place et, au moment où il s'y
+// pose, la carte arrive du bas de la fenêtre (photo qui se pose, champs en cascade). Mesuré avant la première
+// image : rien ne saute. Mouvement réduit dans Windows : tout est affiché d'emblée
+function useOuverture(zone: RefObject<HTMLDivElement | null>, logo: RefObject<HTMLSpanElement | null>, carte: RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    const z = zone.current
+    const l = logo.current
+    const c = carte.current
+    if (!z || !l || !c || mouvementReduit()) return
+
+    // Décalage du logo jusqu'au centre de la zone, et de la carte jusque sous le bas de la fenêtre
+    const rz = z.getBoundingClientRect()
+    const rl = l.getBoundingClientRect()
+    const rc = c.getBoundingClientRect()
+    const dy = rz.top + rz.height / 2 - (rl.top + rl.height / 2)
+    const sousLaFenetre = rz.bottom - rc.top
+    const centre = `translateY(${dy}px) scale(${AGRANDI})`
+    const photo = c.firstElementChild as HTMLElement | null
+    const champs = Array.from(c.lastElementChild?.children ?? []) as HTMLElement[]
+
+    // Temps (ms) : le logo reste au centre (la fenêtre s'affiche deux images après le rendu), monte, puis la carte
+    const depart = logoRetenu()?.rect
+    const arrivee = depart ? 500 : 0
+    const pause = arrivee + 700
+    const montee = 1000
+    const carteDebut = pause + montee - 200
+
+    // Pas de barre de défilement le temps que la carte monte
+    z.style.overflowY = "hidden"
+    const animations = [
+      l.animate(
+        [
+          // Retour de la déconnexion encore en vol : le logo finit d'abord d'arriver au centre
+          ...(depart ? [{ transform: transformationVers(l, depart), easing: MONTEE }] : []),
+          { transform: centre, offset: depart ? arrivee / (pause + montee) : 0 },
+          { transform: centre, offset: pause / (pause + montee), easing: MONTEE },
+          { transform: "none" },
+        ],
+        { duration: pause + montee, fill: "backwards" },
+      ),
+      c.animate(
+        [
+          { opacity: 0, transform: `translateY(${sousLaFenetre}px)` },
+          { opacity: 1, offset: 0.35 },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: 1200, delay: carteDebut, easing: SORTIE, fill: "backwards" },
+      ),
+      ...(photo ? [photo.animate([{ transform: "scale(1.15)" }, { transform: "none" }], { duration: 1900, delay: carteDebut, easing: SORTIE, fill: "backwards" })] : []),
+      ...champs.map((champ, i) =>
+        champ.animate(
+          [
+            { opacity: 0, transform: "translateY(16px)" },
+            { opacity: 1, transform: "none" },
+          ],
+          { duration: 700, delay: carteDebut + 450 + i * 60, easing: SORTIE, fill: "backwards" },
+        ),
+      ),
+    ]
+    animations[1].finished.then(() => (z.style.overflowY = ""), () => {})
+    return () => {
+      animations.forEach((a) => a.cancel())
+      z.style.overflowY = ""
+    }
+  }, [zone, logo, carte])
+}
+
 interface ConnexionProps {
   serveurParDefaut: string
   expiree: boolean
   onConnecte: (session: Session) => void
 }
 
-// Connexion de l'équipe (gérants, réception) avec son compte : logo au centre, puis photo et formulaire.
+// Connexion de l'équipe (gérants, réception) avec son compte : logo au centre (repris de l'écran de lancement), puis photo et formulaire.
 // L'adresse du serveur ne se change qu'en cas de besoin (site déplacé sur le serveur de l'agence)
 export default function Connexion({ serveurParDefaut, expiree, onConnecte }: ConnexionProps) {
   const styles = useConnexionStyles()
@@ -53,6 +122,10 @@ export default function Connexion({ serveurParDefaut, expiree, onConnecte }: Con
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const { annoncer } = useAnnoncer()
+  const zone = useRef<HTMLDivElement>(null)
+  const logo = useRef<HTMLSpanElement>(null)
+  const carte = useRef<HTMLDivElement>(null)
+  useOuverture(zone, logo, carte)
 
   async function envoyer(e: FormEvent) {
     e.preventDefault()
@@ -64,16 +137,30 @@ export default function Connexion({ serveurParDefaut, expiree, onConnecte }: Con
       annoncer({ id: "connexion", titre: "Connexion refusée", texte: resultat.erreur, intent: "error", duree: 8000 })
       return setErreur(resultat.erreur)
     }
+    prechargerDonnees()
+    // Connexion validée : la carte redescend et s'efface, le logo reste en place et passe au logiciel
+    if (carte.current && !mouvementReduit()) {
+      await carte.current
+        .animate(
+          [
+            { opacity: 1, transform: "none" },
+            { opacity: 0, transform: "translateY(48px) scale(0.98)" },
+          ],
+          { duration: 420, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
+        )
+        .finished.catch(() => {})
+    }
+    retenirLogo(logo.current)
     onConnecte({ hote: resultat.donnees, serveur })
   }
 
   return (
     <div className={styles.ecran}>
-      <BarreTitre />
-      <div className={styles.centre}>
-        <Logotype hauteur={72} couleur="origine" />
+      <BarreTitre logo={false} />
+      <div ref={zone} className={styles.centre}>
+        <Logotype ref={logo} hauteur={HAUTEUR_LOGO} couleur="origine" />
 
-        <div className={styles.carte}>
+        <div ref={carte} className={styles.carte}>
           <div className={styles.photo} style={{ backgroundImage: `url("${photo}")` }} role="img" aria-label="Coucher de soleil sur la plage de Vohilava">
             <div className={styles.legende}>
               <Subtitle1 className={styles.legendeTexte}>Vohilava, île Sainte-Marie</Subtitle1>

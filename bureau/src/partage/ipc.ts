@@ -1,11 +1,12 @@
-import type { StatutReservation } from "../../../lib/reservation/types"
+import type { RoleEquipe, StatutReservation } from "../../../lib/reservation/types"
 
 // Contrat entre le processus principal (src/main), le pont (src/preload) et l'interface (src/renderer).
 // L'interface ne parle jamais directement au serveur : le processus principal garde le jeton (chiffré par
 // Windows) et fait les appels à l'API du site (app/api/hotes/ à la racine du dépôt).
 
-// hote : gérant (tout le logiciel) ; reception : accueil (ni tarifs, ni statistiques, ni utilisateurs)
-export type RoleEquipe = "hote" | "reception"
+// hote : gérant (tout le logiciel) ; reception : accueil (ni tarifs, ni statistiques, ni utilisateurs) ;
+// caissier : caisse Restaurant et Bar seulement
+export type { RoleEquipe }
 
 export type Hote = { prenom: string; nom: string; email: string; role: RoleEquipe }
 
@@ -94,7 +95,15 @@ export type Reglages = {
   affichagePlanning: AffichagePlanning
   vueChambres: VueChambres
   devise: DeviseLogiciel
+  imprimanteTicket: string // imprimante des tickets de caisse ; "" : boîte d'impression de Windows
+  impressionAuto: boolean // imprimer le ticket dès l'encaissement
+  versionPresentee: string // dernière version présentée par la fenêtre de bienvenue ; "" : jamais (premier lancement)
 }
+
+// Poste de caisse de cet ordinateur (src/main/caisse.ts) : préfixe donné par le serveur à son enregistrement
+export type PosteLocal = { posteId: string; prefixe: string | null; dernier: number }
+
+export type ResultatImpression = { ok: true } | { ok: false; annule?: boolean; erreur?: string }
 
 export type InfosLogiciel = { version: string; installe: boolean }
 
@@ -127,6 +136,14 @@ export interface PontAvocatier {
   enregistrerXlsx(nom: string, classeur: Classeur): Promise<ResultatFichier>
   // Facture ou reçu : page HTML complète mise en PDF A4, enregistrée puis ouverte
   enregistrerPdf(nom: string, html: string): Promise<ResultatFichier>
+
+  // Caisse : poste de cet ordinateur, préfixe et dernier numéro connus du serveur, numéro du prochain ticket
+  // (null tant que le poste n'est pas enregistré), imprimantes et impression d'un ticket de 80 mm
+  posteCaisse(): Promise<PosteLocal>
+  noterPosteCaisse(prefixe: string, dernier: number): Promise<PosteLocal>
+  numeroterTicket(): Promise<string | null>
+  imprimantes(): Promise<string[]>
+  imprimerTicket(html: string, hauteurMm: number): Promise<ResultatImpression>
 
   reglages(): Promise<Reglages>
   modifierReglages(modification: Partial<Reglages>): Promise<Reglages>

@@ -49,16 +49,15 @@ export function BoutonTheme() {
 export type BarreTitreProps = HTMLAttributes<HTMLElement> & {
   centre?: ReactNode // recherche
   actions?: ReactNode // boutons à gauche des boutons de la fenêtre
+  logo?: boolean // faux à la connexion : le logo est au centre de l'écran
 }
 
 // Barre de titre de la fenêtre : logo, recherche au centre, thème et boutons de la fenêtre
-export const BarreTitre = forwardRef<HTMLElement, BarreTitreProps>(({ centre, actions, className, ...props }, ref) => {
+export const BarreTitre = forwardRef<HTMLElement, BarreTitreProps>(({ centre, actions, logo = true, className, ...props }, ref) => {
   const styles = useBarreTitreStyles()
   return (
     <header ref={ref} {...props} className={mergeClasses(styles.root, className)}>
-      <div className={styles.titre}>
-        <Logotype hauteur={30} couleur="origine" />
-      </div>
+      <div className={styles.titre}>{logo && <Logotype hauteur={30} couleur="origine" />}</div>
       <div className={styles.centre}>{centre}</div>
       <div className={styles.droite}>
         <div className={styles.actions}>

@@ -1,5 +1,5 @@
 import { ajouterJours, aujourdhuiISO, estDateISO, formaterPlage, formaterPrix, nombreNuits, pluriel } from "./dates"
-import { CODES_DEVISES, DEVISE_REFERENCE } from "./devises"
+import { CODES_DEVISES, DEVISE_REFERENCE, estCodeDevise } from "./devises"
 import { CHAMBRES_PAR_DEMANDE_MAX, chevauchementSaisons, deplierSaisons, estJourAnnee, NUITS_MAX, verifierDates } from "./regles"
 import type {
   Chambre,
@@ -13,6 +13,8 @@ import type {
   ModePaiement,
   NouveauBlocage,
   NouveauClientLocal,
+  NouveauTicket,
+  NouvelArticle,
   ReservationDirecte,
   DemandeReservation,
   Hebergement,
@@ -20,6 +22,7 @@ import type {
   ReglagesDevises,
   RegleSaison,
   Reservation,
+  RoleEquipe,
   Saison,
   StatutReservation,
 } from "./types"
@@ -248,10 +251,16 @@ export function changementsReservation(
   ].filter((c): c is string => Boolean(c))
 }
 
-export function controlerPaiement(montant: number, mode: string): string | null {
-  if (!Number.isInteger(montant) || montant === 0 || !estEntre(Math.abs(montant), 1, MONTANT_MAX)) {
-    return "Saisissez un montant entier en euros (négatif pour un remboursement)."
+// Encaissement d'un séjour : montant dans la devise reçue (ariary sans décimales, autres devises au centime ;
+// négatif pour un remboursement) et sa contre-valeur en euros
+export function controlerPaiement(montantDevise: number, devise: string, montantEuros: number, mode: string): string | null {
+  if (!estCodeDevise(devise)) return "Choisissez la devise."
+  const auCentime = Math.round(montantDevise * 100) === montantDevise * 100
+  if (!Number.isFinite(montantDevise) || montantDevise === 0 || (devise === "MGA" ? !Number.isInteger(montantDevise) : !auCentime)) {
+    return devise === "MGA" ? "Saisissez un montant en ariary, sans décimales (négatif pour un remboursement)." : "Saisissez un montant (négatif pour un remboursement)."
   }
+  if (!Number.isFinite(montantEuros) || montantEuros === 0) return "Montant trop petit."
+  if (Math.abs(montantEuros) > MONTANT_MAX) return "Montant trop élevé."
   if (!(MODES_PAIEMENT as string[]).includes(mode)) return "Choisissez le mode de paiement."
   return null
 }
@@ -307,9 +316,79 @@ export function normaliserFacturation(r: Partial<Record<keyof ReglagesFacturatio
   }
 }
 
+// Rôles d'un compte de l'équipe, du plus large au plus restreint
+export const ROLES_EQUIPE: RoleEquipe[] = ["hote", "reception", "caissier"]
+
+export const estRoleEquipe = (role: unknown): role is RoleEquipe => (ROLES_EQUIPE as unknown[]).includes(role)
+
 export function controlerMembre({ prenom, email }: { prenom: string; email: string }, motDePasse: string): string | null {
   if (!prenom.trim()) return "Saisissez le prénom."
   if (!EMAIL.test(email)) return "Cette adresse e-mail n'est pas valide."
   if (motDePasse.length < MOT_DE_PASSE_MIN) return `Le mot de passe doit contenir au moins ${MOT_DE_PASSE_MIN} caractères.`
+  return null
+}
+
+// --- Caisse Restaurant et Bar (montants en ariary) ---
+
+export const PRIX_ARTICLE_MAX = 10_000_000
+export const QUANTITE_MAX = 999
+export const LIGNES_TICKET_MAX = 100
+
+export const estModePaiement = (mode: unknown): mode is ModePaiement => (MODES_PAIEMENT as unknown[]).includes(mode)
+
+export function controlerArticle(a: NouvelArticle): string | null {
+  if (!a.nom.trim()) return "Saisissez le nom de l'article."
+  if (!a.categorie.trim()) return "Choisissez la catégorie de l'article (Plats, Boissons…)."
+  if (!Number.isInteger(a.prix) || !estEntre(a.prix, 0, PRIX_ARTICLE_MAX)) return "Saisissez un prix entier en ariary."
+  return null
+}
+
+// « C1-000042 » : préfixe du poste et numéro d'ordre
+export const numeroTicket = (prefixe: string, rang: number) => `${prefixe}-${String(rang).padStart(6, "0")}`
+
+export function lireNumeroTicket(numero: string): { prefixe: string; rang: number } | null {
+  const m = /^([A-Z0-9]{1,8})-(\d{1,9})$/.exec(numero)
+  return m ? { prefixe: m[1], rang: Number(m[2]) } : null
+}
+
+export const totalTicket = (lignes: Pick<NouveauTicket["lignes"][number], "prixUnitaire" | "quantite">[]) =>
+  lignes.reduce((total, l) => total + l.prixUnitaire * l.quantite, 0)
+
+// Vente envoyée par un poste : mise sur la chambre (aucun règlement) ou réglée exactement sur place. La
+// contre-valeur d'un règlement en ariary est son montant ; dans une autre devise, celle calculée par le poste au
+// taux des hôtes. La monnaie se rend en espèces : reçu − rendu = total du ticket
+export function controlerTicket(t: NouveauTicket): string | null {
+  if (!t.id || t.id.length > 64 || !t.posteId) return "Vente incomplète : poste ou identifiant manquant."
+  if (!lireNumeroTicket(t.numero)) return "Numéro de ticket invalide."
+  if (Number.isNaN(Date.parse(t.le))) return "Heure de la vente invalide."
+  if (t.lignes.length === 0) return "Le ticket est vide : ajoutez au moins un article."
+  if (t.lignes.length > LIGNES_TICKET_MAX) return `${LIGNES_TICKET_MAX} lignes au plus par ticket.`
+  for (const l of t.lignes) {
+    if (!l.libelle.trim()) return "Chaque ligne du ticket doit avoir un libellé."
+    if (!Number.isInteger(l.prixUnitaire) || !estEntre(l.prixUnitaire, 0, PRIX_ARTICLE_MAX)) return `Prix invalide pour « ${l.libelle} ».`
+    if (!Number.isInteger(l.quantite) || !estEntre(l.quantite, 1, QUANTITE_MAX)) return `Quantité invalide pour « ${l.libelle} ».`
+  }
+  const total = totalTicket(t.lignes)
+
+  if (t.reservationId) {
+    if (t.reglements.length > 0) return "Un ticket mis sur la chambre se règle au départ, pas à la caisse."
+    return null
+  }
+  if (t.reglements.length === 0) return "Encaissez le ticket ou mettez-le sur une chambre."
+  let recu = 0
+  let rendu = 0
+  for (const r of t.reglements) {
+    if (!estModePaiement(r.mode)) return "Choisissez le mode de paiement."
+    if (!estCodeDevise(r.devise)) return "Devise inconnue."
+    if (!Number.isFinite(r.montant) || r.montant <= 0 || Math.round(r.montant * 100) !== r.montant * 100) return "Montant reçu invalide."
+    if (!Number.isInteger(r.contreValeur) || r.contreValeur < 0) return "Contre-valeur en ariary invalide."
+    if (r.devise === "MGA" && (!Number.isInteger(r.montant) || r.contreValeur !== r.montant)) return "Un montant en ariary se saisit sans décimales."
+    if (!Number.isInteger(r.rendu) || r.rendu < 0) return "Monnaie rendue invalide."
+    if (r.rendu > 0 && r.mode !== "especes") return "La monnaie ne se rend que sur un paiement en espèces."
+    recu += r.contreValeur
+    rendu += r.rendu
+  }
+  if (recu - rendu < total) return "Le montant reçu ne couvre pas le ticket."
+  if (recu - rendu > total) return "Montant reçu supérieur au ticket : indiquez la monnaie rendue."
   return null
 }

@@ -28,8 +28,16 @@ if (parties.length === 0) arreter(`Aucun fichier partie-N.mp3 dans ${brutes}`)
 mkdirSync(dossier, { recursive: true })
 const empreintes = existsSync(fichierEmpreintes) ? JSON.parse(readFileSync(fichierEmpreintes, "utf8")) : {}
 
+// Étapes de chaque partie : celles de `npm run voix:textes` (parties.json), sinon les blocs de 10 dans l'ordre
+const fichierParties = `${brutes}parties.json`
+const composition = existsSync(fichierParties) ? JSON.parse(readFileSync(fichierParties, "utf8")) : null
+
 for (const n of parties) {
-  const etapes = ETAPES_VISITE.slice((n - 1) * PAR_PARTIE, n * PAR_PARTIE)
+  const etapes = composition
+    ? (composition[`partie-${n}`] ?? arreter(`partie-${n}.mp3 absente de parties.json : relancez npm run voix:textes`)).map(
+        (id) => ETAPES_VISITE.find((e) => e.id === id) ?? arreter(`Étape ${id} de parties.json introuvable dans etapes.ts`),
+      )
+    : ETAPES_VISITE.slice((n - 1) * PAR_PARTIE, n * PAR_PARTIE)
   const source = `${brutes}partie-${n}.mp3`
   const duree = dureeDe(source)
   const textes = etapes.map((e) => e.voix ?? e.texte)

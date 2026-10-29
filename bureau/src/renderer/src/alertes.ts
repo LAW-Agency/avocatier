@@ -44,9 +44,9 @@ export function alertesDe(d: Donnees): Alertes {
   const confirmees = d.reservations.filter((r) => r.statut === "confirmee")
   const demandes = d.reservations.filter((r) => r.statut === "option").sort((a, b) => (a.expireLe ?? "").localeCompare(b.expireLe ?? ""))
   const aEncaisser = confirmees
-    .filter((r) => (r.depart <= d.aujourdhui || r.departLe) && soldeDe(r, d.paiements) > 0)
+    .filter((r) => (r.depart <= d.aujourdhui || r.departLe) && soldeDe(r, d) > 0)
     .sort((a, b) => b.depart.localeCompare(a.depart))
-  const tropPercus = d.reservations.filter((r) => soldeDe(r, d.paiements) < 0).sort((a, b) => b.arrivee.localeCompare(a.arrivee))
+  const tropPercus = d.reservations.filter((r) => soldeDe(r, d) < 0).sort((a, b) => b.arrivee.localeCompare(a.arrivee))
   const departsOublies = confirmees.filter((r) => r.arriveeLe && !r.departLe && r.depart < d.aujourdhui).sort((a, b) => a.depart.localeCompare(b.depart))
   const arriveesOubliees = confirmees.filter((r) => !r.arriveeLe && r.arrivee < d.aujourdhui).sort((a, b) => a.arrivee.localeCompare(b.arrivee))
   const doubles = doublesReservations(d).length

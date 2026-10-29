@@ -47,6 +47,7 @@ export const Indicateur = forwardRef<HTMLDivElement, IndicateurProps>(({ libelle
 })
 Indicateur.displayName = "Indicateur"
 
+// etiquette : texte au-dessus de la barre (montant formaté par défaut ; "" : aucun, quand les barres sont serrées)
 export type Barre = { cle: string; libelle: string; valeur: number; secondaire?: number; etiquette?: string; actuelle?: boolean }
 
 export type HistogrammeProps = HTMLAttributes<HTMLDivElement> & {
@@ -85,7 +86,7 @@ export const Histogramme = forwardRef<HTMLDivElement, HistogrammeProps>(({ barre
               {b.secondaire !== undefined && (
                 <rect x={centre + 1} y={y(b.secondaire)} width={epaisseur} height={Math.max(0, y(0) - y(b.secondaire))} rx={3} className={styles.barreSecondaire} />
               )}
-              {b.valeur > 0 && (
+              {b.valeur > 0 && b.etiquette !== "" && (
                 <text x={double ? x + epaisseur / 2 : centre} y={y(b.valeur) - 5} textAnchor="middle" className={styles.valeur}>
                   {b.etiquette ?? formater(b.valeur)}
                 </text>

@@ -295,7 +295,7 @@ export default function Aujourdhui() {
                         , {donnees.hebergementDe(r)?.nom}
                       </Caption1>
                     </div>
-                    <Text className={mergeClasses(styles.prix, styles.reste)}>{formaterPrix(soldeDe(r, d.paiements))}</Text>
+                    <Text className={mergeClasses(styles.prix, styles.reste)}>{formaterPrix(soldeDe(r, d))}</Text>
                     {!r.departLe && r.arriveeLe ? (
                       <BoutonReception reservation={r} aujourdhui={d.aujourdhui} taille="small" />
                     ) : (
@@ -720,7 +720,7 @@ function Sejours({
     <ul className={mergeClasses(styles.liste, styles.listeSerree, defile && styles.listeCourte)}>
       {reservations.map((r) => {
         const client = donnees.clientDe(r)
-        const solde = soldeDe(r, donnees.d.paiements)
+        const solde = soldeDe(r, donnees.d)
         return (
           <li key={r.id} className={styles.sejour}>
             <Avatar name={nomDe(client)} color="colorful" size={32} />

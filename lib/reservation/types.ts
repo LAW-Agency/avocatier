@@ -127,8 +127,12 @@ export type PeriodeOccupee = {
 }
 
 // hote : Joëlle & Stéphane, tout le logiciel des hôtes (bureau/) ; reception : équipe d'accueil, sans tarifs,
-// statistiques ni utilisateurs. Jamais attribués par l'inscription du site
-export type RoleCompte = "client" | "hote" | "reception"
+// statistiques ni utilisateurs ; caissier : caisse Restaurant et Bar seulement. Jamais attribués par l'inscription
+// du site
+export type RoleCompte = "client" | "hote" | "reception" | "caissier"
+
+// Comptes de l'équipe (logiciel des hôtes)
+export type RoleEquipe = Exclude<RoleCompte, "client">
 
 export type Client = {
   id: string
@@ -214,11 +218,15 @@ export type ModificationChambre = Partial<Pick<Chambre, "numero" | "etat" | "not
 
 export type ModePaiement = "especes" | "carte" | "mobile_money" | "virement" | "autre"
 
-// Encaissement d'une réservation, en euros ; montant négatif : remboursement
+// Encaissement d'une réservation ; montant négatif : remboursement. `montant` : contre-valeur en euros (au centime) ;
+// reçu dans une autre devise : `montantDevise` et le taux du moment (1 € = taux × devise)
 export type Paiement = {
   id: string
   reservationId: string
   montant: number
+  devise: CodeDevise
+  montantDevise?: number
+  taux?: number
   mode: ModePaiement
   note: string
   le: string // date-heure ISO
@@ -227,7 +235,7 @@ export type Paiement = {
 }
 
 // Journal d'activité de l'équipe (logiciel des hôtes) : qui a fait quoi, et quand
-export type CategorieJournal = "connexion" | "reservation" | "client" | "chambre" | "paiement" | "planning" | "tarifs" | "equipe" | "journal"
+export type CategorieJournal = "connexion" | "reservation" | "client" | "chambre" | "paiement" | "planning" | "tarifs" | "equipe" | "journal" | "restaurant"
 
 export type EntreeJournal = {
   id: string
@@ -262,9 +270,9 @@ export type ReservationDirecte = {
 
 export type NouveauClientLocal = Pick<Client, "prenom" | "nom" | "email" | "telephone" | "pays" | "note">
 
-export type NouveauMembre = Pick<Client, "prenom" | "nom" | "email"> & { role: "hote" | "reception"; motDePasseHash: string }
+export type NouveauMembre = Pick<Client, "prenom" | "nom" | "email"> & { role: RoleEquipe; motDePasseHash: string }
 
-export type ModificationMembre = { role?: "hote" | "reception"; actif?: boolean; motDePasseHash?: string }
+export type ModificationMembre = { role?: RoleEquipe; actif?: boolean; motDePasseHash?: string }
 
 
 // Modification d'une réservation active par l'équipe : tout le séjour est renvoyé, pas seulement ce qui change
@@ -323,3 +331,169 @@ export type ReglagesFacturation = {
   identifiants: string // NIF, STAT, RCS…
   mentions: string // pied des factures
 }
+
+// --- Caisse Restaurant et Bar (logiciel des hôtes, migration 007) ---
+// Montants de la caisse en ariary (entiers). Identifiants des postes, sessions et tickets créés par le logiciel :
+// une vente faite hors connexion s'envoie plus tard sans doublon.
+
+export type Article = {
+  id: string
+  nom: string
+  categorie: string // « Plats », « Cocktails »… : regroupe les boutons de la caisse
+  prix: number // ariary
+  description: string
+  actif: boolean // désactivé : plus proposé, les tickets passés le gardent
+  ordre: number
+}
+
+export type NouvelArticle = Pick<Article, "nom" | "categorie" | "prix" | "description"> & { ordre?: number }
+export type ModificationArticle = Partial<Pick<Article, "nom" | "categorie" | "prix" | "description" | "actif" | "ordre">>
+
+// Ordinateur de caisse ; ses tickets sont numérotés « <prefixe>-000042 »
+export type PosteCaisse = { id: string; nom: string; prefixe: string; dernierTicket: number }
+
+// paye : réglé sur place ; chambre : sur la note du séjour, réglé au départ ; annule : avec un motif
+export type StatutTicket = "paye" | "chambre" | "annule"
+
+export type LigneTicket = { articleId?: string; libelle: string; prixUnitaire: number; quantite: number }
+
+// Argent reçu dans sa devise ; contre-valeur en ariary imputée sur le ticket ; monnaie rendue en ariary (espèces)
+export type ReglementTicket = { mode: ModePaiement; devise: CodeDevise; montant: number; contreValeur: number; rendu: number }
+
+export type Ticket = {
+  id: string
+  numero: string
+  posteId: string
+  sessionId?: string
+  caissierId?: string
+  le: string // date-heure ISO de la vente sur le poste
+  recuLe: string // arrivée au serveur
+  statut: StatutTicket
+  reservationId?: string // statut « chambre » (et un ticket de chambre annulé)
+  libelle: string // « Table 4 », nom d'un client de passage
+  total: number // ariary
+  lignes: LigneTicket[]
+  reglements: ReglementTicket[]
+  annuleLe?: string
+  annulePar?: string
+  motifAnnulation: string
+  factureId?: string // sur une facture de séjour : plus modifiable
+}
+
+// Vente envoyée par un poste : réglée sur place (reglements) ou mise sur la chambre (reservationId).
+// differe : vente faite hors connexion, envoyée au retour du réseau (le séjour n'est plus vérifié : la vente a eu
+// lieu, un ticket arrivé après le départ ou la facture remonte comme anomalie)
+export type NouveauTicket = Pick<Ticket, "id" | "numero" | "posteId" | "le" | "libelle"> & {
+  sessionId?: string
+  lignes: LigneTicket[]
+  reservationId?: string
+  reglements: ReglementTicket[]
+  differe?: boolean
+}
+
+// Séjour en cours sur lequel la caisse peut mettre un ticket (sans autre donnée du client que son nom)
+export type SejourCaisse = {
+  reservationId: string
+  reference: string
+  chambre: string // « Océan 3 »
+  client: string // prénom et nom
+  arrivee: DateISO
+  depart: DateISO
+  facture: boolean // déjà facturé : plus rien ne s'y ajoute
+}
+
+// Bilan d'une session de caisse (lib/reservation/caisseRegles.ts) : en direct tant qu'elle est ouverte, figé à la
+// clôture. Montants en ariary ; espèces reçues dans une autre devise comptées dans leur devise
+export type BilanSession = {
+  tickets: number // non annulés
+  ventes: number // payées sur place et mises sur les chambres
+  encaisse: number // payées sur place
+  surChambres: number
+  annules: number
+  montantAnnule: number
+  parMode: { mode: ModePaiement; devise: CodeDevise; montant: number; contreValeur: number; nombre: number }[]
+  attendues: Partial<Record<CodeDevise, number>> // espèces qui doivent être dans le tiroir (fond compris)
+  comptees?: Partial<Record<CodeDevise, number>> // à la clôture
+  ecarts?: Partial<Record<CodeDevise, number>> // comptées − attendues
+}
+
+// Session de caisse d'un poste : ouverte avec un fond de caisse (ariary), clôturée avec les espèces comptées
+export type SessionCaisse = {
+  id: string
+  posteId: string
+  ouverteLe: string
+  ouvertePar?: string
+  fondCaisse: number
+  fermeeLe?: string
+  fermeePar?: string
+  commentaire: string
+  bilan: BilanSession
+}
+
+export type NouvelleSession = Pick<SessionCaisse, "id" | "posteId" | "ouverteLe" | "fondCaisse">
+export type ClotureSession = { fermeeLe: string; especesComptees: Partial<Record<CodeDevise, number>>; commentaire: string }
+
+// Restaurant et bar sur une période (Revenus et vue d'ensemble de la caisse, gérants), en ariary ; tickets annulés
+// exclus des ventes
+export type BilanRestaurant = {
+  ventes: number // payées sur place et mises sur les chambres
+  encaisse: number
+  surChambres: number
+  tickets: number
+  annules: number
+  montantAnnule: number
+  parCategorie: { categorie: string; montant: number }[]
+  parJour: { jour: DateISO; ventes: number; surChambres: number }[] // jours avec des ventes
+  parPoste: { posteId: string; nom: string; ventes: number; tickets: number }[]
+  parCaissier: { membreId: string | null; nom: string; ventes: number; tickets: number }[]
+  parMode: { mode: ModePaiement; devise: CodeDevise; montant: number; contreValeur: number; nombre: number }[]
+  articles: { libelle: string; quantite: number; montant: number }[] // les plus vendus
+  sessions: { id: string; poste: string; ouverteLe: string; fermeeLe?: string; caissier: string; ventes: number; ecarts: Partial<Record<CodeDevise, number>>; commentaire: string }[]
+}
+
+// Ce qu'affiche l'écran Restaurant et Bar
+export type DonneesCaisse = {
+  articles: Article[]
+  postes: PosteCaisse[]
+  sessions: SessionCaisse[] // ouvertes (tous les postes) et ouvertes pendant la période, de la plus récente à la plus ancienne
+  tickets: Ticket[] // de la période demandée, du plus récent au plus ancien
+  sejours: SejourCaisse[]
+  devises: ReglagesDevises
+}
+
+// --- Factures figées (migration 007) ---
+
+// Ligne d'une facture, montant dans la devise de la facture
+export type LigneFacture = { libelle: string; detail: string; quantite: string; montant: number }
+
+export type ReglementFacture = { le: string; mode: ModePaiement; note: string; recu: number; devise: CodeDevise; montantDevise: number; montant: number }
+
+// Tout ce que la facture imprime, figé à son édition : elle se réimprime à l'identique
+export type ContenuFacture = {
+  client: { nom: string; email: string; telephone: string; pays: string }
+  facturation: ReglagesFacturation
+  references: string[]
+  sejours: LigneFacture[]
+  consommations: LigneFacture[]
+  reglements: ReglementFacture[]
+  total: number
+  regle: number
+  reste: number
+}
+
+// Facture d'un ou de plusieurs séjours (chambres d'un groupe au nom d'un même client), dans la devise choisie par
+// le client, au taux du jour de l'édition
+export type Facture = {
+  id: string
+  numero: string // « FA-2026-0042 »
+  le: string
+  clientId: string
+  devise: CodeDevise
+  taux: Partial<Record<CodeDevise, number>>
+  total: number
+  reservationIds: string[]
+  contenu: ContenuFacture
+}
+
+// Consommation du restaurant ou du bar sur la note d'un séjour (ticket « chambre » non annulé), en ariary
+export type Consommation = Pick<Ticket, "id" | "numero" | "le" | "total" | "lignes" | "libelle" | "factureId"> & { reservationId: string }

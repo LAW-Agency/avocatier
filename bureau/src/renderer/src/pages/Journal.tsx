@@ -46,6 +46,7 @@ import {
   MoneyRegular,
   PeopleRegular,
   PeopleTeamRegular,
+  FoodRegular,
   SignOutRegular,
   TagRegular,
   type FluentIcon,
@@ -68,6 +69,7 @@ const CATEGORIES: Record<CategorieJournal, { libelle: string; Icone: FluentIcon;
   tarifs: { libelle: "Tarifs", Icone: TagRegular, couleur: "important" },
   equipe: { libelle: "Équipe", Icone: PeopleTeamRegular, couleur: "important" },
   journal: { libelle: "Journal", Icone: HistoryRegular, couleur: "danger" },
+  restaurant: { libelle: "Restaurant et Bar", Icone: FoodRegular, couleur: "success" },
 }
 
 type Periode = "jour" | "semaine" | "mois" | "tout"

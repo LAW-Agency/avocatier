@@ -162,7 +162,7 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
           MoneyRegular,
           "danger",
           r.departLe ? `Parti le ${formaterHeure(r.departLe)}` : r.depart === d.aujourdhui ? `Départ aujourd'hui · ${nomChambre(d, r.chambreId)}` : `Départ prévu le ${jour(r.depart)}`,
-          soldeDe(r, d.paiements),
+          soldeDe(r, d),
         ),
       ),
     },
@@ -187,7 +187,7 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
     {
       titre: "Trop-perçus à rembourser",
       aide: "Encaissé plus que le montant dû",
-      lignes: alertes.tropPercus.map((r) => ligne(r, ArrowUndoRegular, "attention", `${r.reference} · ${r.statut === "confirmee" ? "séjour" : "réservation annulée"}`, -soldeDe(r, d.paiements))),
+      lignes: alertes.tropPercus.map((r) => ligne(r, ArrowUndoRegular, "attention", `${r.reference} · ${r.statut === "confirmee" ? "séjour" : "réservation annulée"}`, -soldeDe(r, d))),
     },
     {
       titre: "Navettes à prévoir",

@@ -1,5 +1,6 @@
 import { nombreNuits, pluriel } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
+import { formaterDansDevise } from "@partage/devises"
 import type { ClientPublic, Paiement, Reservation } from "@partage/types"
 import type { ColonneClasseur, FeuilleClasseur, ValeurCellule } from "../../partage/ipc"
 import { numeroRecu } from "./documents"
@@ -58,7 +59,7 @@ export function feuilleReservations(reservations: Reservation[], d: Donnees, pre
     ],
     reservations.map((r) => {
       const client = d.clients.find((c) => c.id === r.clientId)
-      const solde = soldeDe(r, d.paiements)
+      const solde = soldeDe(r, d)
       return [
         r.reference,
         libelleStatutHote[r.statut],
@@ -94,6 +95,8 @@ export function feuilleEncaissements(paiements: Paiement[], d: Donnees, precisio
       { titre: "N° de reçu", format: "texte", largeur: 12 },
       { titre: "Date", format: "dateHeure" },
       { titre: "Montant", format: "euros", total: true, largeur: 12 },
+      { titre: "Reçu en", format: "texte" },
+      { titre: "Montant reçu", format: "texte", largeur: 14 },
       { titre: "Mode", format: "texte" },
       { titre: "Note", format: "texte" },
       { titre: "Réservation", format: "texte" },
@@ -111,6 +114,8 @@ export function feuilleEncaissements(paiements: Paiement[], d: Donnees, precisio
           numeroRecu(p),
           p.le,
           p.montant,
+          p.devise,
+          p.devise !== "EUR" && p.montantDevise !== undefined ? formaterDansDevise(p.montantDevise, p.devise) : null,
           MODES_PAIEMENT[p.mode],
           vide(p.note),
           vide(r?.reference),
@@ -156,7 +161,7 @@ export function feuilleClients(clients: ClientPublic[], d: Donnees, precision?: 
         sejours.length,
         confirmes.reduce((t, r) => t + nombreNuits(r.arrivee, r.depart), 0),
         confirmes.reduce((t, r) => t + r.montantTotal, 0),
-        confirmes.reduce((t, r) => t + Math.max(0, soldeDe(r, d.paiements)), 0),
+        confirmes.reduce((t, r) => t + Math.max(0, soldeDe(r, d)), 0),
         vide(c.note),
       ]
     }),

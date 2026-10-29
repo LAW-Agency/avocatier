@@ -32,6 +32,9 @@ const PAR_DEFAUT: Reglages = {
   affichagePlanning: { densite: "confortable", libelle: "client", disponibilites: true, weekEnds: true, grille: false, replies: [] },
   vueChambres: "cartes",
   devise: "MGA",
+  imprimanteTicket: "",
+  impressionAuto: false,
+  versionPresentee: "",
 }
 
 // Affichage du planning : chaque option vérifiée, celles qui manquent ou sont invalides reprennent leur défaut
@@ -74,6 +77,8 @@ export function lireReglages(): Reglages {
       // Vue qui n'existe plus (4 semaines avant le 2026-10-26) : celle par défaut
       vuePlanning: (VUES_PLANNING as readonly unknown[]).includes(lus.vuePlanning) ? (lus.vuePlanning as Reglages["vuePlanning"]) : PAR_DEFAUT.vuePlanning,
       affichagePlanning: lireAffichage(lus.affichagePlanning),
+      // Poste installé avant la fenêtre de bienvenue (1.2.0) : mise à jour, pas premier lancement
+      versionPresentee: typeof lus.versionPresentee === "string" ? lus.versionPresentee : existsSync(chemin()) ? "1.1.0" : "",
     }
   } catch {
     actuels = { ...PAR_DEFAUT }

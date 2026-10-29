@@ -1,12 +1,15 @@
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react"
 import { comparerNumeros } from "@partage/controles"
 import { chevauche } from "@partage/dates"
+import { encaisseSur, restaurantDe, soldeSejour } from "@partage/folio"
 import type {
   Blocage,
   CalendrierExterne,
   Chambre,
   ClientPublic,
+  Consommation,
   DateISO,
+  Facture,
   Paiement,
   ReglagesDevises,
   ReglagesFacturation,
@@ -46,10 +49,15 @@ export type Donnees = {
   saisons: RegleSaison[]
   devises: ReglagesDevises
   paiements: Paiement[]
+  consommations: Consommation[] // restaurant et bar sur la note des séjours (ariary)
+  factures: Facture[] // factures figées (séjours, restaurant, règlements)
   equipe: MembreEquipe[] // vide pour la réception
   calendriers: Calendrier[]
   facturation: ReglagesFacturation // coordonnées imprimées sur les factures et les reçus
 }
+
+// Onglets de Restaurant et Bar (la visite guidée les ouvre l'un après l'autre)
+export type OngletCaisse = "ensemble" | "vente" | "tickets" | "cloture" | "carte"
 
 // Écrans du logiciel ; `filtre` : statut affiché dans Réservations
 export type Vue =
@@ -57,6 +65,7 @@ export type Vue =
   | { page: "reservations"; filtre?: StatutReservation | null }
   | { page: "planning" }
   | { page: "chambres"; filtre?: FiltreChambres }
+  | { page: "restaurant"; onglet?: OngletCaisse }
   | { page: "clients" }
   | { page: "client"; id: string }
   | { page: "revenus" }
@@ -70,6 +79,16 @@ export type Vue =
 
 // Écrans réservés aux gérants (la réception ne les voit pas ; l'API refuse de toute façon)
 export const PAGES_GERANTS: Vue["page"][] = ["revenus", "statistiques", "tarifs", "utilisateurs"]
+
+// Seuls écrans d'un caissier (il ne reçoit ni réservations ni clients ; l'API refuse le reste)
+export const PAGES_CAISSIER: Vue["page"][] = ["restaurant", "guide", "parametres"]
+
+// Écran ouvert à ce rôle (même règle que la navigation de la Coquille ; reprise par le Guide et la visite guidée)
+export function pageAutorisee(role: RoleEquipe, page: Vue["page"]): boolean {
+  if (role === "caissier") return PAGES_CAISSIER.includes(page)
+  if (role === "reception") return !PAGES_GERANTS.includes(page)
+  return true
+}
 
 // Fenêtre « Nouvelle réservation », éventuellement préremplie (client, hébergement et chambre, date)
 export type Preremplissage = { clientId?: string; hebergementId?: string; chambreId?: string; arrivee?: string }
@@ -103,6 +122,13 @@ const Contexte = createContext<ContexteDonnees | null>(null)
 export const MESSAGE_LECTURE_SEULE = "Hors connexion : le logiciel est en lecture seule. Réessayez une fois la connexion rétablie."
 const MESSAGE_DEMONSTRATION = "Visite guidée : les données affichées sont des exemples, rien n'est enregistré."
 
+// Données demandées dès la connexion validée (pendant que l'écran de connexion s'efface), reprises par le
+// premier chargement du fournisseur au lieu d'un second appel
+let prechargement: Promise<ResultatApi<Donnees>> | null = null
+export function prechargerDonnees() {
+  prechargement = window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
+}
+
 export function FournisseurDonnees({ children }: { children: ReactNode }) {
   const [donnees, setDonnees] = useState<Donnees | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -121,7 +147,9 @@ export function FournisseurDonnees({ children }: { children: ReactNode }) {
   }, [enLigne, exemple])
 
   const recharger = useCallback(async () => {
-    const resultat = await window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
+    const appel = prechargement ?? window.avocatier.api<Donnees>("GET", "/api/hotes/donnees")
+    prechargement = null
+    const resultat = await appel
     if (resultat.ok) {
       setDonnees(resultat.donnees)
       setErreur(null)
@@ -291,10 +319,17 @@ export function doublesReservations(d: Donnees): { blocage: Blocage; reservation
 // Séjour confirmé déjà passé : plus aucune action possible dessus
 export const estTermine = (r: Reservation, aujourdhui: string) => r.statut === "confirmee" && r.depart <= aujourdhui
 
-// Total encaissé sur une réservation (remboursements déduits)
-export const encaisseDe = (r: Reservation, paiements: Paiement[]) => paiements.filter((p) => p.reservationId === r.id).reduce((total, p) => total + p.montant, 0)
+type Note = Pick<Donnees, "paiements" | "consommations" | "devises">
 
-// Montant encore dû (négatif : trop-perçu, à rembourser). Une réservation annulée, refusée ou expirée ne doit
-// plus rien : tout ce qui a été encaissé dessus est à rendre
-export const soldeDe = (r: Reservation, paiements: Paiement[]) =>
-  (r.statut === "confirmee" || r.statut === "option" ? r.montantTotal : 0) - encaisseDe(r, paiements)
+// Total encaissé sur une réservation en euros (remboursements déduits)
+export const encaisseDe = (r: Reservation, d: Pick<Donnees, "paiements">) => encaisseSur(r.id, d.paiements)
+
+// Restaurant et bar mis sur la note de la réservation (ariary)
+export const restaurantSur = (r: Reservation, d: Pick<Donnees, "consommations">) => restaurantDe(r.id, d.consommations)
+
+// Montant encore dû en euros, restaurant et bar compris (négatif : trop-perçu, à rembourser). Une réservation
+// annulée, refusée ou expirée ne doit plus son hébergement : ce qui a été encaissé pour lui est à rendre
+export const soldeDe = (r: Reservation, d: Note) => soldeSejour(r, d.paiements, d.consommations, d.devises.taux)
+
+// Facture figée du séjour (avec les autres chambres de son groupe)
+export const factureDe = (r: Pick<Reservation, "id">, d: Pick<Donnees, "factures">) => d.factures.find((f) => f.reservationIds.includes(r.id))

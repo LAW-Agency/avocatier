@@ -19,10 +19,12 @@ import {
 import { ArrowUndoRegular, CheckmarkRegular, DismissCircleRegular, DoorArrowLeftRegular, DoorArrowRightRegular, MoneyRegular, ProhibitedRegular } from "@fluentui/react-icons"
 import { useState } from "react"
 import { formaterPlage, nombreNuits, pluriel } from "@partage/dates"
+import { formaterDansDevise } from "@partage/devises"
 import type { Reservation, StatutReservation } from "@partage/types"
-import { encaisseDe, nomChambre, nomDe, soldeDe, useDonnees, useDonneesChargees, useLectureSeule } from "../donnees"
+import { encaisseDe, nomChambre, nomDe, restaurantSur, soldeDe, useDonnees, useDonneesChargees, useLectureSeule } from "../donnees"
 import { usePrix } from "../montants"
 import { useAnnoncer } from "../toasts"
+import BoutonFacture from "./BoutonFacture"
 import Encaissements from "./Encaissements"
 import { useActionsStyles } from "./useReservationStyles.styles"
 
@@ -135,7 +137,8 @@ export default function ActionsReservation({ reservationId, statut, reference, t
 
 // Arrivée puis départ du client, enregistrés par la réception (séjour confirmé du jour ou en cours), dans une
 // fenêtre qui montre où en est le paiement : à l'arrivée, l'acompte reçu et le reste (rappel, sans blocage) ;
-// au départ, un reste à payer s'encaisse sur place ou ne se laisse qu'avec une raison (notée dans l'historique)
+// au départ, un reste à payer (restaurant et bar compris) s'encaisse sur place ou ne se laisse qu'avec une raison
+// (notée dans l'historique), puis la facture complète du séjour s'imprime dans la devise du client
 export function BoutonReception({ reservation, aujourdhui, taille = "medium" }: { reservation: Reservation; aujourdhui: string; taille?: "small" | "medium" }) {
   const lectureSeule = useLectureSeule()
   const formaterPrix = usePrix()
@@ -154,8 +157,9 @@ export function BoutonReception({ reservation, aujourdhui, taille = "medium" }: 
   const arrivee = !r.arriveeLe
   if (arrivee && r.arrivee > aujourdhui) return null
 
-  const solde = soldeDe(r, d.paiements)
-  const encaisse = encaisseDe(r, d.paiements)
+  const solde = soldeDe(r, d)
+  const encaisse = encaisseDe(r, d)
+  const restaurant = restaurantSur(r, d)
   const nom = nomDe(clientDe(r))
   const bloque = !arrivee && solde > 0 && (choix !== "sansSolder" || !raison.trim())
 
@@ -204,7 +208,8 @@ export function BoutonReception({ reservation, aujourdhui, taille = "medium" }: 
               <MessageBar intent={arrivee ? "info" : "warning"} layout="multiline">
                 <MessageBarBody>
                   <MessageBarTitle>Reste à payer : {formaterPrix(solde)}</MessageBarTitle>
-                  {encaisse > 0 ? `Acompte reçu : ${formaterPrix(encaisse)} sur ${formaterPrix(r.montantTotal)}. ` : "Aucun acompte reçu. "}
+                  {restaurant > 0 && `Dont restaurant et bar sur la chambre : ${formaterDansDevise(restaurant, "MGA")}. `}
+                  {encaisse > 0 ? `Déjà reçu : ${formaterPrix(encaisse)}. ` : "Aucun acompte reçu. "}
                   {arrivee ? "À encaisser au plus tard au départ." : "Encaissez le solde avant que le client parte."}
                 </MessageBarBody>
               </MessageBar>
@@ -250,13 +255,15 @@ export function BoutonReception({ reservation, aujourdhui, taille = "medium" }: 
             )}
           </DialogContent>
           <DialogActions>
+            {/* Au départ : facture de tout le séjour (restaurant et bar, autres chambres du groupe) */}
+            {!arrivee && <BoutonFacture reservation={r} appearance={solde > 0 ? "secondary" : "primary"} />}
             <DialogTrigger disableButtonEnhancement>
               <Button appearance="secondary" disabled={enCours}>
                 Retour
               </Button>
             </DialogTrigger>
             <Button
-              appearance="primary"
+              appearance={!arrivee && solde <= 0 ? "secondary" : "primary"}
               disabled={enCours || lectureSeule || bloque}
               icon={enCours ? <Spinner size="tiny" /> : arrivee ? <DoorArrowRightRegular /> : <DoorArrowLeftRegular />}
               onClick={enregistrer}

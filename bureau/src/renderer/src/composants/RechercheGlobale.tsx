@@ -2,6 +2,7 @@ import { Caption1, Combobox, Option, OptionGroup, Text, makeStyles, mergeClasses
 import {
   AlertRegular,
   BedRegular,
+  FoodRegular,
   BookOpenRegular,
   CalendarAddRegular,
   CalendarLtrRegular,
@@ -28,7 +29,7 @@ import { libelleStatutHote } from "@partage/statuts"
 import { PAGES_GERANTS, chambresTriees, clientsVisibles, nomChambre, nomDe, useDonnees, type Vue } from "../donnees"
 import { numeroRecu } from "../documents"
 import { ETATS_CHAMBRE, MODES_PAIEMENT } from "../libelles"
-import { SECTIONS_GUIDE, normaliser } from "../pages/Guide"
+import { SECTIONS_GUIDE, normaliser, sectionVisible } from "../pages/Guide"
 import { useReglages } from "../reglages"
 import { usePrix } from "../montants"
 import { lancerVisite } from "./VisiteGuidee"
@@ -53,6 +54,7 @@ const ECRANS: { vue: Vue; libelle: string; mots: string; Icone: FluentIcon }[] =
   { vue: { page: "reservations" }, libelle: "Réservations", mots: "demandes options à traiter confirmées", Icone: MailInboxRegular },
   { vue: { page: "planning" }, libelle: "Planning", mots: "calendrier occupation bloquer dates booking airbnb ical synchroniser double réservation", Icone: CalendarLtrRegular },
   { vue: { page: "chambres" }, libelle: "Chambres", mots: "ménage nettoyer maintenance bungalows", Icone: BedRegular },
+  { vue: { page: "restaurant" }, libelle: "Restaurant et Bar", mots: "caisse bar restaurant ticket carte menu boissons plats clôture fond de caisse vente", Icone: FoodRegular },
   { vue: { page: "clients" }, libelle: "Clients", mots: "fiches coordonnées nouveau client fusionner doublon effacer rgpd exporter", Icone: PeopleRegular },
   { vue: { page: "revenus" }, libelle: "Revenus", mots: "chiffre d'affaires encaissements reste à encaisser exporter comptabilité", Icone: MoneyRegular },
   { vue: { page: "statistiques" }, libelle: "Statistiques", mots: "occupation revpar provenance pays", Icone: DataTrendingRegular },
@@ -235,7 +237,7 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
 
     groupes.push({
       titre: "Guide",
-      resultats: SECTIONS_GUIDE.filter((s) => trouve(s.titre, s.resume, s.motsCles)).map((s) => ({
+      resultats: SECTIONS_GUIDE.filter((s) => sectionVisible(s, d.hote.role) && trouve(s.titre, s.resume, s.motsCles)).map((s) => ({
         cle: `guide-${s.id}`,
         libelle: s.titre,
         detail: s.resume,

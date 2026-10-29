@@ -3,12 +3,14 @@ import { loadEnvConfig } from "@next/env"
 import { Client } from "pg"
 import { ajouterJours, aujourdhuiISO, formaterPlage, formaterPrix, nombreNuits } from "@/lib/reservation/dates"
 import { COMPTE_DEMO, COMPTE_RECEPTION } from "@/lib/reservation/donnees"
+import { effacerCaisse, genererCaisse } from "./demonstrationCaisse"
 import { calculerDevis, deplierSaisons, saisonDeLaNuit } from "@/lib/reservation/regles"
 import type { DateISO, EvenementReservation, RegleSaison, SourceReservation, StatutReservation } from "@/lib/reservation/types"
 
 // Remplace les données d'essai par une activité d'hôtel vraisemblable, autour de la date du jour : deux mois de
 // séjours passés (arrivées, départs, encaissements, factures), les clients présents aujourd'hui, les arrivées et
-// départs du jour, puis trois mois à venir (confirmés, demandes en attente, groupe, fêtes de fin d'année).
+// départs du jour, puis trois mois à venir (confirmés, demandes en attente, groupe, fêtes de fin d'année), et la
+// caisse Restaurant et Bar des deux derniers mois (scripts/db/demonstrationCaisse.ts).
 // EFFACE toutes les réservations, tous les encaissements, blocages manuels, le journal et les clients, sauf
 // l'équipe et le compte client de démonstration (COMPTE_DEMO, renommé). Hébergements, chambres, tarifs, devises et
 // calendriers des plateformes restent. Tirage fixe : deux lancements le même jour donnent les mêmes données.
@@ -324,6 +326,10 @@ async function demonstration() {
     // -----------------------------------------------------------------------------------------------------------
     // Effacement des données d'essai
 
+    // La caisse et les factures figées d'abord : elles pointent vers les séjours et les clients
+    await effacerCaisse(db)
+    await db.query("delete from factures_reservations")
+    await db.query("delete from factures")
     const effaces = {
       paiements: (await db.query("delete from paiements")).rowCount,
       reservations: (await db.query("delete from reservations")).rowCount,
@@ -755,6 +761,9 @@ async function demonstration() {
       recents.map((j) => ({ le: j.le, membre_id: j.membre.id, auteur: nomMembre(j.membre), categorie: j.categorie, action: j.action, detail: j.detail })),
     )
 
+    // Caisse Restaurant et Bar des deux derniers mois, sur les séjours qui viennent d'être créés
+    const caisse = await genererCaisse(db, aujourdhui)
+
     const essai = process.argv.includes("--essai")
     await db.query(essai ? "rollback" : "commit")
     if (essai) {
@@ -770,6 +779,7 @@ async function demonstration() {
       `✓ ${sejours.length} réservations : ${compte("confirmee")} confirmées, ${compte("option")} demandes en attente, ${compte("annulee")} annulées, ${compte("refusee")} refusées, ${compte("expiree")} expirées (${nuitsVendues} nuits)`,
     )
     console.log(`✓ aujourd'hui (${aujourdhui}) : ${presents} chambres occupées, ${sejours.filter((s) => s.arrivee === aujourdhui && s.statut === "confirmee").length} arrivées, ${sejours.filter((s) => s.depart === aujourdhui && s.statut === "confirmee").length} départs`)
+    console.log(`✓ caisse : ${caisse.sessions} caisses, ${caisse.tickets} tickets (${caisse.surChambres} sur les chambres), ventes ${caisse.ventes} Ar`)
     console.log(`✓ ${paiements.length} encaissements (${formaterPrix(paiements.reduce((n, p) => n + p.montant, 0))}), ${facturables.length} factures, ${blocages.length} blocages, ${recents.length} lignes de journal`)
   } catch (erreur) {
     await db.query("rollback")

@@ -6,6 +6,7 @@ import icone from "../../resources/icon.png?asset"
 import { NIVEAUX_ZOOM, type Annonce, type Hote, type Methode, type Reglages } from "../partage/ipc"
 import { appeler, estEnLigne, quandConnexionChange, quandJetonRefuse } from "./api"
 import { lireEtatFenetre, suivreEtatFenetre } from "./fenetre"
+import { imprimerTicket, lirePoste, listerImprimantes, noterPoste, numeroterTicket } from "./caisse"
 import { estClasseur } from "./classeur"
 import { enregistrerPdf, enregistrerXlsx } from "./fichiers"
 import { demarrerMisesAJour, etatMiseAJour, installerMiseAJour, mettreAJour, rechercherMiseAJour } from "./misesAJour"
@@ -270,6 +271,16 @@ ipcMain.handle("fichier:xlsx", (_e, nom: unknown, classeur: unknown) =>
 )
 ipcMain.handle("fichier:pdf", (_e, nom: unknown, html: unknown) =>
   typeof nom === "string" && typeof html === "string" ? enregistrerPdf(fenetre, nom, html) : { erreur: "Document invalide." },
+)
+
+ipcMain.handle("caisse:poste", () => lirePoste())
+ipcMain.handle("caisse:noter-poste", (_e, prefixe: unknown, dernier: unknown) =>
+  typeof prefixe === "string" && /^[A-Z0-9]{1,8}$/.test(prefixe) && Number.isInteger(dernier) ? noterPoste(prefixe, dernier as number) : lirePoste(),
+)
+ipcMain.handle("caisse:numeroter", () => numeroterTicket())
+ipcMain.handle("caisse:imprimantes", () => listerImprimantes(fenetre))
+ipcMain.handle("caisse:imprimer", (_e, html: unknown, hauteurMm: unknown) =>
+  typeof html === "string" && typeof hauteurMm === "number" ? imprimerTicket(html, hauteurMm, lireReglages().imprimanteTicket) : { ok: false, erreur: "Ticket invalide." },
 )
 
 ipcMain.handle("reglages:lire", () => lireReglages())

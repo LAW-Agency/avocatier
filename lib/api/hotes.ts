@@ -3,18 +3,19 @@ import { after, NextResponse, type NextRequest } from "next/server"
 import { verifierJeton } from "@/lib/auth/session"
 import { comptes, gestion, moteur } from "@/lib/reservation"
 import { formaterPlage } from "@/lib/reservation/dates"
-import type { CategorieJournal, ClientPublic } from "@/lib/reservation/types"
+import { estRoleEquipe } from "@/lib/reservation/controles"
+import type { CategorieJournal, ClientPublic, RoleEquipe } from "@/lib/reservation/types"
 
 // API du logiciel des hôtes (application Electron du dossier bureau/, routes app/api/hotes/) : jeton signé
 // envoyé dans « Authorization: Bearer … », même format et même durée que le cookie de session du site.
 // Aucun cookie : le logiciel n'est pas un navigateur, et un jeton en en-tête ne craint pas le CSRF.
 
-// Équipe : « hote » (gérants, tout le logiciel), « reception » (accueil : ni tarifs, ni statistiques, ni utilisateurs)
-export type RoleEquipe = "hote" | "reception"
+// Équipe : « hote » (gérants, tout le logiciel), « reception » (accueil : ni tarifs, ni statistiques, ni
+// utilisateurs), « caissier » (caisse Restaurant et Bar seulement)
+export type { RoleEquipe }
 export type Membre = ClientPublic & { role: RoleEquipe }
 
-export const estDeLEquipe = (client: Pick<ClientPublic, "role" | "actif">): client is Membre =>
-  (client.role === "hote" || client.role === "reception") && client.actif
+export const estDeLEquipe = (client: Pick<ClientPublic, "role" | "actif">): client is Membre => estRoleEquipe(client.role) && client.actif
 
 export async function membreDeLaRequete(requete: Request): Promise<Membre | null> {
   const entete = requete.headers.get("authorization") ?? ""
@@ -43,7 +44,8 @@ export async function lireCorps(requete: Request): Promise<Record<string, unknow
 }
 
 // Enveloppe de chaque route : 401 sans jeton valable d'un compte actif de l'équipe (le logiciel revient alors à
-// l'écran de connexion), 403 si le rôle n'a pas accès à cette route
+// l'écran de connexion), 403 si le rôle n'a pas accès à cette route. Par défaut : gérants et réception (pas les
+// caissiers, qui n'ont que les routes de la caisse)
 export function pourLesHotes<Contexte>(
   traiter: (requete: NextRequest, membre: Membre, contexte: Contexte) => Promise<Response>,
   roles: RoleEquipe[] = ["hote", "reception"],
@@ -51,13 +53,20 @@ export function pourLesHotes<Contexte>(
   return async (requete: NextRequest, contexte: Contexte) => {
     const membre = await membreDeLaRequete(requete)
     if (!membre) return json({ erreur: "Session expirée : reconnectez-vous." }, 401)
-    if (!roles.includes(membre.role)) return json({ erreur: "Réservé aux gérants." }, 403)
+    if (!roles.includes(membre.role)) return json({ erreur: roles.includes("reception") ? "Réservé à la réception et aux gérants." : "Réservé aux gérants." }, 403)
     return traiter(requete, membre, contexte)
   }
 }
 
 export const pourLesGerants = <Contexte>(traiter: (requete: NextRequest, membre: Membre, contexte: Contexte) => Promise<Response>) =>
   pourLesHotes(traiter, ["hote"])
+
+// Rôles tels que le journal les écrit
+export const NOMS_ROLES: Record<RoleEquipe, string> = { hote: "Gérant", reception: "Réception", caissier: "Caisse" }
+
+// Caisse Restaurant et Bar (et ce que le logiciel charge au démarrage) : toute l'équipe, caissiers compris
+export const pourLaCaisse = <Contexte>(traiter: (requete: NextRequest, membre: Membre, contexte: Contexte) => Promise<Response>) =>
+  pourLesHotes(traiter, ["hote", "reception", "caissier"])
 
 export const nomDuMembre = (membre: Pick<ClientPublic, "prenom" | "nom">) => `${membre.prenom} ${membre.nom}`.trim()
 

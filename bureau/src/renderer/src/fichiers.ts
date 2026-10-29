@@ -1,8 +1,9 @@
 import { useState } from "react"
-import type { Paiement, Reservation } from "@partage/types"
+import type { CodeDevise, Facture, Paiement, Reservation, SessionCaisse, Ticket } from "@partage/types"
 import type { FeuilleClasseur, ResultatFichier } from "../../partage/ipc"
-import { facture, numeroRecu, recu } from "./documents"
-import { nomDe, useDonneesChargees } from "./donnees"
+import { convertir } from "@partage/folio"
+import { facture, factureFigee, numeroRecu, rapportCloture, recu, ticketCaisse } from "./documents"
+import { nomDe, restaurantSur, useDonneesChargees } from "./donnees"
 import { nomExport } from "./exports"
 import { useAnnoncer } from "./toasts"
 
@@ -27,14 +28,27 @@ export function useFichiers() {
     annoncerResultat(resultat, "Export Excel enregistré", "Export non enregistré")
   }
 
-  const contexte = (r: Reservation) => ({ facturation: d.facturation, client: clientDe(r), hebergement: hebergementDe(r), chambre: chambreDe(r)?.numero })
+  const contexte = (r: Reservation) => ({
+    facturation: d.facturation,
+    client: clientDe(r),
+    hebergement: hebergementDe(r),
+    chambre: chambreDe(r)?.numero,
+    restaurantEuros: convertir(restaurantSur(r, d), "MGA", "EUR", d.devises.taux),
+  })
 
-  // Numéro attribué par le serveur à la première édition (le même ensuite) ; renvoie l'erreur à afficher
-  async function imprimerFacture(r: Reservation): Promise<string | null> {
-    const resultat = await executer<{ numero: string; le: string }>("POST", `/api/hotes/reservations/${encodeURIComponent(r.id)}/facture`)
+  // Facture du séjour (et des autres chambres de son groupe) dans la devise choisie : figée par le serveur à la
+  // première édition, la même ensuite. Séjour facturé avant la caisse du restaurant : son ancienne facture.
+  // Renvoie l'erreur à afficher
+  async function imprimerFacture(r: Reservation, devise: CodeDevise = "EUR"): Promise<string | null> {
+    const resultat = await executer<{ facture?: Facture; ancienne?: { numero: string; le: string } }>(
+      "POST",
+      `/api/hotes/reservations/${encodeURIComponent(r.id)}/facture`,
+      { devise },
+    )
     if (!resultat.ok) return resultat.erreur
-    const { numero, le } = resultat.donnees
-    const html = facture(r, paiementsDe(r), numero, le, contexte(r))
+    const { facture: figee, ancienne } = resultat.donnees
+    const numero = figee?.numero ?? ancienne!.numero
+    const html = figee ? factureFigee(figee) : facture(r, paiementsDe(r), ancienne!.numero, ancienne!.le, contexte(r))
     annoncerResultat(await window.avocatier.enregistrerPdf(`Facture ${numero} ${nomDe(clientDe(r))}.pdf`, html), `Facture ${numero} enregistrée`, "Facture non enregistrée")
     return null
   }
@@ -48,5 +62,21 @@ export function useFichiers() {
     annoncerResultat(await window.avocatier.enregistrerPdf(`Reçu ${numeroRecu(p)} ${nomDe(clientDe(r))}.pdf`, html), `Reçu ${numeroRecu(p)} enregistré`, "Reçu non enregistré")
   }
 
-  return { exporter, exportEnCours, imprimerFacture, imprimerRecu }
+  // Ticket de caisse (80 mm) sur l'imprimante choisie dans Paramètres, ou par la boîte d'impression de Windows
+  async function imprimerTicket(t: Ticket, chambre?: string) {
+    const membre = d.equipe.find((m) => m.id === t.caissierId) ?? (t.caissierId === d.hote.id ? d.hote : undefined)
+    const { html, hauteurMm } = ticketCaisse(t, { facturation: d.facturation, caissier: membre?.prenom, chambre })
+    const resultat = await window.avocatier.imprimerTicket(html, hauteurMm)
+    if (!resultat.ok && !resultat.annule) annoncer({ titre: `Ticket ${t.numero} non imprimé`, texte: resultat.erreur, intent: "error", duree: 10_000 })
+  }
+
+  // Rapport de clôture (ou situation d'une caisse encore ouverte), sur l'imprimante des tickets
+  async function imprimerCloture(session: SessionCaisse, poste: string) {
+    const nom = (id?: string) => d.equipe.find((m) => m.id === id)?.prenom ?? (id === d.hote.id ? d.hote.prenom : undefined)
+    const { html, hauteurMm } = rapportCloture(session, { facturation: d.facturation, poste, ouvertePar: nom(session.ouvertePar), fermeePar: nom(session.fermeePar) })
+    const resultat = await window.avocatier.imprimerTicket(html, hauteurMm)
+    if (!resultat.ok && !resultat.annule) annoncer({ titre: "Rapport de caisse non imprimé", texte: resultat.erreur, intent: "error", duree: 10_000 })
+  }
+
+  return { exporter, exportEnCours, imprimerFacture, imprimerRecu, imprimerTicket, imprimerCloture }
 }
