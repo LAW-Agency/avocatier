@@ -32,6 +32,8 @@ const PAR_DEFAUT: Reglages = {
   affichagePlanning: { densite: "confortable", libelle: "client", disponibilites: true, weekEnds: true, grille: false, replies: [] },
   vueChambres: "cartes",
   devise: "MGA",
+  imprimanteTicket: "",
+  impressionAuto: false,
 }
 
 // Affichage du planning : chaque option vérifiée, celles qui manquent ou sont invalides reprennent leur défaut

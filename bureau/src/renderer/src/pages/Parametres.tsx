@@ -16,6 +16,8 @@ import {
   InfoRegular,
   KeyRegular,
   PersonRegular,
+  PrintRegular,
+  ReceiptRegular,
   WindowRegular,
   type FluentIcon,
 } from "@fluentui/react-icons"
@@ -28,6 +30,8 @@ import { ROLES } from "../libelles"
 import { DEVISES_AFFICHAGE, formaterEn } from "../montants"
 import { useReglages } from "../reglages"
 import { useParametresStyles } from "./useParametresStyles.styles"
+import { useCaisse } from "../caisse"
+import { useFichiers } from "../fichiers"
 
 const THEMES: Record<Theme, string> = { systeme: "Comme Windows", clair: "Clair", sombre: "Sombre" }
 
@@ -177,6 +181,99 @@ function MiseAJour() {
   )
 }
 
+// Caisse Restaurant et Bar de cet ordinateur : nom du poste (préfixe de ses tickets), imprimante des tickets de
+// 80 mm, impression automatique et ticket d'essai
+const SANS_IMPRIMANTE = "__aucune"
+
+function CaissePoste() {
+  const styles = useParametresStyles()
+  const { reglages, modifier } = useReglages()
+  const { imprimerTicket } = useFichiers()
+  const caisse = useCaisse(null)
+  const [imprimantes, setImprimantes] = useState<string[]>([])
+  const [nom, setNom] = useState<string | null>(null)
+  const [enCours, setEnCours] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  useEffect(() => {
+    void window.avocatier.imprimantes().then(setImprimantes)
+  }, [])
+  const enregistre = caisse.donnees?.postes.find((p) => p.id === caisse.poste?.posteId)
+  const valeurNom = nom ?? enregistre?.nom ?? ""
+
+  async function renommer(e: FormEvent) {
+    e.preventDefault()
+    setEnCours(true)
+    setErreur(await caisse.enregistrerPoste(valeurNom))
+    setEnCours(false)
+    setNom(null)
+  }
+
+  // Ticket fictif, jamais envoyé au serveur : vérifie l'imprimante et la largeur du papier
+  function essai() {
+    void imprimerTicket({
+      id: "essai",
+      numero: `${caisse.poste?.prefixe ?? "C"}-ESSAI`,
+      posteId: caisse.poste?.posteId ?? "",
+      le: new Date().toISOString(),
+      recuLe: new Date().toISOString(),
+      statut: "paye",
+      libelle: "Ticket d'essai",
+      total: 44_000,
+      lignes: [
+        { libelle: "THB grande", prixUnitaire: 8_000, quantite: 2 },
+        { libelle: "Poisson coco", prixUnitaire: 28_000, quantite: 1 },
+      ],
+      reglements: [{ mode: "especes", devise: "MGA", montant: 50_000, contreValeur: 50_000, rendu: 6_000 }],
+      motifAnnulation: "",
+    })
+  }
+
+  return (
+    <>
+      <Ligne
+        Icone={DesktopRegular}
+        titre="Nom du poste"
+        explication={enregistre ? `Tickets numérotés ${enregistre.prefixe}-000001, ${enregistre.prefixe}-000002…` : "Ce poste s'enregistre à sa première ouverture de Restaurant et Bar."}
+      >
+        {enregistre && (
+          <form className={styles.commande} onSubmit={renommer}>
+            <Input value={valeurNom} onChange={(_e, data) => setNom(data.value)} aria-label="Nom du poste" />
+            <Button type="submit" disabled={enCours || nom === null || !valeurNom.trim() || caisse.lectureSeule} icon={enCours ? <Spinner size="tiny" /> : <SaveRegular />}>
+              Renommer
+            </Button>
+          </form>
+        )}
+      </Ligne>
+      {erreur && (
+        <MessageBar intent="error">
+          <MessageBarBody>{erreur}</MessageBarBody>
+        </MessageBar>
+      )}
+      <Ligne Icone={PrintRegular} titre="Imprimante des tickets" explication="Imprimante à tickets de 80 mm. Sans imprimante choisie, la fenêtre d'impression de Windows s'ouvre à chaque ticket.">
+        <Dropdown
+          className={styles.choix}
+          value={reglages.imprimanteTicket || "Choisir à chaque impression"}
+          selectedOptions={[reglages.imprimanteTicket || SANS_IMPRIMANTE]}
+          onOptionSelect={(_e, data) => modifier({ imprimanteTicket: data.optionValue === SANS_IMPRIMANTE ? "" : (data.optionValue ?? "") })}
+        >
+          <Option value={SANS_IMPRIMANTE}>Choisir à chaque impression</Option>
+          {imprimantes.map((i) => (
+            <Option key={i} value={i}>
+              {i}
+            </Option>
+          ))}
+        </Dropdown>
+        <Button icon={<ReceiptRegular />} onClick={essai}>
+          Ticket d&apos;essai
+        </Button>
+      </Ligne>
+      <Ligne Icone={ReceiptRegular} titre="Imprimer à chaque vente" explication="Le ticket sort dès l'encaissement. Sinon, un bouton « Imprimer le ticket » est proposé après chaque vente.">
+        <Switch checked={reglages.impressionAuto} onChange={(_e, data) => modifier({ impressionAuto: data.checked })} aria-label="Imprimer à chaque vente" />
+      </Ligne>
+    </>
+  )
+}
+
 // Paramètres du poste (gardés sur cet ordinateur) et du compte connecté
 export default function Parametres({ onDeconnexion }: { onDeconnexion: () => void }) {
   const styles = useParametresStyles()
@@ -256,6 +353,10 @@ export default function Parametres({ onDeconnexion }: { onDeconnexion: () => voi
         >
           <Switch checked={reglages.demarrage} disabled={infos?.installe === false} onChange={(_e, data) => modifier({ demarrage: data.checked })} aria-label="Lancer au démarrage de Windows" />
         </Ligne>
+      </Groupe>
+
+      <Groupe titre="Caisse Restaurant et Bar de ce poste">
+        <CaissePoste />
       </Groupe>
 
       <Groupe titre="Compte">

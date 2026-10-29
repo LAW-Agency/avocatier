@@ -95,7 +95,14 @@ export type Reglages = {
   affichagePlanning: AffichagePlanning
   vueChambres: VueChambres
   devise: DeviseLogiciel
+  imprimanteTicket: string // imprimante des tickets de caisse ; "" : boîte d'impression de Windows
+  impressionAuto: boolean // imprimer le ticket dès l'encaissement
 }
+
+// Poste de caisse de cet ordinateur (src/main/caisse.ts) : préfixe donné par le serveur à son enregistrement
+export type PosteLocal = { posteId: string; prefixe: string | null; dernier: number }
+
+export type ResultatImpression = { ok: true } | { ok: false; annule?: boolean; erreur?: string }
 
 export type InfosLogiciel = { version: string; installe: boolean }
 
@@ -128,6 +135,14 @@ export interface PontAvocatier {
   enregistrerXlsx(nom: string, classeur: Classeur): Promise<ResultatFichier>
   // Facture ou reçu : page HTML complète mise en PDF A4, enregistrée puis ouverte
   enregistrerPdf(nom: string, html: string): Promise<ResultatFichier>
+
+  // Caisse : poste de cet ordinateur, préfixe et dernier numéro connus du serveur, numéro du prochain ticket
+  // (null tant que le poste n'est pas enregistré), imprimantes et impression d'un ticket de 80 mm
+  posteCaisse(): Promise<PosteLocal>
+  noterPosteCaisse(prefixe: string, dernier: number): Promise<PosteLocal>
+  numeroterTicket(): Promise<string | null>
+  imprimantes(): Promise<string[]>
+  imprimerTicket(html: string, hauteurMm: number): Promise<ResultatImpression>
 
   reglages(): Promise<Reglages>
   modifierReglages(modification: Partial<Reglages>): Promise<Reglages>

@@ -34,6 +34,8 @@ import {
   ArrowSyncRegular,
   BedFilled,
   BedRegular,
+  FoodFilled,
+  FoodRegular,
   CalendarAddRegular,
   CalendarLtrFilled,
   CalendarLtrRegular,
@@ -86,6 +88,7 @@ import Notifications from "./pages/Notifications"
 import Parametres from "./pages/Parametres"
 import Planning from "./pages/Planning"
 import Reservations from "./pages/Reservations"
+import Restaurant from "./pages/Restaurant"
 import Revenus from "./pages/Revenus"
 import Statistiques from "./pages/Statistiques"
 import Tarifs from "./pages/Tarifs"
@@ -118,6 +121,11 @@ const ACTIVITE: Rubrique[] = [
     page: "chambres",
     libelle: "Chambres",
     Icone: bundleIcon(BedFilled, BedRegular),
+  },
+  {
+    page: "restaurant",
+    libelle: "Restaurant et Bar",
+    Icone: bundleIcon(FoodFilled, FoodRegular),
   },
   {
     page: "clients",
@@ -245,9 +253,10 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
     }
   }, [])
 
-  const activite = caissier ? [] : ACTIVITE
+  const activite = caissier ? ACTIVITE.filter((r) => PAGES_CAISSIER.includes(r.page)) : ACTIVITE
   const rubriques = [...activite, ...(gerant ? GESTION : [])]
-  const rubriqueActive: PageNav = vue.page === "client" ? "clients" : vue.page
+  // Caissier : la caisse tient lieu d'accueil
+  const rubriqueActive: PageNav = caissier && !PAGES_CAISSIER.includes(vue.page) ? "restaurant" : vue.page === "client" ? "clients" : vue.page
   const situation = donnees && !caissier ? situationDuJour(donnees, donnees.aujourdhui) : null
   const cleEcran = vue.page === "client" ? `client-${vue.id}` : vue.page === "guide" ? `guide-${vue.section ?? ""}` : vue.page
   // Nouvel écran affiché en haut de la zone qui défile (sauf section du Guide : le Guide y défile lui-même)
@@ -269,12 +278,13 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
     ) : (
       <ChargementLogo texte="Chargement des réservations…" />
     )
-  } else if (caissier && !PAGES_CAISSIER.includes(vue.page)) ecran = <Parametres onDeconnexion={onDeconnexion} />
+  } else if (caissier && !PAGES_CAISSIER.includes(vue.page)) ecran = <Restaurant />
   else if (!gerant && PAGES_GERANTS.includes(vue.page)) ecran = <Aujourdhui />
   else if (vue.page === "aujourdhui") ecran = <Aujourdhui />
   else if (vue.page === "reservations") ecran = <Reservations filtre={vue.filtre ?? null} />
   else if (vue.page === "planning") ecran = <Planning />
   else if (vue.page === "chambres") ecran = <Chambres filtre={vue.filtre ?? "toutes"} />
+  else if (vue.page === "restaurant") ecran = <Restaurant />
   else if (vue.page === "clients") ecran = <Clients />
   else if (vue.page === "client") ecran = <FicheClient id={vue.id} />
   else if (vue.page === "revenus") ecran = <Revenus />

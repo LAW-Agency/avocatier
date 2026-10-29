@@ -1,7 +1,7 @@
 import { useState } from "react"
-import type { Paiement, Reservation } from "@partage/types"
+import type { Paiement, Reservation, Ticket } from "@partage/types"
 import type { FeuilleClasseur, ResultatFichier } from "../../partage/ipc"
-import { facture, numeroRecu, recu } from "./documents"
+import { facture, numeroRecu, recu, ticketCaisse } from "./documents"
 import { nomDe, useDonneesChargees } from "./donnees"
 import { nomExport } from "./exports"
 import { useAnnoncer } from "./toasts"
@@ -48,5 +48,13 @@ export function useFichiers() {
     annoncerResultat(await window.avocatier.enregistrerPdf(`Reçu ${numeroRecu(p)} ${nomDe(clientDe(r))}.pdf`, html), `Reçu ${numeroRecu(p)} enregistré`, "Reçu non enregistré")
   }
 
-  return { exporter, exportEnCours, imprimerFacture, imprimerRecu }
+  // Ticket de caisse (80 mm) sur l'imprimante choisie dans Paramètres, ou par la boîte d'impression de Windows
+  async function imprimerTicket(t: Ticket, chambre?: string) {
+    const membre = d.equipe.find((m) => m.id === t.caissierId) ?? (t.caissierId === d.hote.id ? d.hote : undefined)
+    const { html, hauteurMm } = ticketCaisse(t, { facturation: d.facturation, caissier: membre?.prenom, chambre })
+    const resultat = await window.avocatier.imprimerTicket(html, hauteurMm)
+    if (!resultat.ok && !resultat.annule) annoncer({ titre: `Ticket ${t.numero} non imprimé`, texte: resultat.erreur, intent: "error", duree: 10_000 })
+  }
+
+  return { exporter, exportEnCours, imprimerFacture, imprimerRecu, imprimerTicket }
 }

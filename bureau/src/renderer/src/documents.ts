@@ -1,5 +1,6 @@
 import { formaterDate, formaterPlage, formaterPrix, nombreNuits, pluriel } from "@partage/dates"
-import type { ClientPublic, Paiement, ReglagesFacturation, Reservation } from "@partage/types"
+import { formaterDansDevise } from "@partage/devises"
+import type { ClientPublic, Paiement, ReglagesFacturation, Reservation, Ticket } from "@partage/types"
 import logo from "./assets/logo-couleur.svg?raw"
 import { nomDe, type HebergementCourt } from "./donnees"
 import { MODES_PAIEMENT } from "./libelles"
@@ -154,3 +155,73 @@ ${destinataire(remboursement ? "Remboursé à" : "Reçu de", client)}
 <div class="pied">Montants en euros.</div>`
   return page(`Reçu ${numeroRecu(p)}`, corps)
 }
+
+// --- Ticket de caisse Restaurant et Bar (rouleau de 80 mm) ---
+
+type ContexteTicket = { facturation: ReglagesFacturation; caissier?: string; chambre?: string }
+
+const ariary = (montant: number) => formaterDansDevise(montant, "MGA")
+
+// Page de 80 mm de large (72 mm imprimables) et hauteur estimée d'après le nombre de lignes : l'imprimante coupe
+// le papier sous le dernier texte
+export function ticketCaisse(t: Ticket, contexte: ContexteTicket): { html: string; hauteurMm: number } {
+  const { facturation, caissier, chambre } = contexte
+  const rendu = t.reglements.reduce((s, r) => s + r.rendu, 0)
+  const lignesTicket = t.lignes
+    .map(
+      (l) =>
+        `<tr><td>${l.quantite} × ${echapper(l.libelle)}${l.quantite > 1 ? `<br><span class="detail">${echapper(ariary(l.prixUnitaire))} l'unité</span>` : ""}</td><td class="droite">${echapper(ariary(l.prixUnitaire * l.quantite))}</td></tr>`,
+    )
+    .join("")
+  const reglements =
+    t.statut === "chambre" || (t.statut === "annule" && t.reservationId)
+      ? `<p class="centre gras">Sur la note de la chambre${chambre ? ` ${echapper(chambre)}` : ""}</p><p class="centre detail">À régler au départ</p>`
+      : `<table>${t.reglements
+          .map(
+            (r) =>
+              `<tr><td>${echapper(MODES_PAIEMENT[r.mode])}</td><td class="droite">${echapper(formaterDansDevise(r.montant, r.devise))}</td></tr>${r.devise !== "MGA" ? `<tr><td class="detail" colspan="2">soit ${echapper(ariary(r.contreValeur))}</td></tr>` : ""}`,
+          )
+          .join("")}${rendu ? `<tr><td>Monnaie rendue</td><td class="droite">${echapper(ariary(rendu))}</td></tr>` : ""}</table>`
+  const contacts = [facturation.telephone, facturation.email].filter(Boolean).map(echapper).join("<br>")
+  const html = `<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Ticket ${echapper(t.numero)}</title>
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 4mm 4mm 6mm; width: 80mm; font-family: "Segoe UI", Arial, sans-serif; font-size: 9pt; line-height: 1.35; color: #000; }
+  .centre { text-align: center; }
+  .gras { font-weight: 700; }
+  .titre { font-size: 12pt; font-weight: 700; margin: 0; }
+  p { margin: 0 0 1mm; }
+  .detail { font-size: 8pt; }
+  .filet { border-top: 1px dashed #000; margin: 2.5mm 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 0.6mm 0; vertical-align: top; }
+  .droite { text-align: right; white-space: nowrap; padding-left: 2mm; }
+  .total td { font-size: 12pt; font-weight: 700; padding-top: 1.5mm; }
+  .annule { margin: 2mm 0; padding: 1.5mm; border: 2px solid #000; text-align: center; font-weight: 700; letter-spacing: 0.1em; }
+</style></head>
+<body>
+<p class="titre centre">${echapper(facturation.raisonSociale)}</p>
+<p class="centre detail">${lignes(facturation.adresse)}${contacts ? `<br>${contacts}` : ""}${facturation.identifiants ? `<br>${lignes(facturation.identifiants)}` : ""}</p>
+<div class="filet"></div>
+<p>Ticket <span class="gras">${echapper(t.numero)}</span><br>${echapper(formaterHeureLongue(t.le))}${t.libelle ? `<br>${echapper(t.libelle)}` : ""}${caissier ? `<br>Servi par ${echapper(caissier)}` : ""}</p>
+${t.statut === "annule" ? `<div class="annule">TICKET ANNULÉ</div>` : ""}
+<div class="filet"></div>
+<table>${lignesTicket}</table>
+<div class="filet"></div>
+<table><tr class="total"><td>TOTAL</td><td class="droite">${echapper(ariary(t.total))}</td></tr></table>
+<div class="filet"></div>
+${reglements}
+<div class="filet"></div>
+<p class="centre">Misaotra · Merci de votre visite</p>
+</body></html>`
+  const lignesReglement = t.statut === "chambre" ? 2 : t.reglements.length * 2 + (rendu ? 1 : 0)
+  // Mesuré : en-tête, filets, total et pied font environ 80 mm ; une marge de trop vaut mieux qu'un ticket coupé
+  const hauteurMm = 80 + t.lignes.reduce((h, l) => h + (l.quantite > 1 ? 9 : 5), 0) + lignesReglement * 5 + (t.libelle ? 4 : 0) + (caissier ? 4 : 0) + (t.statut === "annule" ? 10 : 0)
+  return { html, hauteurMm }
+}
+
+// « mer. 29 octobre 2026 à 14:05 », à l'heure de Sainte-Marie
+const formaterHeureLongue = (instant: string) =>
+  new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Indian/Antananarivo" }).format(new Date(instant))

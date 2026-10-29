@@ -57,6 +57,7 @@ export type Vue =
   | { page: "reservations"; filtre?: StatutReservation | null }
   | { page: "planning" }
   | { page: "chambres"; filtre?: FiltreChambres }
+  | { page: "restaurant" }
   | { page: "clients" }
   | { page: "client"; id: string }
   | { page: "revenus" }
@@ -72,7 +73,7 @@ export type Vue =
 export const PAGES_GERANTS: Vue["page"][] = ["revenus", "statistiques", "tarifs", "utilisateurs"]
 
 // Seuls écrans d'un caissier (il ne reçoit ni réservations ni clients ; l'API refuse le reste)
-export const PAGES_CAISSIER: Vue["page"][] = ["guide", "parametres"]
+export const PAGES_CAISSIER: Vue["page"][] = ["restaurant", "guide", "parametres"]
 
 // Fenêtre « Nouvelle réservation », éventuellement préremplie (client, hébergement et chambre, date)
 export type Preremplissage = { clientId?: string; hebergementId?: string; chambreId?: string; arrivee?: string }
