@@ -1,5 +1,6 @@
 import { nombreNuits, pluriel } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
+import { formaterDansDevise } from "@partage/devises"
 import type { ClientPublic, Paiement, Reservation } from "@partage/types"
 import type { ColonneClasseur, FeuilleClasseur, ValeurCellule } from "../../partage/ipc"
 import { numeroRecu } from "./documents"
@@ -94,6 +95,8 @@ export function feuilleEncaissements(paiements: Paiement[], d: Donnees, precisio
       { titre: "N° de reçu", format: "texte", largeur: 12 },
       { titre: "Date", format: "dateHeure" },
       { titre: "Montant", format: "euros", total: true, largeur: 12 },
+      { titre: "Reçu en", format: "texte" },
+      { titre: "Montant reçu", format: "texte", largeur: 14 },
       { titre: "Mode", format: "texte" },
       { titre: "Note", format: "texte" },
       { titre: "Réservation", format: "texte" },
@@ -111,6 +114,8 @@ export function feuilleEncaissements(paiements: Paiement[], d: Donnees, precisio
           numeroRecu(p),
           p.le,
           p.montant,
+          p.devise,
+          p.devise !== "EUR" && p.montantDevise !== undefined ? formaterDansDevise(p.montantDevise, p.devise) : null,
           MODES_PAIEMENT[p.mode],
           vide(p.note),
           vide(r?.reference),

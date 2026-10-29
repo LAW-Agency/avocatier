@@ -1,5 +1,6 @@
 import type {
   Article,
+  BilanRestaurant,
   ClotureSession,
   DateISO,
   DonneesCaisse,
@@ -22,6 +23,9 @@ export interface CaisseRestaurant {
   // Carte, postes, sessions (ouvertes, ou ouvertes pendant la période), tickets vendus du `du` au `au` (dates de
   // Sainte-Marie comprises) et séjours en cours
   donnees(periode: { du: DateISO; au: DateISO }): Promise<Omit<DonneesCaisse, "devises">>
+
+  // Ventes du restaurant et du bar du `du` au `au` (dates de Sainte-Marie comprises), par catégorie de la carte
+  bilanPeriode(periode: { du: DateISO; au: DateISO }): Promise<BilanRestaurant>
 
   // Poste créé à sa première connexion (identifiant choisi par le logiciel), renommé ensuite
   enregistrerPoste(id: string, nom: string): Promise<Resultat<{ poste: PosteCaisse }>>

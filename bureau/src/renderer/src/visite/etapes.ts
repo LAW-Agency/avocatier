@@ -9,6 +9,7 @@ export type PageVisite =
   | "reservations"
   | "planning"
   | "chambres"
+  | "restaurant"
   | "clients"
   | "journal"
   | "revenus"
@@ -161,6 +162,14 @@ export const ETAPES_VISITE: EtapeVisite[] = [
     cible: "chambres-affichage",
     titre: "Cartes ou liste",
     texte: "Ce choix passe des cartes à une liste compacte, pour voir tout l'hôtel sur une seule page.",
+  },
+  {
+    id: "19b-restaurant",
+    page: "restaurant",
+    cible: "restaurant-onglets",
+    titre: "Restaurant et Bar",
+    texte:
+      "Restaurant et Bar, c'est la caisse. On ouvre la caisse avec le fond, on vend en touchant les articles, puis on encaisse sur place ou on met sur la chambre : le montant s'ajoute à la note du séjour et figure sur la facture du départ. En fin de service, la clôture compte le tiroir et calcule l'écart.",
   },
   {
     id: "20-clients",

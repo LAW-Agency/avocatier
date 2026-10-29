@@ -5,6 +5,7 @@ import {
   BookOpenRegular,
   CalendarLtrRegular,
   DataTrendingRegular,
+  FoodRegular,
   GlobeRegular,
   HistoryRegular,
   HomeRegular,
@@ -478,14 +479,23 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
       "encaissement paiement remboursement espèces carte mobile money virement solde reste dû acompte reçu pdf imprimer non soldé trop-perçu départ arrivée notifications cloche alerte annuler départ",
     contenu: (
       <ul>
-        <li>Dans la fiche d&apos;une réservation : montant total, déjà payé, reste dû, et la saisie d&apos;un paiement (espèces, carte, mobile money, virement…).</li>
+        <li>
+          Dans la fiche d&apos;une réservation : montant du séjour (plus le restaurant et le bar mis sur la chambre), déjà payé, reste dû, et la saisie d&apos;un paiement (espèces, carte,
+          mobile money, virement…) <strong>en ariary, en euros ou en dollars</strong>. Le montant proposé est le reste dans la devise choisie ; il est converti en euros au taux de Tarifs, et le
+          reçu indique le montant dans sa devise.
+        </li>
         <li>Un montant négatif enregistre un remboursement. Un séjour annulé ne doit plus rien : ce qui a été encaissé dessus apparaît en « Trop-perçu », à rembourser.</li>
         <li>
           <strong>Arrivée</strong> : la fenêtre rappelle l&apos;acompte reçu et le reste à payer ; on peut encaisser tout de suite, sans obligation.
         </li>
         <li>
-          <strong>Départ</strong> : s&apos;il reste à payer, encaissez-le dans la fenêtre (« Encaisser maintenant »). « Départ quand même » demande la raison (virement promis,
-          litige…), notée dans l&apos;historique de la réservation et le journal.
+          <strong>Départ</strong> : s&apos;il reste à payer (séjour et restaurant), encaissez-le dans la fenêtre (« Encaisser maintenant »). « Départ quand même » demande la raison
+          (virement promis, litige…), notée dans l&apos;historique de la réservation et le journal.
+        </li>
+        <li>
+          <strong>Facture complète</strong> : « Éditer la facture » (fenêtre de départ ou fiche) demande la devise du client (ariary, euro, dollar). La facture reprend le séjour, chaque ticket du
+          restaurant et du bar mis sur la chambre, les règlements et le reste, au taux du jour ; un groupe de chambres réservé par une même personne est facturé en une fois. Elle est figée :
+          encaissez d&apos;abord, puis éditez. La même facture se réimprime ensuite à l&apos;identique, et ses tickets ne s&apos;annulent plus.
         </li>
         <li>
           La <strong>cloche</strong> de la barre de titre compte ce qui reste à régler : départs non soldés, chambres à préparer, trop-perçus, arrivées ou départs oubliés, navettes, demandes à traiter. Le
@@ -496,6 +506,45 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
           Chaque encaissement a un numéro de reçu (RE-000042) ; l&apos;icône de reçu à côté du montant enregistre le <strong>reçu PDF</strong>, à imprimer ou envoyer au client.
         </li>
         <li>Seuls les gérants suppriment un encaissement saisi par erreur ; la réception corrige par un remboursement.</li>
+      </ul>
+    ),
+  },
+  {
+    id: "restaurant",
+    titre: "Restaurant et Bar",
+    resume: "Caisse du restaurant et du bar : ventes, carte, tickets, clôture.",
+    Icone: FoodRegular,
+    ecran: { page: "restaurant" },
+    motsCles:
+      "restaurant bar caisse caissier vente ticket carte menu article plats boissons prix ariary encaisser monnaie rendue chambre note poste imprimante 80 mm fond de caisse ouverture clôture écart annuler",
+    contenu: (
+      <ul>
+        <li>
+          Pour la réception, les gérants et les comptes <strong>Caisse</strong> (créés dans Utilisateurs) : un caissier ne voit que cet écran, sans réservations ni clients.
+        </li>
+        <li>
+          <strong>Premier passage</strong> sur un ordinateur : donnez-lui un nom (Bar, Restaurant…). Ses tickets sont numérotés à part (C1-000001, C2-000001…). L&apos;imprimante à tickets de
+          80 mm se choisit dans Paramètres, avec un ticket d&apos;essai et l&apos;impression automatique à chaque vente.
+        </li>
+        <li>
+          <strong>Ouvrir la caisse</strong> avant le service avec le fond de caisse (les espèces du tiroir). Sans caisse ouverte, on ne vend pas.
+        </li>
+        <li>
+          <strong>Vente</strong> : touchez les articles (un clic = un de plus), indiquez la table si besoin, puis « Encaisser » (espèces, carte, mobile money ; en ariary, euros ou dollars, la
+          monnaie se rend en ariary) ou « Sur la chambre » : le montant s&apos;ajoute à la note du séjour et se règle au départ, avec la facture.
+        </li>
+        <li>
+          <strong>Tickets du jour</strong> : totaux, réimpression et annulation (motif obligatoire ; le ticket reste, barré). La réception et les caissiers annulent les tickets du jour, les
+          gérants n&apos;importe lequel ; un ticket déjà sur une facture ne s&apos;annule plus.
+        </li>
+        <li>
+          <strong>Clôture</strong> : en fin de service, comptez les espèces de chaque devise. Le logiciel calcule ce qui doit être dans le tiroir (fond + espèces reçues − monnaie rendue) et
+          l&apos;écart ; un écart demande une explication. Le rapport de clôture s&apos;imprime sur le ticket, avec la signature.
+        </li>
+        <li>
+          <strong>Carte</strong> : prix en ariary, rangés par catégorie. Un article déjà vendu se retire de la carte (interrupteur) au lieu d&apos;être supprimé. Les ventes de la période
+          apparaissent dans Revenus (gérants), à part du chiffre d&apos;affaires des séjours.
+        </li>
       </ul>
     ),
   },

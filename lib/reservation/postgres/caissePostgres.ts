@@ -3,7 +3,7 @@ import { aUnEcart, bilanSession } from "../caisseRegles"
 import { comparerNumeros, controlerArticle, controlerTicket, lireNumeroTicket, totalTicket } from "../controles"
 import { estCodeDevise } from "../devises"
 import { aujourdhuiISO } from "../dates"
-import type { Article, BilanSession, CodeDevise, PosteCaisse, SejourCaisse, SessionCaisse, StatutTicket, Ticket } from "../types"
+import type { Article, BilanRestaurant, BilanSession, CodeDevise, PosteCaisse, SejourCaisse, SessionCaisse, StatutTicket, Ticket } from "../types"
 import { codeErreur, db, lignes, transaction, type Executant } from "./db"
 
 // Implémentation PostgreSQL du contrat ../caisse (schéma : migrations/007_restaurant_bar.sql)
@@ -138,6 +138,32 @@ export const caissePostgres: CaisseRestaurant = {
       [id, libelle],
     )
     return { ok: true, poste }
+  },
+
+  async bilanPeriode({ du, au }) {
+    const jour = `(t.le at time zone '${FUSEAU}')::date between $1 and $2`
+    const [[totaux], parCategorie] = await Promise.all([
+      lignes<Omit<BilanRestaurant, "parCategorie">>(
+        db(),
+        `select coalesce(sum(total) filter (where statut <> 'annule'), 0)::int as ventes,
+           coalesce(sum(total) filter (where statut = 'paye'), 0)::int as encaisse,
+           coalesce(sum(total) filter (where statut = 'chambre'), 0)::int as "surChambres",
+           (count(*) filter (where statut <> 'annule'))::int as tickets,
+           (count(*) filter (where statut = 'annule'))::int as annules
+         from tickets t where ${jour}`,
+        [du, au],
+      ),
+      // Article supprimé depuis : « Autres »
+      lignes<BilanRestaurant["parCategorie"][number]>(
+        db(),
+        `select coalesce(a.categorie, 'Autres') as categorie, sum(l.prix_unitaire * l.quantite)::int as montant
+         from lignes_ticket l join tickets t on t.id = l.ticket_id left join articles a on a.id = l.article_id
+         where t.statut <> 'annule' and ${jour}
+         group by 1 order by 2 desc`,
+        [du, au],
+      ),
+    ])
+    return { ...totaux, parCategorie }
   },
 
   async nomPoste(id) {

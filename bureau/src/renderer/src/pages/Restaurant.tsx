@@ -54,7 +54,7 @@ export default function Restaurant() {
         <EnregistrementPoste caisse={caisse} />
       ) : (
         <>
-          <TabList selectedValue={onglet} onTabSelect={(_e, data) => setOnglet(data.value as Onglet)}>
+          <TabList selectedValue={onglet} onTabSelect={(_e, data) => setOnglet(data.value as Onglet)} data-visite="restaurant-onglets">
             <Tab value="vente" icon={<ReceiptRegular />}>
               Vente
             </Tab>

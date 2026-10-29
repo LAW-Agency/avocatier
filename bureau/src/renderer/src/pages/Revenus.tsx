@@ -17,10 +17,11 @@ import {
   mergeClasses,
 } from "@fluentui/react-components"
 import { ArrowDownloadRegular, ArrowUndoRegular, MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { formaterHeure, formaterPlage } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
-import type { ModePaiement, Reservation } from "@partage/types"
+import { formaterDansDevise } from "@partage/devises"
+import type { BilanRestaurant, ModePaiement, Reservation } from "@partage/types"
 import { alertesDe } from "../alertes"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
@@ -30,7 +31,7 @@ import { nomChambre, nomDe, soldeDe, useDonneesChargees } from "../donnees"
 import { feuilleEncaissements } from "../exports"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT, NOMS_SOURCES } from "../libelles"
-import { debutDeMois, encaissementsDans, evolution, indicateurs, nomDuMois, parMois, periodes, PERIODES, repartition, type ChoixPeriode } from "../statistiques"
+import { debutDeMois, dernierJour, encaissementsDans, evolution, indicateurs, nomDuMois, parMois, periodes, PERIODES, repartition, type ChoixPeriode } from "../statistiques"
 import { useGestionStyles } from "./useGestionStyles.styles"
 import { usePrix } from "../montants"
 
@@ -66,6 +67,19 @@ export default function Revenus() {
     .filter(({ solde }) => solde > 0)
     .sort((a, b) => a.r.arrivee.localeCompare(b.r.arrivee))
   const resteTotal = impayes.reduce((t, { solde }) => t + solde, 0)
+  // Restaurant et bar de la période (ariary), lus à part : les tickets ne sont pas dans les données du logiciel
+  const [restaurant, setRestaurant] = useState<BilanRestaurant | null>(null)
+  const du = actuelle.debut
+  const au = dernierJour(actuelle)
+  useEffect(() => {
+    let annule = false
+    void window.avocatier.api<BilanRestaurant>("GET", `/api/hotes/caisse/bilan?du=${du}&au=${au}`).then((r) => !annule && setRestaurant(r.ok ? r.donnees : null))
+    return () => {
+      annule = true
+    }
+  }, [du, au])
+  const parCategorie = restaurant ? repartition(restaurant.parCategorie.map((c) => ({ cle: c.categorie, valeur: c.montant }))) : []
+
   // Trop-perçus : tout statut (une réservation annulée déjà payée ne doit plus rien)
   const { tropPercus } = alertesDe(d)
   const tropPercuTotal = tropPercus.reduce((t, r) => t - soldeDe(r, d), 0)
@@ -133,6 +147,23 @@ export default function Revenus() {
           )}
         </Carte>
       </div>
+
+      {restaurant && (
+        <Carte
+          titre="Restaurant et Bar"
+          description={`${PERIODES[choix]} · ${restaurant.tickets} tickets${restaurant.annules ? `, ${restaurant.annules} annulés` : ""} · en ariary, à part du chiffre d'affaires des séjours`}
+          action={<Text weight="semibold">{formaterDansDevise(restaurant.ventes, "MGA")}</Text>}
+        >
+          <Body1 className={styles.secondaire}>
+            Payé sur place {formaterDansDevise(restaurant.encaisse, "MGA")} · mis sur les chambres {formaterDansDevise(restaurant.surChambres, "MGA")} (réglé avec le séjour)
+          </Body1>
+          {parCategorie.length ? (
+            <Repartition lignes={parCategorie.map((c) => ({ cle: c.cle, libelle: c.cle, part: c.part, detail: formaterDansDevise(c.valeur, "MGA") }))} />
+          ) : (
+            <Body1 className={styles.secondaire}>Aucune vente sur la période.</Body1>
+          )}
+        </Carte>
+      )}
 
       {tropPercus.length > 0 && (
         <Carte titre="Trop-perçus à rembourser" description="Séjours annulés déjà payés, ou payés plus que leur montant" action={<Text className={styles.reste}>{formaterPrix(tropPercuTotal)}</Text>}>

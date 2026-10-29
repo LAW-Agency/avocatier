@@ -433,6 +433,16 @@ export type SessionCaisse = {
 export type NouvelleSession = Pick<SessionCaisse, "id" | "posteId" | "ouverteLe" | "fondCaisse">
 export type ClotureSession = { fermeeLe: string; especesComptees: Partial<Record<CodeDevise, number>>; commentaire: string }
 
+// Restaurant et bar sur une période (écran Revenus des gérants), en ariary
+export type BilanRestaurant = {
+  ventes: number // payées sur place et mises sur les chambres
+  encaisse: number
+  surChambres: number
+  tickets: number
+  annules: number
+  parCategorie: { categorie: string; montant: number }[]
+}
+
 // Ce qu'affiche l'écran Restaurant et Bar
 export type DonneesCaisse = {
   articles: Article[]
