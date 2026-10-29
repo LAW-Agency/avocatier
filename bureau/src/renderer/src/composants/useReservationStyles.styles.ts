@@ -5,7 +5,7 @@ export const useActionsStyles = makeStyles({
   boutons: { display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: tokens.spacingHorizontalS, rowGap: tokens.spacingVerticalS },
   fin: { justifyContent: "flex-end" },
   // Fenêtre d'arrivée / de départ : assez large pour le bloc des encaissements (trois cases et la saisie)
-  fenetre: { maxWidth: "640px", width: "100%" },
+  fenetre: { maxWidth: "760px", width: "100%" },
   discret: { color: tokens.colorNeutralForeground3 },
   // Action destructive : pas de variante « danger » dans Fluent, couleurs d'état de la palette
   danger: {
@@ -103,7 +103,7 @@ export const useEncaissementsStyles = makeStyles({
     borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
   },
   montant: { fontVariantNumeric: "tabular-nums", fontWeight: tokens.fontWeightSemibold },
-  formulaire: { display: "grid", gridTemplateColumns: "120px minmax(0, 1fr) minmax(0, 1fr) auto", columnGap: tokens.spacingHorizontalS, alignItems: "end" },
+  formulaire: { display: "grid", gridTemplateColumns: "130px 110px minmax(0, 1fr) minmax(0, 1fr) auto", columnGap: tokens.spacingHorizontalS, alignItems: "end" },
   nombre: { textAlign: "right", fontVariantNumeric: "tabular-nums" },
   champ: { minWidth: 0, width: "100%" },
 })

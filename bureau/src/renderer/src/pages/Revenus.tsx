@@ -62,13 +62,13 @@ export default function Revenus() {
   ).filter((s) => s.valeur > 0)
   // Impayés : séjours confirmés non soldés, les plus anciens d'abord
   const impayes = confirmees
-    .map((r) => ({ r, solde: soldeDe(r, d.paiements) }))
+    .map((r) => ({ r, solde: soldeDe(r, d) }))
     .filter(({ solde }) => solde > 0)
     .sort((a, b) => a.r.arrivee.localeCompare(b.r.arrivee))
   const resteTotal = impayes.reduce((t, { solde }) => t + solde, 0)
   // Trop-perçus : tout statut (une réservation annulée déjà payée ne doit plus rien)
   const { tropPercus } = alertesDe(d)
-  const tropPercuTotal = tropPercus.reduce((t, r) => t - soldeDe(r, d.paiements), 0)
+  const tropPercuTotal = tropPercus.reduce((t, r) => t - soldeDe(r, d), 0)
 
   return (
     <>
@@ -160,7 +160,7 @@ export default function Revenus() {
                       <TableCellLayout truncate description={`${libelleStatutHote[r.statut]} · ${nomChambre(d, r.chambreId)}`}>{formaterPlage(r.arrivee, r.depart)}</TableCellLayout>
                     </TableCell>
                     <TableCell>
-                      <span className={mergeClasses(cadre.droite, styles.reste)}>{formaterPrix(-soldeDe(r, d.paiements))}</span>
+                      <span className={mergeClasses(cadre.droite, styles.reste)}>{formaterPrix(-soldeDe(r, d))}</span>
                     </TableCell>
                     <TableCell>
                       <span className={cadre.droite}>

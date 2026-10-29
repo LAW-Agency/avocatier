@@ -14,7 +14,9 @@ import {
   saisonsDatees,
   STATUTS_ACTIFS,
 } from "../controles"
-import { aujourdhuiISO, formaterPrix } from "../dates"
+import { aujourdhuiISO } from "../dates"
+import { estCodeDevise, formaterDansDevise } from "../devises"
+import { contenuFacture, convertir, soldeSejour, type SejourFacture } from "../folio"
 import type { GestionHotel, ResultatClient } from "../gestion"
 import type { EvenementExporte } from "../ical"
 import { calculerDevis } from "../regles"
@@ -22,11 +24,16 @@ import type {
   BilanSynchronisation,
   CalendrierExterne,
   Chambre,
+  CodeDevise,
+  Consommation,
   EntreeJournal,
+  Facture,
+  LigneTicket,
   ModePaiement,
   Paiement,
   Plateforme,
   ReglagesFacturation,
+  Reservation,
   ResultatAction,
   ResultatDemande,
   ResultatModification,
@@ -41,6 +48,7 @@ import {
   lireChambres,
   lireHebergements,
   lireReglesSaisons,
+  moteurPostgres,
   RESERVATION,
   verrouiller,
   versClient,
@@ -51,7 +59,34 @@ import {
 
 // Implémentation PostgreSQL du contrat ../gestion (schéma : migrations/003_logiciel_hotes.sql)
 
-const PAIEMENT = `id, reservation_id as "reservationId", montant, mode, note, le, enregistre_par as "enregistrePar", numero`
+const PAIEMENT = `id, reservation_id as "reservationId", montant, devise, montant_devise as "montantDevise", taux, mode, note, le,
+  enregistre_par as "enregistrePar", numero`
+type LignePaiement = Omit<Paiement, "le" | "enregistrePar" | "montantDevise" | "taux"> & {
+  le: Date
+  enregistrePar: string | null
+  montantDevise: number | null
+  taux: number | null
+}
+const versPaiement = ({ le, enregistrePar, montantDevise, taux, ...reste }: LignePaiement): Paiement => ({
+  ...reste,
+  le: le.toISOString(),
+  ...(enregistrePar && { enregistrePar }),
+  ...(montantDevise !== null && { montantDevise }),
+  ...(taux !== null && { taux }),
+})
+
+// Tickets du restaurant et du bar sur la note des séjours (non annulés)
+const CONSOMMATION = `t.id, t.numero, t.le, t.total, t.libelle, t.facture_id as "factureId", t.reservation_id as "reservationId",
+  coalesce((select json_agg(json_strip_nulls(json_build_object('articleId', l.article_id, 'libelle', l.libelle,
+      'prixUnitaire', l.prix_unitaire, 'quantite', l.quantite)) order by l.position)
+    from lignes_ticket l where l.ticket_id = t.id), '[]') as lignes`
+type LigneConsommation = Omit<Consommation, "le" | "factureId"> & { le: Date; factureId: string | null; lignes: LigneTicket[] }
+const versConsommation = ({ le, factureId, ...reste }: LigneConsommation): Consommation => ({ ...reste, le: le.toISOString(), ...(factureId && { factureId }) })
+
+const FACTURE = `f.id, f.numero, f.le, f.client_id as "clientId", f.devise, f.taux, f.total, f.contenu,
+  array(select fr.reservation_id from factures_reservations fr where fr.facture_id = f.id) as "reservationIds"`
+type LigneFacture = Omit<Facture, "le"> & { le: Date }
+const versFacture = ({ le, ...reste }: LigneFacture): Facture => ({ ...reste, le: le.toISOString() })
 
 const CALENDRIER = `id, hebergement_id as "hebergementId", chambre_id as "chambreId", plateforme, nom, url_import as "urlImport", jeton,
   synchronise_le as "synchroniseLe", erreur, cree_le as "creeLe"`
@@ -369,14 +404,26 @@ export const gestionPostgres: GestionHotel = {
 
   async enregistrerMouvement(reservationId, mouvement, { annuler = false, auteur, note = "" }) {
     return transaction<{ ok: true; soldeDu: number } | { ok: false; erreur: string }>(async (tx) => {
-      const [r] = await lignes<{ statut: string; arrivee: string; arriveeLe: Date | null; departLe: Date | null; chambreId: string; solde: number }>(
+      const [ligne] = await lignes<{ statut: string; arrivee: string; arriveeLe: Date | null; departLe: Date | null; chambreId: string; montantTotal: number; paye: number; restaurant: number }>(
         tx,
-        `select statut, arrivee, arrivee_le as "arriveeLe", depart_le as "departLe", chambre_id as "chambreId",
-           montant_total - coalesce((select sum(montant) from paiements p where p.reservation_id = r.id), 0)::int as solde
+        `select statut, arrivee, arrivee_le as "arriveeLe", depart_le as "departLe", chambre_id as "chambreId", montant_total as "montantTotal",
+           coalesce((select sum(montant) from paiements p where p.reservation_id = r.id), 0)::numeric as paye,
+           coalesce((select sum(total) from tickets t where t.reservation_id = r.id and t.statut = 'chambre'), 0)::int as restaurant
          from reservations r where id = $1 for update`,
         [reservationId],
       )
-      if (!r) return { ok: false, erreur: "Réservation introuvable." }
+      if (!ligne) return { ok: false, erreur: "Réservation introuvable." }
+      // Solde en euros, restaurant et bar compris (ariary convertis au taux du jour)
+      const { taux } = await moteurPostgres.reglagesDevises()
+      const r = {
+        ...ligne,
+        solde: soldeSejour(
+          { id: reservationId, statut: ligne.statut as Reservation["statut"], montantTotal: ligne.montantTotal },
+          [{ reservationId, montant: ligne.paye }],
+          [{ reservationId, total: ligne.restaurant }],
+          taux,
+        ),
+      }
       if (r.statut !== "confirmee") return { ok: false, erreur: "Seul un séjour confirmé peut être enregistré à la réception." }
       const mot = note.trim().slice(0, 500)
       let texte: string
@@ -387,13 +434,13 @@ export const gestionPostgres: GestionHotel = {
         if (annuler && !r.arriveeLe) return { ok: false, erreur: "Aucune arrivée enregistrée à annuler." }
         if (annuler && r.departLe) return { ok: false, erreur: "Annulez d'abord le départ." }
         await tx.query("update reservations set arrivee_le = $2 where id = $1", [reservationId, annuler ? null : new Date()])
-        texte = annuler ? `Arrivée annulée par ${auteur}` : `Arrivée enregistrée par ${auteur}${r.solde > 0 ? `, reste ${formaterPrix(r.solde)} à payer` : ""}`
+        texte = annuler ? `Arrivée annulée par ${auteur}` : `Arrivée enregistrée par ${auteur}${r.solde > 0 ? `, reste ${formaterDansDevise(r.solde, "EUR")} à payer` : ""}`
       } else {
         if (!annuler && r.departLe) return { ok: false, erreur: "Le départ de ce client est déjà enregistré." }
         if (!annuler && !r.arriveeLe) return { ok: false, erreur: "Enregistrez d'abord l'arrivée du client." }
         if (annuler && !r.departLe) return { ok: false, erreur: "Aucun départ enregistré à annuler." }
         if (!annuler && r.solde > 0 && !mot) {
-          return { ok: false, erreur: `Il reste ${formaterPrix(r.solde)} à payer : encaissez-le, ou indiquez pourquoi le client part sans avoir soldé.` }
+          return { ok: false, erreur: `Il reste ${formaterDansDevise(r.solde, "EUR")} à payer : encaissez-le, ou indiquez pourquoi le client part sans avoir soldé.` }
         }
         await tx.query("update reservations set depart_le = $2 where id = $1", [reservationId, annuler ? null : new Date()])
         // Client parti : la chambre passe au ménage
@@ -401,7 +448,7 @@ export const gestionPostgres: GestionHotel = {
         texte = annuler
           ? `Départ annulé par ${auteur}`
           : r.solde > 0
-            ? `Départ enregistré par ${auteur} sans avoir soldé (reste ${formaterPrix(r.solde)})`
+            ? `Départ enregistré par ${auteur} sans avoir soldé (reste ${formaterDansDevise(r.solde, "EUR")})`
             : `Départ enregistré par ${auteur}, séjour soldé`
       }
       if (mot) texte += ` : « ${mot} »`
@@ -483,25 +530,110 @@ export const gestionPostgres: GestionHotel = {
   },
 
   async listerPaiements() {
-    const liste = await lignes<Omit<Paiement, "le" | "enregistrePar"> & { le: Date; enregistrePar: string | null }>(
-      db(),
-      `select ${PAIEMENT} from paiements order by le`,
-    )
-    return liste.map(({ le, enregistrePar, ...reste }) => ({ ...reste, le: le.toISOString(), ...(enregistrePar && { enregistrePar }) }))
+    return (await lignes<LignePaiement>(db(), `select ${PAIEMENT} from paiements order by le`)).map(versPaiement)
   },
 
-  async ajouterPaiement(reservationId, { montant, mode, note }, membreId) {
-    const erreur = controlerPaiement(montant, mode)
+  async listerConsommations() {
+    const liste = await lignes<LigneConsommation>(
+      db(),
+      `select ${CONSOMMATION} from tickets t where t.statut = 'chambre' and t.reservation_id is not null order by t.le`,
+    )
+    return liste.map(versConsommation)
+  },
+
+  async listerFactures() {
+    return (await lignes<LigneFacture>(db(), `select ${FACTURE} from factures f order by f.le`)).map(versFacture)
+  },
+
+  async editerFacture(reservationId, devise, membreId) {
+    if (!estCodeDevise(devise)) return { ok: false, erreur: "Choisissez la devise de la facture." }
+    const [{ taux }, facturation] = await Promise.all([moteurPostgres.reglagesDevises(), this.reglagesFacturation()])
+    return transaction(async (tx) => {
+      // Une facture à la fois : deux postes qui facturent le même groupe ne font pas deux factures
+      await tx.query("select pg_advisory_xact_lock(hashtext('factures'))")
+      const [deja] = await lignes<LigneFacture>(
+        tx,
+        `select ${FACTURE} from factures f join factures_reservations fr on fr.facture_id = f.id where fr.reservation_id = $1`,
+        [reservationId],
+      )
+      if (deja) return { ok: true as const, facture: versFacture(deja), deja: true }
+      const [r] = await lignes<{ statut: string; clientId: string; groupe: string | null; ancienne: string | null }>(
+        tx,
+        `select statut, client_id as "clientId", groupe, facture_numero as ancienne from reservations where id = $1 for update`,
+        [reservationId],
+      )
+      if (!r) return { ok: false as const, erreur: "Réservation introuvable." }
+      if (r.ancienne) return { ok: false as const, erreur: `Ce séjour a déjà la facture ${r.ancienne}, éditée avant la caisse du restaurant.` }
+      if (r.statut !== "confirmee") return { ok: false as const, erreur: "Seul un séjour confirmé se facture." }
+
+      // Groupe au nom d'un même client : toutes ses chambres confirmées et pas encore facturées, sur une facture
+      const sejours = await lignes<SejourFacture & { clientId: string }>(
+        tx,
+        `select r.id, r.reference, r.arrivee, r.depart, r.adultes, r.enfants, r.navette, r.montant_total as "montantTotal",
+           h.nom as hebergement, c.numero as chambre, r.client_id as "clientId"
+         from reservations r join hebergements h on h.id = r.hebergement_id join chambres c on c.id = r.chambre_id
+         where (r.id = $1 or ($2::text is not null and r.groupe = $2 and r.client_id = $3 and r.statut = 'confirmee' and r.facture_numero is null
+           and not exists (select 1 from factures_reservations fr where fr.reservation_id = r.id)))
+         order by r.arrivee, c.numero`,
+        [reservationId, r.groupe, r.clientId],
+      )
+      const ids = sejours.map((s) => s.id)
+      const [client] = await lignes<{ prenom: string; nom: string; email: string | null; telephone: string; pays: string }>(
+        tx,
+        "select prenom, nom, email, telephone, pays from clients where id = $1",
+        [r.clientId],
+      )
+      const consommations = (
+        await lignes<LigneConsommation>(tx, `select ${CONSOMMATION} from tickets t where t.statut = 'chambre' and t.reservation_id = any($1)`, [ids])
+      ).map(versConsommation)
+      const paiements = (await lignes<LignePaiement>(tx, `select ${PAIEMENT} from paiements where reservation_id = any($1)`, [ids])).map(versPaiement)
+
+      const contenu = contenuFacture({
+        devise,
+        taux,
+        client: { nom: `${client.prenom} ${client.nom}`.trim(), email: client.email ?? "", telephone: client.telephone, pays: client.pays },
+        facturation,
+        sejours,
+        consommations,
+        paiements,
+      })
+      const [{ suivant }] = await lignes<{ suivant: number }>(tx, "select nextval('factures_numero')::int as suivant")
+      const numero = `FA-${aujourdhuiISO().slice(0, 4)}-${String(suivant).padStart(4, "0")}`
+      const tauxUtiles = Object.fromEntries((["MGA", devise] as CodeDevise[]).map((d) => [d, d === "EUR" ? 1 : taux[d]]))
+      const [{ id }] = await lignes<{ id: string }>(
+        tx,
+        "insert into factures (numero, client_id, devise, taux, total, contenu, editee_par) values ($1, $2, $3, $4, $5, $6, $7) returning id",
+        [numero, r.clientId, devise, JSON.stringify(tauxUtiles), contenu.total, JSON.stringify(contenu), membreId],
+      )
+      await tx.query("insert into factures_reservations (facture_id, reservation_id) select $1, unnest($2::text[])", [id, ids])
+      // Tickets facturés : plus annulables ; la chambre ne prend plus de nouveaux tickets
+      await tx.query("update tickets set facture_id = $1 where statut = 'chambre' and reservation_id = any($2)", [id, ids])
+      const [facture] = await lignes<LigneFacture>(tx, `select ${FACTURE} from factures f where f.id = $1`, [id])
+      return { ok: true as const, facture: versFacture(facture), deja: false }
+    })
+  },
+
+  async ajouterPaiement(reservationId, { montantDevise, devise, mode, note }, membreId) {
+    const { taux } = await moteurPostgres.reglagesDevises()
+    // Contre-valeur en euros au taux du jour (au centime) ; reçu en euros : le montant lui-même
+    const montant = estCodeDevise(devise) ? convertir(montantDevise, devise, "EUR", taux) : NaN
+    const erreur = controlerPaiement(montantDevise, devise, montant, mode)
     if (erreur) return { ok: false, erreur }
     const [r] = await lignes(db(), "select 1 from reservations where id = $1", [reservationId])
     if (!r) return { ok: false, erreur: "Réservation introuvable." }
-    await db().query("insert into paiements (reservation_id, montant, mode, note, enregistre_par) values ($1, $2, $3, $4, $5)", [
-      reservationId,
-      montant,
-      mode satisfies ModePaiement,
-      note.trim().slice(0, 200),
-      membreId,
-    ])
+    await db().query(
+      "insert into paiements (reservation_id, montant, devise, montant_devise, taux, mode, note, enregistre_par) values ($1, $2, $3, $4, $5, $6, $7, $8)",
+      [
+        reservationId,
+        montant,
+        devise,
+        devise === "EUR" ? null : montantDevise,
+        devise === "EUR" ? null : taux[devise],
+        mode satisfies ModePaiement,
+        note.trim().slice(0, 200),
+        membreId,
+      ],
+    )
     return { ok: true }
   },
 

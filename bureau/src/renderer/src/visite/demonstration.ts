@@ -130,7 +130,7 @@ export function donneesDeDemonstration(reel: Donnees): Donnees {
       arriveeLe: arrive ? le(a, "14:30") : undefined,
       departLe: parti ? le(dep, "10:00") : undefined,
     })
-    if (part > 0) paiements.push({ id: `ex-paiement-${i + 1}`, reservationId: id, montant: Math.round(montantTotal * part), mode: i % 2 ? "mobile_money" : "especes", note: "", le: le(Math.min(a, 0) - 5, "11:00"), numero: 9000 + i })
+    if (part > 0) paiements.push({ id: `ex-paiement-${i + 1}`, reservationId: id, montant: Math.round(montantTotal * part), devise: "EUR", mode: i % 2 ? "mobile_money" : "especes", note: "", le: le(Math.min(a, 0) - 5, "11:00"), numero: 9000 + i })
   })
 
   // Une fermeture à venir sur une chambre libre à ces dates

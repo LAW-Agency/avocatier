@@ -218,11 +218,15 @@ export type ModificationChambre = Partial<Pick<Chambre, "numero" | "etat" | "not
 
 export type ModePaiement = "especes" | "carte" | "mobile_money" | "virement" | "autre"
 
-// Encaissement d'une réservation, en euros ; montant négatif : remboursement
+// Encaissement d'une réservation ; montant négatif : remboursement. `montant` : contre-valeur en euros (au centime) ;
+// reçu dans une autre devise : `montantDevise` et le taux du moment (1 € = taux × devise)
 export type Paiement = {
   id: string
   reservationId: string
   montant: number
+  devise: CodeDevise
+  montantDevise?: number
+  taux?: number
   mode: ModePaiement
   note: string
   le: string // date-heure ISO
@@ -438,3 +442,40 @@ export type DonneesCaisse = {
   sejours: SejourCaisse[]
   devises: ReglagesDevises
 }
+
+// --- Factures figées (migration 007) ---
+
+// Ligne d'une facture, montant dans la devise de la facture
+export type LigneFacture = { libelle: string; detail: string; quantite: string; montant: number }
+
+export type ReglementFacture = { le: string; mode: ModePaiement; note: string; recu: number; devise: CodeDevise; montantDevise: number; montant: number }
+
+// Tout ce que la facture imprime, figé à son édition : elle se réimprime à l'identique
+export type ContenuFacture = {
+  client: { nom: string; email: string; telephone: string; pays: string }
+  facturation: ReglagesFacturation
+  references: string[]
+  sejours: LigneFacture[]
+  consommations: LigneFacture[]
+  reglements: ReglementFacture[]
+  total: number
+  regle: number
+  reste: number
+}
+
+// Facture d'un ou de plusieurs séjours (chambres d'un groupe au nom d'un même client), dans la devise choisie par
+// le client, au taux du jour de l'édition
+export type Facture = {
+  id: string
+  numero: string // « FA-2026-0042 »
+  le: string
+  clientId: string
+  devise: CodeDevise
+  taux: Partial<Record<CodeDevise, number>>
+  total: number
+  reservationIds: string[]
+  contenu: ContenuFacture
+}
+
+// Consommation du restaurant ou du bar sur la note d'un séjour (ticket « chambre » non annulé), en ariary
+export type Consommation = Pick<Ticket, "id" | "numero" | "le" | "total" | "lignes" | "libelle" | "factureId"> & { reservationId: string }

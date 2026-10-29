@@ -11,48 +11,23 @@ import {
   DialogTitle,
   DialogTrigger,
   Link,
-  Spinner,
   Subtitle2,
   Text,
-  Tooltip,
 } from "@fluentui/react-components"
-import { CallRegular, ChatRegular, DismissRegular, DocumentPdfRegular, MailRegular, VehicleBusRegular } from "@fluentui/react-icons"
+import { CallRegular, ChatRegular, DismissRegular, MailRegular, VehicleBusRegular } from "@fluentui/react-icons"
 import { useState, type ReactElement, type ReactNode } from "react"
 import { formaterHeure, formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
 import { libelleEvenement } from "@partage/statuts"
 import type { Reservation } from "@partage/types"
-import { estTermine, nomChambre, nomDe, useDonneesChargees, useLectureSeule } from "../donnees"
-import { useFichiers } from "../fichiers"
+import { estTermine, nomChambre, nomDe, useDonneesChargees } from "../donnees"
 import { SOURCES, provenance } from "../libelles"
 import ActionsReservation, { AnnulerMouvement, BoutonReception } from "./ActionsReservation"
+import BoutonFacture from "./BoutonFacture"
 import { BadgeStatut } from "./commun"
 import Encaissements from "./Encaissements"
 import ModifierReservation from "./ModifierReservation"
 import { useFicheStyles } from "./useReservationStyles.styles"
 import { usePrix } from "../montants"
-
-// Facture PDF d'un séjour confirmé (numéro attribué à la première édition)
-function BoutonFacture({ reservation: r }: { reservation: Reservation }) {
-  const lectureSeule = useLectureSeule()
-  const { imprimerFacture } = useFichiers()
-  const [enCours, setEnCours] = useState(false)
-  const [erreur, setErreur] = useState<string | null>(null)
-  return (
-    <Tooltip content={erreur ?? (r.factureNumero ? `Facture ${r.factureNumero}, éditée le ${formaterHeure(r.factureLe ?? r.creeLe)}` : "Attribue un numéro de facture et enregistre le PDF")} relationship="description">
-      <Button
-        icon={enCours ? <Spinner size="tiny" /> : <DocumentPdfRegular />}
-        disabled={enCours || lectureSeule}
-        onClick={async () => {
-          setEnCours(true)
-          setErreur(await imprimerFacture(r))
-          setEnCours(false)
-        }}
-      >
-        {r.factureNumero ? "Facture" : "Éditer la facture"}
-      </Button>
-    </Tooltip>
-  )
-}
 
 function Fait({ titre, children }: { titre: string; children: ReactNode }) {
   const styles = useFicheStyles()

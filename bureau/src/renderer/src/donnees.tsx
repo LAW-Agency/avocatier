@@ -1,12 +1,15 @@
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react"
 import { comparerNumeros } from "@partage/controles"
 import { chevauche } from "@partage/dates"
+import { encaisseSur, restaurantDe, soldeSejour } from "@partage/folio"
 import type {
   Blocage,
   CalendrierExterne,
   Chambre,
   ClientPublic,
+  Consommation,
   DateISO,
+  Facture,
   Paiement,
   ReglagesDevises,
   ReglagesFacturation,
@@ -46,6 +49,8 @@ export type Donnees = {
   saisons: RegleSaison[]
   devises: ReglagesDevises
   paiements: Paiement[]
+  consommations: Consommation[] // restaurant et bar sur la note des séjours (ariary)
+  factures: Facture[] // factures figées (séjours, restaurant, règlements)
   equipe: MembreEquipe[] // vide pour la réception
   calendriers: Calendrier[]
   facturation: ReglagesFacturation // coordonnées imprimées sur les factures et les reçus
@@ -295,10 +300,17 @@ export function doublesReservations(d: Donnees): { blocage: Blocage; reservation
 // Séjour confirmé déjà passé : plus aucune action possible dessus
 export const estTermine = (r: Reservation, aujourdhui: string) => r.statut === "confirmee" && r.depart <= aujourdhui
 
-// Total encaissé sur une réservation (remboursements déduits)
-export const encaisseDe = (r: Reservation, paiements: Paiement[]) => paiements.filter((p) => p.reservationId === r.id).reduce((total, p) => total + p.montant, 0)
+type Note = Pick<Donnees, "paiements" | "consommations" | "devises">
 
-// Montant encore dû (négatif : trop-perçu, à rembourser). Une réservation annulée, refusée ou expirée ne doit
-// plus rien : tout ce qui a été encaissé dessus est à rendre
-export const soldeDe = (r: Reservation, paiements: Paiement[]) =>
-  (r.statut === "confirmee" || r.statut === "option" ? r.montantTotal : 0) - encaisseDe(r, paiements)
+// Total encaissé sur une réservation en euros (remboursements déduits)
+export const encaisseDe = (r: Reservation, d: Pick<Donnees, "paiements">) => encaisseSur(r.id, d.paiements)
+
+// Restaurant et bar mis sur la note de la réservation (ariary)
+export const restaurantSur = (r: Reservation, d: Pick<Donnees, "consommations">) => restaurantDe(r.id, d.consommations)
+
+// Montant encore dû en euros, restaurant et bar compris (négatif : trop-perçu, à rembourser). Une réservation
+// annulée, refusée ou expirée ne doit plus son hébergement : ce qui a été encaissé pour lui est à rendre
+export const soldeDe = (r: Reservation, d: Note) => soldeSejour(r, d.paiements, d.consommations, d.devises.taux)
+
+// Facture figée du séjour (avec les autres chambres de son groupe)
+export const factureDe = (r: Pick<Reservation, "id">, d: Pick<Donnees, "factures">) => d.factures.find((f) => f.reservationIds.includes(r.id))

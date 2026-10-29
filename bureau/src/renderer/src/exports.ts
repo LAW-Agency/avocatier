@@ -58,7 +58,7 @@ export function feuilleReservations(reservations: Reservation[], d: Donnees, pre
     ],
     reservations.map((r) => {
       const client = d.clients.find((c) => c.id === r.clientId)
-      const solde = soldeDe(r, d.paiements)
+      const solde = soldeDe(r, d)
       return [
         r.reference,
         libelleStatutHote[r.statut],
@@ -156,7 +156,7 @@ export function feuilleClients(clients: ClientPublic[], d: Donnees, precision?: 
         sejours.length,
         confirmes.reduce((t, r) => t + nombreNuits(r.arrivee, r.depart), 0),
         confirmes.reduce((t, r) => t + r.montantTotal, 0),
-        confirmes.reduce((t, r) => t + Math.max(0, soldeDe(r, d.paiements)), 0),
+        confirmes.reduce((t, r) => t + Math.max(0, soldeDe(r, d)), 0),
         vide(c.note),
       ]
     }),

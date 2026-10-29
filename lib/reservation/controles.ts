@@ -251,10 +251,16 @@ export function changementsReservation(
   ].filter((c): c is string => Boolean(c))
 }
 
-export function controlerPaiement(montant: number, mode: string): string | null {
-  if (!Number.isInteger(montant) || montant === 0 || !estEntre(Math.abs(montant), 1, MONTANT_MAX)) {
-    return "Saisissez un montant entier en euros (négatif pour un remboursement)."
+// Encaissement d'un séjour : montant dans la devise reçue (ariary sans décimales, autres devises au centime ;
+// négatif pour un remboursement) et sa contre-valeur en euros
+export function controlerPaiement(montantDevise: number, devise: string, montantEuros: number, mode: string): string | null {
+  if (!estCodeDevise(devise)) return "Choisissez la devise."
+  const auCentime = Math.round(montantDevise * 100) === montantDevise * 100
+  if (!Number.isFinite(montantDevise) || montantDevise === 0 || (devise === "MGA" ? !Number.isInteger(montantDevise) : !auCentime)) {
+    return devise === "MGA" ? "Saisissez un montant en ariary, sans décimales (négatif pour un remboursement)." : "Saisissez un montant (négatif pour un remboursement)."
   }
+  if (!Number.isFinite(montantEuros) || montantEuros === 0) return "Montant trop petit."
+  if (Math.abs(montantEuros) > MONTANT_MAX) return "Montant trop élevé."
   if (!(MODES_PAIEMENT as string[]).includes(mode)) return "Choisissez le mode de paiement."
   return null
 }

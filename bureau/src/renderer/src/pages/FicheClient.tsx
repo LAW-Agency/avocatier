@@ -78,7 +78,7 @@ export default function FicheClient({ id }: { id: string }) {
   const aVenir = sejours.filter((r) => (r.statut === "option" || r.statut === "confirmee") && r.depart > d.aujourdhui).sort((a, b) => a.arrivee.localeCompare(b.arrivee))
   const autres = sejours.filter((r) => !aVenir.includes(r)).sort((a, b) => b.arrivee.localeCompare(a.arrivee))
   const confirmes = sejours.filter((r) => r.statut === "confirmee")
-  const resteDu = confirmes.reduce((t, r) => t + Math.max(0, soldeDe(r, d.paiements)), 0)
+  const resteDu = confirmes.reduce((t, r) => t + Math.max(0, soldeDe(r, d)), 0)
   const chiffres = [
     { libelle: "Réservations", valeur: String(sejours.length) },
     { libelle: "Nuits confirmées", valeur: String(confirmes.reduce((t, r) => t + nombreNuits(r.arrivee, r.depart), 0)) },

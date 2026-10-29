@@ -1,6 +1,6 @@
 import { formaterDate, formaterPlage, formaterPrix, nombreNuits, pluriel } from "@partage/dates"
 import { DEVISES, formaterDansDevise } from "@partage/devises"
-import type { ClientPublic, CodeDevise, Paiement, ReglagesFacturation, Reservation, SessionCaisse, Ticket } from "@partage/types"
+import type { ClientPublic, CodeDevise, Facture, LigneFacture, Paiement, ReglagesFacturation, Reservation, SessionCaisse, Ticket } from "@partage/types"
 import logo from "./assets/logo-couleur.svg?raw"
 import { nomDe, type HebergementCourt } from "./donnees"
 import { MODES_PAIEMENT } from "./libelles"
@@ -21,7 +21,10 @@ const jourLong = (iso: string) => formaterDate(iso, { weekday: undefined, month:
 
 export const numeroRecu = (p: Pick<Paiement, "numero">) => `RE-${String(p.numero).padStart(6, "0")}`
 
-type Contexte = { facturation: ReglagesFacturation; client?: ClientPublic; hebergement?: HebergementCourt; chambre?: string }
+type Contexte = { facturation: ReglagesFacturation; client?: ClientPublic; hebergement?: HebergementCourt; chambre?: string; restaurantEuros?: number }
+
+// Euros au centime près quand il y en a (encaissements reçus dans une autre devise)
+const euros = (montant: number) => formaterDansDevise(montant, "EUR")
 
 // « Bungalow Océan (Océan 3) »
 const sejourDe = ({ hebergement, chambre }: Contexte) => `${hebergement?.nom ?? "Hébergement"}${chambre ? ` (${chambre})` : ""}`
@@ -129,31 +132,86 @@ ${
   return page(`Facture ${numero}`, corps)
 }
 
-// Reçu d'un encaissement (ou d'un remboursement, montant négatif), avec où en est le paiement du séjour
+// Reçu d'un encaissement (ou d'un remboursement, montant négatif), dans la devise reçue, avec où en est le paiement
+// du séjour (restaurant et bar compris)
 export function recu(p: Paiement, r: Reservation, paiements: Paiement[], auteur: string | undefined, contexte: Contexte): string {
-  const { facturation, client } = contexte
+  const { facturation, client, restaurantEuros = 0 } = contexte
   const remboursement = p.montant < 0
   // Situation au moment de ce reçu : encaissements enregistrés jusqu'à lui
-  const regle = paiements.filter((x) => x.le <= p.le).reduce((t, x) => t + x.montant, 0)
-  const reste = r.montantTotal - regle
+  const regle = Math.round(paiements.filter((x) => x.le <= p.le).reduce((t, x) => t + x.montant, 0) * 100) / 100
+  const du = r.montantTotal + restaurantEuros
+  const reste = Math.round((du - regle) * 100) / 100
+  const autreDevise = p.devise !== "EUR" && p.montantDevise !== undefined
   const corps = `
 ${entete(facturation, remboursement ? "Reçu de remboursement" : "Reçu", [`N° ${numeroRecu(p)}`, `Date : ${dateLongue(p.le)}`, `Réservation ${r.reference}`])}
 ${destinataire(remboursement ? "Remboursé à" : "Reçu de", client)}
 <p class="etiquette">${remboursement ? "Montant remboursé" : "Montant reçu"}</p>
-<p class="montant">${echapper(formaterPrix(Math.abs(p.montant)))}</p>
+<p class="montant">${echapper(autreDevise ? formaterDansDevise(Math.abs(p.montantDevise!), p.devise) : euros(Math.abs(p.montant)))}</p>
+${autreDevise ? `<p class="detail">soit ${echapper(euros(Math.abs(p.montant)))} au taux du jour</p>` : ""}
 <div class="grille">
   <div><p class="etiquette">Mode de paiement</p>${echapper(MODES_PAIEMENT[p.mode])}${p.note ? `<br><span class="detail">${echapper(p.note)}</span>` : ""}</div>
   <div><p class="etiquette">Pour le séjour</p>${echapper(sejourDe(contexte))}<br><span class="detail">${echapper(formaterPlage(r.arrivee, r.depart))} · ${echapper(pluriel(nombreNuits(r.arrivee, r.depart), "nuit"))}</span></div>
 </div>
 <h2>Situation du séjour à cette date</h2>
 <table class="totaux" style="margin-left:0;width:60%">
-  <tr><td>Montant du séjour</td><td class="droite">${echapper(formaterPrix(r.montantTotal))}</td></tr>
-  <tr><td>Total réglé</td><td class="droite">${echapper(formaterPrix(regle))}</td></tr>
-  <tr class="principal"><td>${reste > 0 ? "Reste à payer" : reste < 0 ? "Trop-perçu" : "Soldé"}</td><td class="droite">${echapper(formaterPrix(Math.abs(reste)))}</td></tr>
+  <tr><td>Montant du séjour</td><td class="droite">${echapper(euros(r.montantTotal))}</td></tr>
+  ${restaurantEuros ? `<tr><td>Restaurant et bar</td><td class="droite">${echapper(euros(restaurantEuros))}</td></tr>` : ""}
+  <tr><td>Total réglé</td><td class="droite">${echapper(euros(regle))}</td></tr>
+  <tr class="principal"><td>${reste > 0 ? "Reste à payer" : reste < 0 ? "Trop-perçu" : "Soldé"}</td><td class="droite">${echapper(euros(Math.abs(reste)))}</td></tr>
 </table>
 <div class="signature">Pour ${echapper(facturation.raisonSociale)}${auteur ? `, ${echapper(auteur)}` : ""}</div>
-<div class="pied">Montants en euros.</div>`
+<div class="pied">Situation en euros.</div>`
   return page(`Reçu ${numeroRecu(p)}`, corps)
+}
+
+// Facture figée (séjours, restaurant et bar, règlements) dans la devise choisie par le client, telle qu'éditée
+export function factureFigee(f: Facture): string {
+  const c = f.contenu
+  const m = (montant: number) => formaterDansDevise(montant, f.devise)
+  const lignesTableau = (lignes: LigneFacture[]) =>
+    lignes
+      .map(
+        (l) =>
+          `<tr><td>${echapper(l.libelle)}${l.detail ? `<br><span class="detail">${echapper(l.detail)}</span>` : ""}</td><td class="droite">${echapper(l.quantite)}</td><td class="droite">${echapper(m(l.montant))}</td></tr>`,
+      )
+      .join("")
+  const taux = (Object.entries(f.taux) as [CodeDevise, number][])
+    .filter(([d]) => d !== "EUR" && (d !== "MGA" || c.consommations.length || f.devise === "MGA"))
+    .map(([d, t]) => `1 € = ${formaterDansDevise(t, d)}`)
+    .join(" · ")
+  const client = { prenom: c.client.nom, nom: "", email: c.client.email, telephone: c.client.telephone, pays: c.client.pays } as ClientPublic
+  const corps = `
+${entete(c.facturation, "Facture", [`N° ${f.numero}`, `Date : ${dateLongue(f.le)}`, c.references.length > 1 ? `Réservations ${c.references.join(", ")}` : `Réservation ${c.references[0] ?? ""}`])}
+${destinataire("Facturé à", client)}
+<table>
+  <thead><tr><th>Désignation</th><th class="droite">Quantité</th><th class="droite">Montant</th></tr></thead>
+  <tbody>
+    ${lignesTableau(c.sejours)}
+    ${c.consommations.length ? `<tr><td colspan="3" style="padding-top:16px"><p class="etiquette">Restaurant et bar</p></td></tr>${lignesTableau(c.consommations)}` : ""}
+  </tbody>
+</table>
+<table class="totaux">
+  <tr class="principal"><td>Total</td><td class="droite">${echapper(m(c.total))}</td></tr>
+  ${c.regle ? `<tr><td>Déjà réglé</td><td class="droite">${echapper(m(c.regle))}</td></tr>` : ""}
+  ${c.regle ? `<tr><td><strong>${c.reste > 0 ? "Reste à payer" : c.reste < 0 ? "Trop-perçu" : "Solde"}</strong></td><td class="droite"><strong>${echapper(m(Math.abs(c.reste)))}</strong></td></tr>` : ""}
+</table>
+${c.reste <= 0 && c.regle > 0 ? `<div style="text-align:right"><span class="acquittee">Acquittée</span></div>` : ""}
+${
+  c.reglements.length
+    ? `<h2>Règlements reçus</h2>
+<table>
+  <thead><tr><th>Date</th><th>Mode</th><th>Reçu</th><th class="droite">Montant</th></tr></thead>
+  <tbody>${c.reglements
+    .map(
+      (r) =>
+        `<tr><td>${echapper(dateLongue(r.le))}</td><td>${echapper(MODES_PAIEMENT[r.mode])}${r.devise !== f.devise ? `<br><span class="detail">${echapper(formaterDansDevise(r.montantDevise, r.devise))}</span>` : ""}${r.note ? `<br><span class="detail">${echapper(r.note)}</span>` : ""}</td><td>${echapper(numeroRecu({ numero: r.recu }))}</td><td class="droite">${echapper(m(r.montant))}</td></tr>`,
+    )
+    .join("")}</tbody>
+</table>`
+    : ""
+}
+<div class="pied">Montants en ${echapper(DEVISES[f.devise].nom.toLowerCase())}${taux ? `, au taux du ${echapper(dateLongue(f.le))} : ${echapper(taux)}` : ""}.${c.facturation.mentions ? `<br>${lignes(c.facturation.mentions)}` : ""}</div>`
+  return page(`Facture ${f.numero}`, corps)
 }
 
 // --- Ticket de caisse Restaurant et Bar (rouleau de 80 mm) ---

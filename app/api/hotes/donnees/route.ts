@@ -20,9 +20,17 @@ export const GET = pourLaCaisse(async (_requete, membre) => {
     ]),
     caissier
       ? null
-      : Promise.all([moteur.toutesLesReservations(), comptes.listerClients(), moteur.listerBlocages(), gestion.listerPaiements(), gestion.listerCalendriers()]),
+      : Promise.all([
+          moteur.toutesLesReservations(),
+          comptes.listerClients(),
+          moteur.listerBlocages(),
+          gestion.listerPaiements(),
+          gestion.listerCalendriers(),
+          gestion.listerConsommations(),
+          gestion.listerFactures(),
+        ]),
   ])
-  const [reservations, clients, blocages, paiements, calendriers] = sejours ?? [[], [], [], [], []]
+  const [reservations, clients, blocages, paiements, calendriers, consommations, factures] = sejours ?? [[], [], [], [], [], [], []]
   return json({
     hote: { id: membre.id, prenom: membre.prenom, nom: membre.nom, email: membre.email, role: membre.role },
     // Date du jour à Sainte-Marie, quel que soit le fuseau de l'ordinateur des hôtes
@@ -37,6 +45,9 @@ export const GET = pourLaCaisse(async (_requete, membre) => {
     saisons,
     devises,
     paiements,
+    // Restaurant et bar sur la note des séjours, et factures figées
+    consommations,
+    factures,
     equipe: equipe.map(({ id, prenom, nom, email, role, actif, creeLe }) => ({ id, prenom, nom, email, role, actif, creeLe })),
     // Lien d'export complet (adresse publique du site), à coller dans la plateforme ; le jeton reste côté serveur
     calendriers: calendriers.map(({ jeton, ...c }) => ({ ...c, urlExport: urlDuSite(`/calendrier/${jeton}.ics`) })),

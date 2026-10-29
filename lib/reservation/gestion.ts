@@ -6,6 +6,9 @@ import type {
   ClientPublic,
   EffacementJournal,
   EntreeJournal,
+  CodeDevise,
+  Consommation,
+  Facture,
   ModePaiement,
   ModificationChambre,
   ModificationClient,
@@ -72,7 +75,10 @@ export interface GestionHotel {
   supprimerChambre(id: string): Promise<ResultatAction>
 
   listerPaiements(): Promise<Paiement[]>
-  ajouterPaiement(reservationId: string, paiement: { montant: number; mode: ModePaiement; note: string }, membreId: string): Promise<ResultatAction>
+  // Montant dans la devise reçue ; contre-valeur en euros calculée au taux du jour
+  ajouterPaiement(reservationId: string, paiement: { montantDevise: number; devise: CodeDevise; mode: ModePaiement; note: string }, membreId: string): Promise<ResultatAction>
+  // Restaurant et bar mis sur la note des séjours (tickets non annulés)
+  listerConsommations(): Promise<Consommation[]>
   supprimerPaiement(id: string): Promise<boolean>
 
   // Calendriers des plateformes (Booking.com, Airbnb…) : un par chambre et par plateforme
@@ -89,7 +95,12 @@ export interface GestionHotel {
   // Factures et reçus
   reglagesFacturation(): Promise<ReglagesFacturation>
   modifierFacturation(reglages: ReglagesFacturation): Promise<void>
-  // Numéro de facture du séjour confirmé, attribué à la première édition
+  // Factures figées (séjours, restaurant, règlements) ; une seule par séjour, réimprimée à l'identique
+  listerFactures(): Promise<Facture[]>
+  // Facture du séjour (et des autres chambres de son groupe au nom du même client) dans la devise choisie ;
+  // déjà facturé : la même (`deja`)
+  editerFacture(reservationId: string, devise: CodeDevise, membreId: string): Promise<{ ok: true; facture: Facture; deja: boolean } | { ok: false; erreur: string }>
+  // Facture éditée avant la caisse du restaurant (numéro sur la réservation) : réimpression seulement
   numeroterFacture(reservationId: string): Promise<{ ok: true; numero: string; le: string } | { ok: false; erreur: string }>
 
   // Journal d'activité de l'équipe, du plus récent au plus ancien (`limite` entrées au plus)
