@@ -398,10 +398,42 @@ export type SejourCaisse = {
   facture: boolean // déjà facturé : plus rien ne s'y ajoute
 }
 
+// Bilan d'une session de caisse (lib/reservation/caisseRegles.ts) : en direct tant qu'elle est ouverte, figé à la
+// clôture. Montants en ariary ; espèces reçues dans une autre devise comptées dans leur devise
+export type BilanSession = {
+  tickets: number // non annulés
+  ventes: number // payées sur place et mises sur les chambres
+  encaisse: number // payées sur place
+  surChambres: number
+  annules: number
+  montantAnnule: number
+  parMode: { mode: ModePaiement; devise: CodeDevise; montant: number; contreValeur: number; nombre: number }[]
+  attendues: Partial<Record<CodeDevise, number>> // espèces qui doivent être dans le tiroir (fond compris)
+  comptees?: Partial<Record<CodeDevise, number>> // à la clôture
+  ecarts?: Partial<Record<CodeDevise, number>> // comptées − attendues
+}
+
+// Session de caisse d'un poste : ouverte avec un fond de caisse (ariary), clôturée avec les espèces comptées
+export type SessionCaisse = {
+  id: string
+  posteId: string
+  ouverteLe: string
+  ouvertePar?: string
+  fondCaisse: number
+  fermeeLe?: string
+  fermeePar?: string
+  commentaire: string
+  bilan: BilanSession
+}
+
+export type NouvelleSession = Pick<SessionCaisse, "id" | "posteId" | "ouverteLe" | "fondCaisse">
+export type ClotureSession = { fermeeLe: string; especesComptees: Partial<Record<CodeDevise, number>>; commentaire: string }
+
 // Ce qu'affiche l'écran Restaurant et Bar
 export type DonneesCaisse = {
   articles: Article[]
   postes: PosteCaisse[]
+  sessions: SessionCaisse[] // ouvertes (tous les postes) et ouvertes pendant la période, de la plus récente à la plus ancienne
   tickets: Ticket[] // de la période demandée, du plus récent au plus ancien
   sejours: SejourCaisse[]
   devises: ReglagesDevises

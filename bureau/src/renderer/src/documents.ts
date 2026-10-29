@@ -1,6 +1,6 @@
 import { formaterDate, formaterPlage, formaterPrix, nombreNuits, pluriel } from "@partage/dates"
-import { formaterDansDevise } from "@partage/devises"
-import type { ClientPublic, Paiement, ReglagesFacturation, Reservation, Ticket } from "@partage/types"
+import { DEVISES, formaterDansDevise } from "@partage/devises"
+import type { ClientPublic, CodeDevise, Paiement, ReglagesFacturation, Reservation, SessionCaisse, Ticket } from "@partage/types"
 import logo from "./assets/logo-couleur.svg?raw"
 import { nomDe, type HebergementCourt } from "./donnees"
 import { MODES_PAIEMENT } from "./libelles"
@@ -225,3 +225,73 @@ ${reglements}
 // « mer. 29 octobre 2026 à 14:05 », à l'heure de Sainte-Marie
 const formaterHeureLongue = (instant: string) =>
   new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Indian/Antananarivo" }).format(new Date(instant))
+
+// --- Rapport de clôture de caisse (rouleau de 80 mm) ---
+
+type ContexteCloture = { facturation: ReglagesFacturation; poste: string; ouvertePar?: string; fermeePar?: string }
+
+export function rapportCloture(s: SessionCaisse, contexte: ContexteCloture): { html: string; hauteurMm: number } {
+  const { facturation, poste, ouvertePar, fermeePar } = contexte
+  const b = s.bilan
+  const ligne = (libelle: string, valeur: string, classe = "") => `<tr class="${classe}"><td>${echapper(libelle)}</td><td class="droite">${echapper(valeur)}</td></tr>`
+  const devises = Object.keys(b.attendues) as CodeDevise[]
+  const especes = devises
+    .map((d) => {
+      const ecart = b.ecarts?.[d] ?? 0
+      return [
+        ligne(`Attendu (${DEVISES[d].symbole})`, formaterDansDevise(b.attendues[d] ?? 0, d)),
+        b.comptees ? ligne(`Compté (${DEVISES[d].symbole})`, formaterDansDevise(b.comptees[d] ?? 0, d)) : "",
+        b.comptees ? ligne("Écart", `${ecart > 0 ? "+" : ""}${formaterDansDevise(ecart, d)}`, ecart ? "gras" : "") : "",
+      ].join("")
+    })
+    .join("")
+  const html = `<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Clôture de caisse</title>
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 4mm 4mm 6mm; width: 80mm; font-family: "Segoe UI", Arial, sans-serif; font-size: 9pt; line-height: 1.35; color: #000; }
+  .centre { text-align: center; }
+  .gras td, .gras { font-weight: 700; }
+  .titre { font-size: 12pt; font-weight: 700; margin: 0; }
+  h2 { font-size: 9pt; margin: 0 0 1mm; text-transform: uppercase; letter-spacing: 0.08em; }
+  p { margin: 0 0 1mm; }
+  .filet { border-top: 1px dashed #000; margin: 2.5mm 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 0.5mm 0; vertical-align: top; }
+  .droite { text-align: right; white-space: nowrap; padding-left: 2mm; }
+  .signature { margin-top: 10mm; border-top: 1px solid #000; padding-top: 1mm; text-align: center; font-size: 8pt; }
+</style></head>
+<body>
+<p class="titre centre">${echapper(facturation.raisonSociale)}</p>
+<p class="centre gras">${s.fermeeLe ? "CLÔTURE DE CAISSE" : "SITUATION DE CAISSE (EN COURS)"}</p>
+<div class="filet"></div>
+<p>Poste : <span class="gras">${echapper(poste)}</span><br>
+Ouverture : ${echapper(formaterHeureLongue(s.ouverteLe))}${ouvertePar ? `, ${echapper(ouvertePar)}` : ""}<br>
+${s.fermeeLe ? `Clôture : ${echapper(formaterHeureLongue(s.fermeeLe))}${fermeePar ? `, ${echapper(fermeePar)}` : ""}` : `Édité : ${echapper(formaterHeureLongue(new Date().toISOString()))}`}</p>
+<div class="filet"></div>
+<h2>Ventes</h2>
+<table>
+${ligne("Tickets", String(b.tickets))}
+${ligne("Encaissé sur place", ariary(b.encaisse))}
+${ligne("Mis sur les chambres", ariary(b.surChambres))}
+${ligne("Total des ventes", ariary(b.ventes), "gras")}
+${b.annules ? ligne(`Annulés (${b.annules})`, ariary(b.montantAnnule)) : ""}
+</table>
+<div class="filet"></div>
+<h2>Encaissements</h2>
+<table>
+${b.parMode.map((m) => ligne(`${MODES_PAIEMENT[m.mode]}${m.devise !== "MGA" ? ` (${formaterDansDevise(m.montant, m.devise)})` : ""}`, ariary(m.contreValeur))).join("") || ligne("Aucun", "—")}
+</table>
+<div class="filet"></div>
+<h2>Espèces du tiroir</h2>
+<table>
+${ligne("Fond de caisse", ariary(s.fondCaisse))}
+${especes}
+</table>
+${s.commentaire ? `<p>Commentaire : ${echapper(s.commentaire)}</p>` : ""}
+<div class="signature">Signature</div>
+</body></html>`
+  const hauteurMm = 120 + b.parMode.length * 5 + devises.length * 15 + (b.annules ? 5 : 0) + (s.commentaire ? 10 : 0)
+  return { html, hauteurMm }
+}

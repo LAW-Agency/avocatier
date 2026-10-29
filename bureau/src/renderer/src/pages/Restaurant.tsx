@@ -1,25 +1,30 @@
 import { Badge, Body1, Button, Field, Input, MessageBar, MessageBarActions, MessageBarBody, Spinner, Tab, TabList } from "@fluentui/react-components"
-import { DesktopRegular, FoodRegular, ReceiptRegular, TextBulletListSquareRegular } from "@fluentui/react-icons"
+import { DesktopRegular, FoodRegular, LockClosedRegular, ReceiptRegular, TextBulletListSquareRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import type { DateISO } from "@partage/types"
 import { useCaisse, type Caisse } from "../caisse"
 import CaisseCarte from "../composants/CaisseCarte"
+import CaisseCloture, { OuvertureCaisse } from "../composants/CaisseCloture"
 import CaisseTickets from "../composants/CaisseTickets"
 import CaisseVente from "../composants/CaisseVente"
 import { Carte, ChargementLogo, EnTete } from "../composants/commun"
 import { useRestaurantStyles } from "./useRestaurantStyles.styles"
 
-type Onglet = "vente" | "tickets" | "carte"
+type Onglet = "vente" | "tickets" | "cloture" | "carte"
 
-// Restaurant et Bar : caisse de ce poste (vente, tickets du jour, carte). Caissiers, réception et gérants.
-// Un poste s'enregistre une fois (nom : Bar, Restaurant…) : le serveur lui donne le préfixe de ses tickets
+const heure = (instant: string) =>
+  new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Indian/Antananarivo" }).format(new Date(instant))
+
+// Restaurant et Bar : caisse de ce poste (vente, tickets du jour, clôture, carte). Caissiers, réception et gérants.
+// Un poste s'enregistre une fois (nom : Bar, Restaurant…) : le serveur lui donne le préfixe de ses tickets. On ne
+// vend qu'avec la caisse ouverte (fond de caisse), clôturée en fin de service avec les espèces comptées
 export default function Restaurant() {
   const styles = useRestaurantStyles()
   const [onglet, setOnglet] = useState<Onglet>("vente")
   // Jour des tickets affichés ; null : aujourd'hui (date de Sainte-Marie donnée par le serveur)
   const [jour, setJour] = useState<DateISO | null>(null)
   const caisse = useCaisse(jour)
-  const { donnees, erreur, poste } = caisse
+  const { donnees, erreur, poste, session } = caisse
   const nomPoste = donnees?.postes.find((p) => p.id === poste?.posteId)?.nom
 
   return (
@@ -29,8 +34,8 @@ export default function Restaurant() {
         description="Ventes du restaurant et du bar, payées sur place ou mises sur la note d'une chambre."
         actions={
           nomPoste && poste?.prefixe ? (
-            <Badge appearance="tint" color="brand" size="large" shape="rounded" icon={<DesktopRegular />}>
-              {nomPoste} · tickets {poste.prefixe}
+            <Badge appearance="tint" color={session ? "success" : "subtle"} size="large" shape="rounded" icon={<DesktopRegular />}>
+              {nomPoste} · {session ? `caisse ouverte depuis ${heure(session.ouverteLe)}` : "caisse fermée"}
             </Badge>
           ) : undefined
         }
@@ -56,12 +61,16 @@ export default function Restaurant() {
             <Tab value="tickets" icon={<TextBulletListSquareRegular />}>
               Tickets du jour
             </Tab>
+            <Tab value="cloture" icon={<LockClosedRegular />}>
+              Clôture
+            </Tab>
             <Tab value="carte" icon={<FoodRegular />}>
               Carte
             </Tab>
           </TabList>
-          {onglet === "vente" && <CaisseVente caisse={caisse} donnees={donnees} />}
+          {onglet === "vente" && (session ? <CaisseVente caisse={caisse} donnees={donnees} /> : <OuvertureCaisse caisse={caisse} />)}
           {onglet === "tickets" && <CaisseTickets caisse={caisse} donnees={donnees} jour={jour ?? donnees.aujourdhui} onJour={setJour} />}
+          {onglet === "cloture" && <CaisseCloture caisse={caisse} donnees={donnees} />}
           {onglet === "carte" && <CaisseCarte caisse={caisse} donnees={donnees} />}
         </>
       )}

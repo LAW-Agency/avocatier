@@ -1,7 +1,7 @@
 import { useState } from "react"
-import type { Paiement, Reservation, Ticket } from "@partage/types"
+import type { Paiement, Reservation, SessionCaisse, Ticket } from "@partage/types"
 import type { FeuilleClasseur, ResultatFichier } from "../../partage/ipc"
-import { facture, numeroRecu, recu, ticketCaisse } from "./documents"
+import { facture, numeroRecu, rapportCloture, recu, ticketCaisse } from "./documents"
 import { nomDe, useDonneesChargees } from "./donnees"
 import { nomExport } from "./exports"
 import { useAnnoncer } from "./toasts"
@@ -56,5 +56,13 @@ export function useFichiers() {
     if (!resultat.ok && !resultat.annule) annoncer({ titre: `Ticket ${t.numero} non imprimé`, texte: resultat.erreur, intent: "error", duree: 10_000 })
   }
 
-  return { exporter, exportEnCours, imprimerFacture, imprimerRecu, imprimerTicket }
+  // Rapport de clôture (ou situation d'une caisse encore ouverte), sur l'imprimante des tickets
+  async function imprimerCloture(session: SessionCaisse, poste: string) {
+    const nom = (id?: string) => d.equipe.find((m) => m.id === id)?.prenom ?? (id === d.hote.id ? d.hote.prenom : undefined)
+    const { html, hauteurMm } = rapportCloture(session, { facturation: d.facturation, poste, ouvertePar: nom(session.ouvertePar), fermeePar: nom(session.fermeePar) })
+    const resultat = await window.avocatier.imprimerTicket(html, hauteurMm)
+    if (!resultat.ok && !resultat.annule) annoncer({ titre: "Rapport de caisse non imprimé", texte: resultat.erreur, intent: "error", duree: 10_000 })
+  }
+
+  return { exporter, exportEnCours, imprimerFacture, imprimerRecu, imprimerTicket, imprimerCloture }
 }

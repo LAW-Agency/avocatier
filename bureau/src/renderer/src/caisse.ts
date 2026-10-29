@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import type { CodeDevise, DateISO, DonneesCaisse, LigneTicket, ModePaiement, ReglagesDevises, ReglementTicket, Ticket } from "@partage/types"
+import type { CodeDevise, DateISO, DonneesCaisse, LigneTicket, ModePaiement, ReglagesDevises, ReglementTicket, SessionCaisse, Ticket } from "@partage/types"
 import type { PosteLocal, ResultatApi } from "../../partage/ipc"
 import { MESSAGE_LECTURE_SEULE, useDonnees, useLectureSeule } from "./donnees"
 
@@ -107,10 +107,34 @@ export function useCaisse(jour: DateISO | null) {
     [poste, ecrire],
   )
 
+  // Session ouverte de ce poste : on ne vend qu'avec la caisse ouverte (fond de caisse compté)
+  const session = donnees?.sessions.find((s) => s.posteId === poste?.posteId && !s.fermeeLe) ?? null
+
+  const ouvrir = useCallback(
+    async (fondCaisse: number): Promise<string | null> => {
+      if (!poste) return "Ce poste n'est pas encore enregistré."
+      const resultat = await ecrire<{ session: SessionCaisse }>("POST", "/api/hotes/caisse/sessions", {
+        id: crypto.randomUUID(),
+        posteId: poste.posteId,
+        ouverteLe: new Date().toISOString(),
+        fondCaisse,
+      })
+      return resultat.ok ? null : resultat.erreur
+    },
+    [poste, ecrire],
+  )
+
+  const cloturer = useCallback(
+    async (id: string, especesComptees: Partial<Record<CodeDevise, number>>, commentaire: string): Promise<ResultatApi<{ session: SessionCaisse }>> =>
+      ecrire<{ session: SessionCaisse }>("PATCH", `/api/hotes/caisse/sessions/${encodeURIComponent(id)}`, { fermeeLe: new Date().toISOString(), especesComptees, commentaire }),
+    [ecrire],
+  )
+
   // Numéro attribué par le poste, identifiant unique : un renvoi après une coupure ne fait pas de doublon
   const vendre = useCallback(
     async (vente: Vente): Promise<ResultatApi<{ ticket: Ticket }>> => {
       if (lectureSeule) return { ok: false, erreur: MESSAGE_LECTURE_SEULE }
+      if (!session) return { ok: false, erreur: "Ouvrez la caisse de ce poste avant de vendre." }
       const local = poste ?? (await window.avocatier.posteCaisse())
       const numero = await window.avocatier.numeroterTicket()
       if (!numero) return { ok: false, erreur: "Ce poste n'est pas encore enregistré." }
@@ -118,16 +142,17 @@ export function useCaisse(jour: DateISO | null) {
         id: crypto.randomUUID(),
         numero,
         posteId: local.posteId,
+        sessionId: session.id,
         le: new Date().toISOString(),
         libelle: vente.libelle,
         lignes: vente.lignes,
         ...("reservationId" in vente ? { reservationId: vente.reservationId, reglements: [] } : { reglements: [vente.reglement] }),
       })
     },
-    [lectureSeule, poste, ecrire],
+    [lectureSeule, poste, session, ecrire],
   )
 
-  return { donnees, erreur, poste, charger, ecrire, enregistrerPoste, vendre, lectureSeule }
+  return { donnees, erreur, poste, session, charger, ecrire, enregistrerPoste, ouvrir, cloturer, vendre, lectureSeule }
 }
 
 export type Caisse = ReturnType<typeof useCaisse>

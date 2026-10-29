@@ -1,7 +1,9 @@
 import type { CaisseRestaurant } from "../caisse"
+import { aUnEcart, bilanSession } from "../caisseRegles"
 import { comparerNumeros, controlerArticle, controlerTicket, lireNumeroTicket, totalTicket } from "../controles"
+import { estCodeDevise } from "../devises"
 import { aujourdhuiISO } from "../dates"
-import type { Article, PosteCaisse, SejourCaisse, StatutTicket, Ticket } from "../types"
+import type { Article, BilanSession, CodeDevise, PosteCaisse, SejourCaisse, SessionCaisse, StatutTicket, Ticket } from "../types"
 import { codeErreur, db, lignes, transaction, type Executant } from "./db"
 
 // Implémentation PostgreSQL du contrat ../caisse (schéma : migrations/007_restaurant_bar.sql)
@@ -52,6 +54,39 @@ async function lireTicket(executant: Executant, id: string): Promise<Ticket | nu
   return ligne ? versTicket(ligne) : null
 }
 
+const SESSION = `id, poste_id as "posteId", ouverte_le as "ouverteLe", ouverte_par as "ouvertePar", fond_caisse as "fondCaisse",
+  fermee_le as "fermeeLe", fermee_par as "fermeePar", commentaire, bilan`
+type LigneSession = Omit<SessionCaisse, "ouverteLe" | "ouvertePar" | "fermeeLe" | "fermeePar" | "bilan"> & {
+  ouverteLe: Date
+  ouvertePar: string | null
+  fermeeLe: Date | null
+  fermeePar: string | null
+  bilan: BilanSession | null
+}
+
+// Sessions avec leur bilan : figé si elles sont clôturées, calculé sur leurs tickets si elles sont ouvertes
+async function versSessions(executant: Executant, liste: LigneSession[]): Promise<SessionCaisse[]> {
+  const ouvertes = liste.filter((s) => !s.fermeeLe).map((s) => s.id)
+  const tickets = ouvertes.length
+    ? (await lignes<LigneTicketBase>(executant, `select ${TICKET} from tickets t where t.session_id = any($1)`, [ouvertes])).map(versTicket)
+    : []
+  return liste.map(({ ouverteLe, ouvertePar, fermeeLe, fermeePar, bilan, ...reste }) => ({
+    ...reste,
+    ouverteLe: ouverteLe.toISOString(),
+    ...(ouvertePar && { ouvertePar }),
+    ...(fermeeLe && { fermeeLe: fermeeLe.toISOString() }),
+    ...(fermeePar && { fermeePar }),
+    bilan: bilan ?? bilanSession(reste.fondCaisse, tickets.filter((t) => t.sessionId === reste.id)),
+  }))
+}
+
+async function lireSession(executant: Executant, id: string): Promise<SessionCaisse | null> {
+  const [ligne] = await versSessions(executant, await lignes<LigneSession>(executant, `select ${SESSION} from sessions_caisse where id = $1`, [id]))
+  return ligne ?? null
+}
+
+const FOND_MAX = 100_000_000
+
 // Séjour déjà facturé (facture figée, ou facture éditée avant la caisse) : plus rien ne s'y ajoute
 const DEJA_FACTURE = `(r.facture_numero is not null or exists (select 1 from factures_reservations fr where fr.reservation_id = r.id))`
 
@@ -60,9 +95,15 @@ const ID_POSTE = /^[A-Za-z0-9-]{8,64}$/
 export const caissePostgres: CaisseRestaurant = {
   async donnees({ du, au }) {
     const aujourdhui = aujourdhuiISO()
-    const [articles, postes, tickets, sejours] = await Promise.all([
+    const [articles, postes, sessions, tickets, sejours] = await Promise.all([
       lignes<Article>(db(), `select ${ARTICLE} from articles order by categorie, ordre, nom`),
       lignes<PosteCaisse>(db(), `select ${POSTE} from postes_caisse order by prefixe`),
+      lignes<LigneSession>(
+        db(),
+        `select ${SESSION} from sessions_caisse
+         where fermee_le is null or (ouverte_le at time zone '${FUSEAU}')::date between $1 and $2 order by ouverte_le desc`,
+        [du, au],
+      ),
       lignes<LigneTicketBase>(
         db(),
         `select ${TICKET} from tickets t where (t.le at time zone '${FUSEAU}')::date between $1 and $2 order by t.le desc`,
@@ -81,6 +122,7 @@ export const caissePostgres: CaisseRestaurant = {
     return {
       articles,
       postes,
+      sessions: await versSessions(db(), sessions),
       tickets: tickets.map(versTicket),
       sejours: sejours.sort((a, b) => comparerNumeros({ numero: a.chambre }, { numero: b.chambre })),
     }
@@ -96,6 +138,11 @@ export const caissePostgres: CaisseRestaurant = {
       [id, libelle],
     )
     return { ok: true, poste }
+  },
+
+  async nomPoste(id) {
+    const [poste] = await lignes<{ nom: string }>(db(), "select nom from postes_caisse where id = $1", [id])
+    return poste?.nom ?? "Poste"
   },
 
   async creerArticle(article) {
@@ -149,6 +196,21 @@ export const caissePostgres: CaisseRestaurant = {
         const [poste] = await lignes<{ prefixe: string }>(tx, "select prefixe from postes_caisse where id = $1 for update", [t.posteId])
         if (!poste) return { ok: false as const, erreur: "Poste de caisse inconnu : reconnectez le logiciel." }
         if (lireNumeroTicket(t.numero)!.prefixe !== poste.prefixe) return { ok: false as const, erreur: "Ce numéro de ticket n'appartient pas à ce poste." }
+
+        // Vente au comptoir : dans la session ouverte de ce poste. Vente faite hors connexion : enregistrée même si la
+        // caisse a été clôturée depuis (l'argent est dans le tiroir de la session suivante, l'écart l'expliquera)
+        if (t.sessionId) {
+          const [session] = await lignes<{ posteId: string; fermee: boolean }>(
+            tx,
+            `select poste_id as "posteId", fermee_le is not null as fermee from sessions_caisse where id = $1`,
+            [t.sessionId],
+          )
+          if (!session) return { ok: false as const, erreur: "Session de caisse inconnue : rouvrez la caisse." }
+          if (session.posteId !== t.posteId) return { ok: false as const, erreur: "Cette session de caisse appartient à un autre poste." }
+          if (session.fermee && !t.differe) return { ok: false as const, erreur: "La caisse de ce poste est clôturée : ouvrez-la pour vendre." }
+        } else if (!t.differe) {
+          return { ok: false as const, erreur: "Ouvrez la caisse de ce poste avant de vendre." }
+        }
 
         let statut: StatutTicket = "paye"
         if (t.reservationId) {
@@ -211,6 +273,64 @@ export const caissePostgres: CaisseRestaurant = {
       if (codeErreur(e) === "23503") return { ok: false, erreur: "Session de caisse inconnue : rouvrez la caisse." }
       throw e
     }
+  },
+
+  async ouvrirSession({ id, posteId, ouverteLe, fondCaisse }, membreId) {
+    if (!id || id.length > 64) return { ok: false, erreur: "Identifiant de session invalide." }
+    if (Number.isNaN(Date.parse(ouverteLe))) return { ok: false, erreur: "Heure d'ouverture invalide." }
+    if (!Number.isInteger(fondCaisse) || fondCaisse < 0 || fondCaisse > FOND_MAX) {
+      return { ok: false, erreur: "Saisissez le fond de caisse en ariary (0 s'il n'y en a pas)." }
+    }
+    try {
+      return await transaction(async (tx) => {
+        const deja = await lireSession(tx, id)
+        if (deja) return { ok: true as const, session: deja, deja: true }
+        const [poste] = await lignes(tx, "select 1 from postes_caisse where id = $1", [posteId])
+        if (!poste) return { ok: false as const, erreur: "Poste de caisse inconnu : reconnectez le logiciel." }
+        await tx.query("insert into sessions_caisse (id, poste_id, ouverte_par, ouverte_le, fond_caisse) values ($1, $2, $3, $4, $5)", [
+          id,
+          posteId,
+          membreId,
+          new Date(ouverteLe),
+          fondCaisse,
+        ])
+        return { ok: true as const, session: (await lireSession(tx, id))!, deja: false }
+      })
+    } catch (e) {
+      if (codeErreur(e) === "23505") return { ok: false, erreur: "La caisse de ce poste est déjà ouverte." }
+      throw e
+    }
+  },
+
+  async cloturerSession(id, { fermeeLe, especesComptees, commentaire }, membreId) {
+    const comptees: Partial<Record<CodeDevise, number>> = {}
+    for (const [devise, montant] of Object.entries(especesComptees)) {
+      if (!estCodeDevise(devise) || !Number.isFinite(montant) || montant < 0 || (devise === "MGA" && !Number.isInteger(montant))) {
+        return { ok: false, erreur: "Saisissez les espèces comptées (ariary sans décimales)." }
+      }
+      comptees[devise] = Math.round(montant * 100) / 100
+    }
+    if (Number.isNaN(Date.parse(fermeeLe))) return { ok: false, erreur: "Heure de clôture invalide." }
+    return transaction(async (tx) => {
+      const [session] = await lignes<{ fond: number; fermee: boolean }>(
+        tx,
+        "select fond_caisse as fond, fermee_le is not null as fermee from sessions_caisse where id = $1 for update",
+        [id],
+      )
+      if (!session) return { ok: false as const, erreur: "Cette session de caisse n'existe pas." }
+      if (session.fermee) return { ok: true as const, session: (await lireSession(tx, id))!, deja: true }
+      const tickets = (await lignes<LigneTicketBase>(tx, `select ${TICKET} from tickets t where t.session_id = $1`, [id])).map(versTicket)
+      const bilan = bilanSession(session.fond, tickets, comptees)
+      const explication = commentaire.trim().slice(0, 500)
+      if (aUnEcart(bilan) && !explication) {
+        return { ok: false as const, erreur: "Les espèces comptées ne correspondent pas : expliquez l'écart avant de clôturer." }
+      }
+      await tx.query(
+        "update sessions_caisse set fermee_le = $2, fermee_par = $3, especes_comptees = $4, bilan = $5, commentaire = $6 where id = $1",
+        [id, new Date(fermeeLe), membreId, JSON.stringify(comptees), JSON.stringify(bilan), explication],
+      )
+      return { ok: true as const, session: (await lireSession(tx, id))!, deja: false }
+    })
   },
 
   async annulerTicket(id, motif, membre) {
