@@ -40,8 +40,10 @@ import {
   PersonAddRegular,
   PersonAvailableRegular,
   PersonProhibitedRegular,
+  ReceiptRegular,
   ShieldPersonRegular,
   PersonRegular,
+  type FluentIcon,
 } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import { formaterHeure } from "@partage/dates"
@@ -53,8 +55,13 @@ import { useFormulairesStyles } from "../composants/useFormulairesStyles.styles"
 import { nomDe, useDonneesChargees, useLectureSeule, type MembreEquipe } from "../donnees"
 import { ROLES } from "../libelles"
 
+// Icône et action « Passer en … » de chaque rôle, du plus large au plus restreint
+const ICONES_ROLES: Record<RoleEquipe, FluentIcon> = { hote: ShieldPersonRegular, reception: PersonRegular, caissier: ReceiptRegular }
+const PASSER_EN: Record<RoleEquipe, string> = { hote: "Rendre gérant", reception: "Passer en réception", caissier: "Passer en caisse" }
+const ORDRE_ROLES = Object.keys(ROLES) as RoleEquipe[]
+
 const useStyles = makeStyles({
-  roles: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalL },
+  roles: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalL },
   role: { display: "flex", columnGap: tokens.spacingHorizontalM, alignItems: "flex-start" },
   icone: { fontSize: tokens.fontSizeBase600, color: tokens.colorBrandForeground1, flexShrink: 0 },
   secondaire: { color: tokens.colorNeutralForeground3 },
@@ -62,7 +69,8 @@ const useStyles = makeStyles({
 })
 
 // Utilisateurs (gérants) : comptes de l'équipe qui se connectent au logiciel. Gérant : tout ; réception :
-// réservations, planning, chambres, clients et encaissements. Mots de passe provisoires donnés de vive voix.
+// réservations, planning, chambres, clients et encaissements ; caisse : Restaurant et Bar seulement. Mots de passe
+// provisoires donnés de vive voix.
 export default function Utilisateurs() {
   const styles = useStyles()
   const cadre = useCadreTableStyles()
@@ -93,6 +101,15 @@ export default function Utilisateurs() {
               <Caption1 className={styles.secondaire}>Demandes, réservations sur place, arrivées et départs, chambres, clients et encaissements.</Caption1>
             </div>
           </div>
+          <div className={styles.role}>
+            <ReceiptRegular className={styles.icone} />
+            <div>
+              <Body1 block>
+                <strong>Caisse</strong>
+              </Body1>
+              <Caption1 className={styles.secondaire}>Restaurant et Bar seulement : ventes, carte, encaissements et clôture de caisse. Ni réservations, ni clients.</Caption1>
+            </div>
+          </div>
         </div>
       </Carte>
 
@@ -108,30 +125,33 @@ export default function Utilisateurs() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {equipe.map((m) => (
-              <TableRow key={m.id} className={m.actif ? undefined : styles.inactif}>
-                <TableCell className={cadre.premiere}>
-                  <TableCellLayout media={<Avatar name={nomDe(m)} color={m.role === "hote" ? "brand" : "colorful"} />} description={m.email}>
-                    {nomDe(m)}
-                    {m.id === d.hote.id && " (vous)"}
-                  </TableCellLayout>
-                </TableCell>
-                <TableCell>
-                  <Badge appearance="tint" color={m.role === "hote" ? "brand" : "informative"} shape="rounded" icon={m.role === "hote" ? <ShieldPersonRegular /> : <PersonRegular />}>
-                    {ROLES[m.role]}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge appearance="outline" color={m.actif ? "success" : "subtle"} shape="rounded">
-                    {m.actif ? "Actif" : "Désactivé"}
-                  </Badge>
-                </TableCell>
-                <TableCell>{formaterHeure(m.creeLe)}</TableCell>
-                <TableCell>
-                  <ActionsMembre membre={m} soiMeme={m.id === d.hote.id} />
-                </TableCell>
-              </TableRow>
-            ))}
+            {equipe.map((m) => {
+              const IconeRole = ICONES_ROLES[m.role]
+              return (
+                <TableRow key={m.id} className={m.actif ? undefined : styles.inactif}>
+                  <TableCell className={cadre.premiere}>
+                    <TableCellLayout media={<Avatar name={nomDe(m)} color={m.role === "hote" ? "brand" : "colorful"} />} description={m.email}>
+                      {nomDe(m)}
+                      {m.id === d.hote.id && " (vous)"}
+                    </TableCellLayout>
+                  </TableCell>
+                  <TableCell>
+                    <Badge appearance="tint" color={m.role === "hote" ? "brand" : "informative"} shape="rounded" icon={<IconeRole />}>
+                      {ROLES[m.role]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge appearance="outline" color={m.actif ? "success" : "subtle"} shape="rounded">
+                      {m.actif ? "Actif" : "Désactivé"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formaterHeure(m.creeLe)}</TableCell>
+                  <TableCell>
+                    <ActionsMembre membre={m} soiMeme={m.id === d.hote.id} />
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
@@ -161,15 +181,15 @@ function ActionsMembre({ membre: m, soiMeme }: { membre: MembreEquipe; soiMeme: 
         </MenuTrigger>
         <MenuPopover>
           <MenuList>
-            {m.role === "reception" ? (
-              <MenuItem icon={<ShieldPersonRegular />} onClick={() => modifier({ role: "hote" })}>
-                Rendre gérant
-              </MenuItem>
-            ) : (
-              <MenuItem icon={<PersonRegular />} disabled={soiMeme} onClick={() => modifier({ role: "reception" })}>
-                Passer en réception
-              </MenuItem>
-            )}
+            {ORDRE_ROLES.filter((role) => role !== m.role).map((role) => {
+              const Icone = ICONES_ROLES[role]
+              return (
+                // Un gérant ne se retire pas lui-même ses droits
+                <MenuItem key={role} icon={<Icone />} disabled={soiMeme && role !== "hote"} onClick={() => modifier({ role })}>
+                  {PASSER_EN[role]}
+                </MenuItem>
+              )
+            })}
             <MenuItem icon={<KeyRegular />} onClick={() => setMotDePasse(true)}>
               Réinitialiser le mot de passe
             </MenuItem>
@@ -305,6 +325,7 @@ function NouvelUtilisateur() {
                 <Field label="Rôle" required>
                   <Dropdown className={formulaire.champ} value={ROLES[role]} selectedOptions={[role]} onOptionSelect={(_e, data) => setRole(data.optionValue as RoleEquipe)}>
                     <Option value="reception">{ROLES.reception}</Option>
+                    <Option value="caissier">{ROLES.caissier}</Option>
                     <Option value="hote">{ROLES.hote}</Option>
                   </Dropdown>
                 </Field>

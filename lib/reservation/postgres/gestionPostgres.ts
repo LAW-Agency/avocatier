@@ -79,7 +79,7 @@ export const gestionPostgres: GestionHotel = {
   async listerEquipe() {
     const liste = await lignes<LigneClient>(
       db(),
-      `select ${CLIENT} from clients where role in ('hote', 'reception') order by actif desc, role, prenom`,
+      `select ${CLIENT} from clients where role in ('hote', 'reception', 'caissier') order by actif desc, role, prenom`,
     )
     return liste.map(versClient)
   },
@@ -103,7 +103,7 @@ export const gestionPostgres: GestionHotel = {
       await tx.query("select pg_advisory_xact_lock(hashtext('equipe'))")
       const [membre] = await lignes<{ role: string; actif: boolean }>(
         tx,
-        "select role, actif from clients where id = $1 and role in ('hote', 'reception') for update",
+        "select role, actif from clients where id = $1 and role in ('hote', 'reception', 'caissier') for update",
         [id],
       )
       if (!membre) return { ok: false, erreur: "Ce compte n'existe plus." }

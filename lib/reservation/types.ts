@@ -127,8 +127,12 @@ export type PeriodeOccupee = {
 }
 
 // hote : Joëlle & Stéphane, tout le logiciel des hôtes (bureau/) ; reception : équipe d'accueil, sans tarifs,
-// statistiques ni utilisateurs. Jamais attribués par l'inscription du site
-export type RoleCompte = "client" | "hote" | "reception"
+// statistiques ni utilisateurs ; caissier : caisse Restaurant et Bar seulement. Jamais attribués par l'inscription
+// du site
+export type RoleCompte = "client" | "hote" | "reception" | "caissier"
+
+// Comptes de l'équipe (logiciel des hôtes)
+export type RoleEquipe = Exclude<RoleCompte, "client">
 
 export type Client = {
   id: string
@@ -227,7 +231,7 @@ export type Paiement = {
 }
 
 // Journal d'activité de l'équipe (logiciel des hôtes) : qui a fait quoi, et quand
-export type CategorieJournal = "connexion" | "reservation" | "client" | "chambre" | "paiement" | "planning" | "tarifs" | "equipe" | "journal"
+export type CategorieJournal = "connexion" | "reservation" | "client" | "chambre" | "paiement" | "planning" | "tarifs" | "equipe" | "journal" | "restaurant"
 
 export type EntreeJournal = {
   id: string
@@ -262,9 +266,9 @@ export type ReservationDirecte = {
 
 export type NouveauClientLocal = Pick<Client, "prenom" | "nom" | "email" | "telephone" | "pays" | "note">
 
-export type NouveauMembre = Pick<Client, "prenom" | "nom" | "email"> & { role: "hote" | "reception"; motDePasseHash: string }
+export type NouveauMembre = Pick<Client, "prenom" | "nom" | "email"> & { role: RoleEquipe; motDePasseHash: string }
 
-export type ModificationMembre = { role?: "hote" | "reception"; actif?: boolean; motDePasseHash?: string }
+export type ModificationMembre = { role?: RoleEquipe; actif?: boolean; motDePasseHash?: string }
 
 
 // Modification d'une réservation active par l'équipe : tout le séjour est renvoyé, pas seulement ce qui change

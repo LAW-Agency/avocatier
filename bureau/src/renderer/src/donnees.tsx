@@ -71,6 +71,9 @@ export type Vue =
 // Écrans réservés aux gérants (la réception ne les voit pas ; l'API refuse de toute façon)
 export const PAGES_GERANTS: Vue["page"][] = ["revenus", "statistiques", "tarifs", "utilisateurs"]
 
+// Seuls écrans d'un caissier (il ne reçoit ni réservations ni clients ; l'API refuse le reste)
+export const PAGES_CAISSIER: Vue["page"][] = ["guide", "parametres"]
+
 // Fenêtre « Nouvelle réservation », éventuellement préremplie (client, hébergement et chambre, date)
 export type Preremplissage = { clientId?: string; hebergementId?: string; chambreId?: string; arrivee?: string }
 

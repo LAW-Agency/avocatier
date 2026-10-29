@@ -74,7 +74,7 @@ import NouvelleReservation from "./composants/NouvelleReservation"
 import { RechercheGlobale } from "./composants/RechercheGlobale"
 import VisiteGuidee from "./composants/VisiteGuidee"
 import { useApparitionStyles } from "./composants/useCommunStyles.styles"
-import { PAGES_GERANTS, useDonnees, type Vue } from "./donnees"
+import { PAGES_CAISSIER, PAGES_GERANTS, useDonnees, type Vue } from "./donnees"
 import { ROLES } from "./libelles"
 import Aujourdhui from "./pages/Aujourdhui"
 import Chambres from "./pages/Chambres"
@@ -178,6 +178,8 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
   const zoneDefilement = useRef<HTMLElement>(null)
   const { annoncer } = useAnnoncer()
   const gerant = donnees?.hote.role === "hote"
+  // Caissier : ni réservations ni clients, rien de l'activité de l'hôtel
+  const caissier = donnees?.hote.role === "caissier"
 
   const aTraiter = donnees?.reservations.filter((r) => r.statut === "option").length ?? 0
   // Pastilles de l'entrée Chambres : rouge s'il y a une chambre en maintenance, jaune s'il y en a à nettoyer
@@ -221,7 +223,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
       e.preventDefault()
       champRecherche.current?.focus()
       champRecherche.current?.select()
-    } else if (e.ctrlKey && !e.altKey && !e.shiftKey && touche === "n") {
+    } else if (e.ctrlKey && !e.altKey && !e.shiftKey && touche === "n" && !caissier) {
       e.preventDefault()
       ouvrirNouvelleReservation()
     } else if (e.key === "F1") {
@@ -243,9 +245,10 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
     }
   }, [])
 
-  const rubriques = [...ACTIVITE, ...(gerant ? GESTION : [])]
+  const activite = caissier ? [] : ACTIVITE
+  const rubriques = [...activite, ...(gerant ? GESTION : [])]
   const rubriqueActive: PageNav = vue.page === "client" ? "clients" : vue.page
-  const situation = donnees ? situationDuJour(donnees, donnees.aujourdhui) : null
+  const situation = donnees && !caissier ? situationDuJour(donnees, donnees.aujourdhui) : null
   const cleEcran = vue.page === "client" ? `client-${vue.id}` : vue.page === "guide" ? `guide-${vue.section ?? ""}` : vue.page
   // Nouvel écran affiché en haut de la zone qui défile (sauf section du Guide : le Guide y défile lui-même)
   const versSectionGuide = vue.page === "guide" && !!vue.section
@@ -266,7 +269,8 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
     ) : (
       <ChargementLogo texte="Chargement des réservations…" />
     )
-  } else if (!gerant && PAGES_GERANTS.includes(vue.page)) ecran = <Aujourdhui />
+  } else if (caissier && !PAGES_CAISSIER.includes(vue.page)) ecran = <Parametres onDeconnexion={onDeconnexion} />
+  else if (!gerant && PAGES_GERANTS.includes(vue.page)) ecran = <Aujourdhui />
   else if (vue.page === "aujourdhui") ecran = <Aujourdhui />
   else if (vue.page === "reservations") ecran = <Reservations filtre={vue.filtre ?? null} />
   else if (vue.page === "planning") ecran = <Planning />
@@ -286,7 +290,7 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
     <div className={styles.coquille}>
       <BarreTitre
         centre={
-          <RechercheGlobale ref={champRecherche} className={styles.recherche} disabled={!donnees} />
+          <RechercheGlobale ref={champRecherche} className={styles.recherche} disabled={!donnees || caissier} />
         }
         actions={
           <>
@@ -297,10 +301,12 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
                 </Badge>
               </Tooltip>
             )}
-            <Tooltip content="Nouvelle réservation (Ctrl + N)" relationship="label">
-              <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees || !enLigne} onClick={() => ouvrirNouvelleReservation()} data-visite="barre-nouvelle-reservation" />
-            </Tooltip>
-            {donnees && <BoutonNotifications ouvert={notificationsOuvertes} onBasculer={() => setNotificationsOuvertes((o) => !o)} />}
+            {!caissier && (
+              <Tooltip content="Nouvelle réservation (Ctrl + N)" relationship="label">
+                <Button appearance="subtle" icon={<CalendarAddRegular />} disabled={!donnees || !enLigne} onClick={() => ouvrirNouvelleReservation()} data-visite="barre-nouvelle-reservation" />
+              </Tooltip>
+            )}
+            {donnees && !caissier && <BoutonNotifications ouvert={notificationsOuvertes} onBasculer={() => setNotificationsOuvertes((o) => !o)} />}
           </>
         }
       />
@@ -314,8 +320,8 @@ export default function Coquille({ onDeconnexion }: { onDeconnexion: () => void 
               </Tooltip>
             </NavDrawerHeader>
             <NavDrawerBody>
-              <NavSectionHeader>Activité</NavSectionHeader>
-              {ACTIVITE.map(({ page, libelle, Icone }) => (
+              {activite.length > 0 && <NavSectionHeader>Activité</NavSectionHeader>}
+              {activite.map(({ page, libelle, Icone }) => (
                 <NavItem key={page} value={page} icon={<Icone className={styles.iconeNav} />} className={lienNav(page)}>
                   <span className={styles.libelleNav}>{libelle}</span>
                   {page === "reservations" && aTraiter > 0 && (

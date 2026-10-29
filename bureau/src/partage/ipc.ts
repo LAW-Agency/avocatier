@@ -1,11 +1,12 @@
-import type { StatutReservation } from "../../../lib/reservation/types"
+import type { RoleEquipe, StatutReservation } from "../../../lib/reservation/types"
 
 // Contrat entre le processus principal (src/main), le pont (src/preload) et l'interface (src/renderer).
 // L'interface ne parle jamais directement au serveur : le processus principal garde le jeton (chiffré par
 // Windows) et fait les appels à l'API du site (app/api/hotes/ à la racine du dépôt).
 
-// hote : gérant (tout le logiciel) ; reception : accueil (ni tarifs, ni statistiques, ni utilisateurs)
-export type RoleEquipe = "hote" | "reception"
+// hote : gérant (tout le logiciel) ; reception : accueil (ni tarifs, ni statistiques, ni utilisateurs) ;
+// caissier : caisse Restaurant et Bar seulement
+export type { RoleEquipe }
 
 export type Hote = { prenom: string; nom: string; email: string; role: RoleEquipe }
 

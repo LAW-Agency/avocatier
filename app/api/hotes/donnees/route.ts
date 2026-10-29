@@ -1,25 +1,28 @@
-import { json, pourLesHotes } from "@/lib/api/hotes"
+import { json, pourLaCaisse } from "@/lib/api/hotes"
 import { urlDuSite } from "@/lib/email/modeles"
 import { comptes, gestion, moteur } from "@/lib/reservation"
 import { aujourdhuiISO } from "@/lib/reservation/dates"
 
 // Tout ce qu'affiche le logiciel des hôtes, chargé en une fois (rechargé après chaque action et à chaque
-// changement signalé par le suivi en direct). L'équipe n'est envoyée qu'aux gérants.
-export const GET = pourLesHotes(async (_requete, membre) => {
+// changement signalé par le suivi en direct). L'équipe n'est envoyée qu'aux gérants ; un caissier ne reçoit ni
+// réservations, ni clients, ni encaissements des séjours, ni calendriers (seulement de quoi tenir la caisse).
+export const GET = pourLaCaisse(async (_requete, membre) => {
   const gerant = membre.role === "hote"
-  const [reservations, clients, hebergements, blocages, saisons, devises, chambres, paiements, equipe, calendriers, facturation] = await Promise.all([
-    moteur.toutesLesReservations(),
-    comptes.listerClients(),
-    moteur.listerHebergements(),
-    moteur.listerBlocages(),
-    moteur.listerReglesSaisons(),
-    moteur.reglagesDevises(),
-    moteur.listerChambres(),
-    gestion.listerPaiements(),
-    gerant ? gestion.listerEquipe() : Promise.resolve([]),
-    gestion.listerCalendriers(),
-    gestion.reglagesFacturation(),
+  const caissier = membre.role === "caissier"
+  const [[hebergements, saisons, devises, chambres, facturation, equipe], sejours] = await Promise.all([
+    Promise.all([
+      moteur.listerHebergements(),
+      moteur.listerReglesSaisons(),
+      moteur.reglagesDevises(),
+      moteur.listerChambres(),
+      gestion.reglagesFacturation(),
+      gerant ? gestion.listerEquipe() : Promise.resolve([]),
+    ]),
+    caissier
+      ? null
+      : Promise.all([moteur.toutesLesReservations(), comptes.listerClients(), moteur.listerBlocages(), gestion.listerPaiements(), gestion.listerCalendriers()]),
   ])
+  const [reservations, clients, blocages, paiements, calendriers] = sejours ?? [[], [], [], [], []]
   return json({
     hote: { id: membre.id, prenom: membre.prenom, nom: membre.nom, email: membre.email, role: membre.role },
     // Date du jour à Sainte-Marie, quel que soit le fuseau de l'ordinateur des hôtes

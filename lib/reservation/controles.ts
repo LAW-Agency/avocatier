@@ -20,6 +20,7 @@ import type {
   ReglagesDevises,
   RegleSaison,
   Reservation,
+  RoleEquipe,
   Saison,
   StatutReservation,
 } from "./types"
@@ -306,6 +307,11 @@ export function normaliserFacturation(r: Partial<Record<keyof ReglagesFacturatio
     mentions: texte("mentions"),
   }
 }
+
+// Rôles d'un compte de l'équipe, du plus large au plus restreint
+export const ROLES_EQUIPE: RoleEquipe[] = ["hote", "reception", "caissier"]
+
+export const estRoleEquipe = (role: unknown): role is RoleEquipe => (ROLES_EQUIPE as unknown[]).includes(role)
 
 export function controlerMembre({ prenom, email }: { prenom: string; email: string }, motDePasse: string): string | null {
   if (!prenom.trim()) return "Saisissez le prénom."

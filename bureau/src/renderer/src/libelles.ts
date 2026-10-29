@@ -51,4 +51,5 @@ export const ETATS_CHAMBRE: Record<EtatChambre, string> = {
 export const ROLES: Record<RoleEquipe, string> = {
   hote: "Gérant",
   reception: "Réception",
+  caissier: "Caisse",
 }
