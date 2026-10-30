@@ -16,13 +16,13 @@ import {
 } from "@fluentui/react-components"
 import { CallRegular, ChatRegular, DismissRegular, MailRegular, VehicleBusRegular } from "@fluentui/react-icons"
 import { useState, type ReactElement, type ReactNode } from "react"
-import { formaterHeure, formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
-import { libelleEvenement } from "@partage/statuts"
+import { formaterDate, formaterHeure, formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
 import type { Reservation } from "@partage/types"
 import { estTermine, nomChambre, nomDe, useDonneesChargees } from "../donnees"
 import { SOURCES, provenance } from "../libelles"
 import ActionsReservation, { AnnulerMouvement, BoutonReception } from "./ActionsReservation"
 import BoutonFacture from "./BoutonFacture"
+import Chronologie, { evenementsSejour } from "./Chronologie"
 import { BadgeStatut } from "./commun"
 import Encaissements from "./Encaissements"
 import ModifierReservation from "./ModifierReservation"
@@ -42,6 +42,9 @@ function Fait({ titre, children }: { titre: string; children: ReactNode }) {
     </div>
   )
 }
+
+// « jeudi 28 octobre »
+const jour = (iso: string) => formaterDate(iso, { weekday: "long", day: "numeric", month: "long", year: undefined })
 
 interface FicheReservationProps {
   reservation: Reservation
@@ -67,6 +70,9 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
   // Autres chambres de la même demande (site, plusieurs chambres en une fois), mêmes dates
   const groupe = r.groupe ? d.reservations.filter((x) => x.groupe === r.groupe) : [r]
   const telephone = r.telephone || client?.telephone
+  const nuits = nombreNuits(r.arrivee, r.depart)
+  // Demande, décisions, arrivée et départ, encaissements, restaurant et bar, facture : tout, dans l'ordre
+  const evenements = evenementsSejour(r, d, formaterPrix)
 
   return (
     <Dialog open={ouverte} onOpenChange={(_e, data) => setOuverte(data.open)}>
@@ -112,11 +118,21 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
                   {pluriel(r.adultes, "adulte")}
                   {r.enfants > 0 && `, ${pluriel(r.enfants, "enfant")}`}
                 </Fait>
-                <Fait titre="Durée">{pluriel(nombreNuits(r.arrivee, r.depart), "nuit")}</Fait>
-                <Fait titre="Montant">
-                  <Text weight="semibold">{formaterPrix(r.montantTotal)}</Text>
-                </Fait>
                 <Fait titre="Provenance">{provenance(r.source)}</Fait>
+                <Fait titre="Arrivée">
+                  {jour(r.arrivee)}
+                  {r.arriveeLe && <Caption1 block className={styles.description}>Arrivé le {formaterHeure(r.arriveeLe)}</Caption1>}
+                </Fait>
+                <Fait titre="Départ">
+                  {jour(r.depart)}
+                  {r.departLe && <Caption1 block className={styles.description}>Parti le {formaterHeure(r.departLe)}</Caption1>}
+                </Fait>
+                <Fait titre="Prix de l'hébergement">
+                  <Text weight="semibold">{formaterPrix(r.montantTotal)}</Text>
+                  <Caption1 block className={styles.description}>
+                    {pluriel(nuits, "nuit")} · {formaterPrix(nuits ? r.montantTotal / nuits : 0)} la nuit en moyenne
+                  </Caption1>
+                </Fait>
               </dl>
               {r.navette && (
                 <span className={styles.navette}>
@@ -188,17 +204,10 @@ export default function FicheReservation({ reservation, declencheur }: FicheRese
                 </div>
               )}
 
-              {r.historique.length > 0 && (
+              {evenements.length > 0 && (
                 <div className={styles.section}>
-                  <Caption1 className={styles.libelle}>Historique</Caption1>
-                  <ol className={styles.historique}>
-                    {r.historique.map((e) => (
-                      <li key={`${e.statut}-${e.le}`} className={styles.evenement}>
-                        <Body1>{e.note ?? libelleEvenement[e.statut]}</Body1>
-                        <Caption1 className={styles.libelle}>{formaterHeure(e.le)}</Caption1>
-                      </li>
-                    ))}
-                  </ol>
+                  <Caption1 className={styles.libelle}>Historique du séjour</Caption1>
+                  <Chronologie evenements={evenements} />
                 </div>
               )}
             </aside>

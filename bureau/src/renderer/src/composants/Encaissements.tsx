@@ -1,7 +1,7 @@
 import { Body1, Button, Caption1, Dropdown, Input, MessageBar, MessageBarBody, Option, Spinner, Text, Tooltip, mergeClasses } from "@fluentui/react-components"
 import { DeleteRegular, MoneyRegular, ReceiptRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
-import { formaterHeure } from "@partage/dates"
+import { formaterHeure, nombreNuits, pluriel } from "@partage/dates"
 import { DEVISES, formaterDansDevise } from "@partage/devises"
 import { convertir, soldeEn } from "@partage/folio"
 import type { CodeDevise, ModePaiement, Paiement, Reservation } from "@partage/types"
@@ -11,6 +11,7 @@ import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useEncaissementsStyles } from "./useReservationStyles.styles"
 import { usePrix } from "../montants"
+import TicketsRestaurant from "./TicketsRestaurant"
 
 // Montant proposé dans la devise choisie : le reste à payer, ou le trop-perçu à rendre (négatif)
 const proposition = (solde: number) => (solde === 0 ? "" : String(solde).replace(".", ","))
@@ -30,6 +31,9 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
   const restaurant = restaurantSur(r, d)
   const tickets = d.consommations.filter((c) => c.reservationId === r.id)
   const actif = r.statut === "confirmee" || r.statut === "option"
+  const nuits = nombreNuits(r.arrivee, r.depart)
+  const restaurantEuros = convertir(restaurant, "MGA", "EUR", d.devises.taux)
+  const du = (actif ? r.montantTotal : 0) + restaurantEuros
   const choixDevises = [...new Set<CodeDevise>(["MGA", "EUR", ...d.devises.actives])]
   const [devise, setDevise] = useState<CodeDevise>("MGA")
   const soldeDans = (code: CodeDevise) => soldeEn(code, r, d.paiements, d.consommations, d.devises.taux)
@@ -75,26 +79,43 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
 
   return (
     <div className={styles.root}>
-      <div className={styles.totaux}>
-        <div className={styles.total}>
-          <Caption1 className={styles.libelle}>{actif ? (restaurant ? "Séjour + restaurant" : "Montant du séjour") : "Montant dû (séjour annulé)"}</Caption1>
-          <span className={styles.chiffre}>{formaterPrix((actif ? r.montantTotal : 0) + convertir(restaurant, "MGA", "EUR", d.devises.taux))}</span>
+      {/* Note du séjour, ligne à ligne : ce qui est dû, ce qui a été reçu, ce qui reste */}
+      <dl className={styles.note}>
+        <div className={styles.ligneNote}>
+          <dt>
+            Hébergement · {pluriel(nuits, "nuit")}
+            {!actif && " (séjour annulé)"}
+          </dt>
+          <dd className={styles.montantNote}>{formaterPrix(actif ? r.montantTotal : 0)}</dd>
         </div>
-        <div className={styles.total}>
-          <Caption1 className={styles.libelle}>Encaissé</Caption1>
-          <span className={styles.chiffre}>{formaterPrix(encaisse)}</span>
+        {tickets.length > 0 && (
+          <div className={styles.ligneNote}>
+            <dt>
+              Restaurant et bar · {pluriel(tickets.length, "ticket")}
+              {tickets.every((t) => t.factureId) ? " (facturés)" : ""}
+            </dt>
+            <dd className={styles.montantNote}>{formaterPrix(restaurantEuros)}</dd>
+          </div>
+        )}
+        <div className={mergeClasses(styles.ligneNote, styles.sousTotal)}>
+          <dt>Total</dt>
+          <dd className={styles.montantNote}>{formaterPrix(du)}</dd>
         </div>
-        <div className={styles.total}>
-          <Caption1 className={styles.libelle}>{solde > 0 ? (r.statut === "option" ? "À payer si confirmée" : "Reste à payer") : solde < 0 ? "Trop-perçu" : "Soldé"}</Caption1>
-          <span className={mergeClasses(styles.chiffre, solde > 0 ? styles.reste : styles.solde)}>{formaterPrix(Math.abs(solde))}</span>
+        <div className={styles.ligneNote}>
+          <dt>Encaissé{paiements.length > 0 && ` · ${pluriel(paiements.length, "règlement")}`}</dt>
+          <dd className={mergeClasses(styles.montantNote, encaisse > 0 && styles.solde)}>{encaisse ? `− ${formaterPrix(encaisse)}` : formaterPrix(0)}</dd>
         </div>
-      </div>
+        <div className={mergeClasses(styles.ligneNote, styles.reste)}>
+          <dt>{solde > 0 ? (r.statut === "option" ? "À payer si confirmée" : "Reste à payer") : solde < 0 ? "Trop-perçu" : "Soldé"}</dt>
+          <dd className={mergeClasses(styles.montantNote, styles.grandMontant, solde > 0 ? styles.du : styles.solde)}>{formaterPrix(Math.abs(solde))}</dd>
+        </div>
+      </dl>
 
       {tickets.length > 0 && (
-        <Body1>
-          Restaurant et bar sur la chambre : {tickets.length} ticket{tickets.length > 1 ? "s" : ""} · {formaterDansDevise(restaurant, "MGA")}
-          {tickets.some((t) => t.factureId) ? " (facturés)" : ""}
-        </Body1>
+        <div className={styles.bloc}>
+          <Text weight="semibold">Restaurant et bar sur la chambre</Text>
+          <TicketsRestaurant consommations={tickets} />
+        </div>
       )}
 
       {solde < 0 && (
@@ -106,6 +127,7 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
         </MessageBar>
       )}
 
+      {paiements.length > 0 && <Text weight="semibold">Règlements reçus</Text>}
       {paiements.length > 0 && (
         <ul className={styles.liste}>
           {paiements.map((p) => (
