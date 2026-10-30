@@ -59,11 +59,11 @@ export default function Hero (){
                     </p>
 
                     <p className="font-heading text-2xl sm:text-3xl md:text-4xl leading-tight text-balance text-primary-light">
-                        Votre adresse confidentielle face à l’océan
+                        L’île Sainte-Marie, votre refuge au bout du monde.
                     </p>
 
                     <p className="max-w-xl text-base md:text-lg leading-relaxed text-balance text-primary-light/85">
-                        Bungalows dans un jardin tropical, plage privée et piscine sur l’île Sainte-Marie, avec l’accueil chaleureux de Joëlle et Stéphane.
+                        Bungalows tropicaux, plage privée, piscine et douceur de vivre. Joëlle et Stéphane vous accueillent dans un écrin de nature face à l’océan.
                     </p>
 
                     <div className="flex w-full flex-col sm:w-auto sm:flex-row gap-3 pt-2">
