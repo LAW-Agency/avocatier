@@ -77,11 +77,17 @@ const versPaiement = ({ le, enregistrePar, montantDevise, taux, ...reste }: Lign
 
 // Tickets du restaurant et du bar sur la note des séjours (non annulés)
 const CONSOMMATION = `t.id, t.numero, t.le, t.total, t.libelle, t.facture_id as "factureId", t.reservation_id as "reservationId",
+  (select p.nom from postes_caisse p where p.id = t.poste_id) as poste, t.caissier_id as "caissierId",
   coalesce((select json_agg(json_strip_nulls(json_build_object('articleId', l.article_id, 'libelle', l.libelle,
       'prixUnitaire', l.prix_unitaire, 'quantite', l.quantite)) order by l.position)
     from lignes_ticket l where l.ticket_id = t.id), '[]') as lignes`
-type LigneConsommation = Omit<Consommation, "le" | "factureId"> & { le: Date; factureId: string | null; lignes: LigneTicket[] }
-const versConsommation = ({ le, factureId, ...reste }: LigneConsommation): Consommation => ({ ...reste, le: le.toISOString(), ...(factureId && { factureId }) })
+type LigneConsommation = Omit<Consommation, "le" | "factureId" | "caissierId"> & { le: Date; factureId: string | null; caissierId: string | null; lignes: LigneTicket[] }
+const versConsommation = ({ le, factureId, caissierId, ...reste }: LigneConsommation): Consommation => ({
+  ...reste,
+  le: le.toISOString(),
+  ...(factureId && { factureId }),
+  ...(caissierId && { caissierId }),
+})
 
 const FACTURE = `f.id, f.numero, f.le, f.client_id as "clientId", f.devise, f.taux, f.total, f.contenu,
   array(select fr.reservation_id from factures_reservations fr where fr.facture_id = f.id) as "reservationIds"`

@@ -480,12 +480,17 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     resume: "Comptes du site et clients enregistrés à la réception.",
     Icone: PeopleRegular,
     ecran: { page: "clients" },
-    motsCles: "client fiche coordonnées téléphone e-mail pays note interne séjours comptoir nouveau client modifier fusionner doublon effacer supprimer rgpd données personnelles exporter",
+    motsCles: "client fiche coordonnées téléphone e-mail pays note interne séjours tickets restaurant bar encaissements reçus factures historique habitudes favoris comptoir nouveau client modifier fusionner doublon effacer supprimer rgpd données personnelles exporter",
     contenu: (
       <>
         <ul>
           <li>La liste réunit les comptes créés sur le site et les clients enregistrés au comptoir (sans compte, e-mail facultatif). « Exporter » l&apos;enregistre pour Excel.</li>
-          <li>La fiche client donne ses coordonnées, ses chiffres, ses séjours à venir et passés, et une note interne jamais montrée au client (préférences, allergies…).</li>
+          <li>
+            La fiche client donne ses coordonnées et ses chiffres (hébergement, restaurant et bar, encaissé, reste à payer), son séjour du moment avec Arrivée ou
+            Départ à portée de clic, puis en onglets : ses séjours, ses tickets du restaurant et du bar article par article (réimprimables), ses encaissements avec
+            leurs reçus, ses factures et tout son historique. À droite, une note interne jamais montrée au client (préférences, allergies…) et « En bref » : ce
+            qu&apos;il choisit d&apos;habitude, ses boissons et plats favoris compris.
+          </li>
           <li>Depuis la fiche, Nouvelle réservation est préremplie avec ce client.</li>
           <li>
             <strong>Modifier</strong> corrige les coordonnées. Pour un compte du site, l&apos;e-mail est son identifiant de connexion : il reste obligatoire, prévenez le client si

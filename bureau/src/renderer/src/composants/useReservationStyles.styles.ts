@@ -17,7 +17,7 @@ export const useActionsStyles = makeStyles({
 })
 
 export const useFicheStyles = makeStyles({
-  surface: { maxWidth: "900px", width: "100%", padding: 0, overflow: "hidden" },
+  surface: { maxWidth: "1040px", width: "100%", padding: 0, overflow: "hidden" },
   // Sans l'écart de 8 px de Fluent entre les cases de la grille : les filets de l'en-tête, du panneau et du pied
   // se rejoignent bord à bord
   corps: { rowGap: 0, columnGap: 0, maxHeight: "calc(100vh - 96px)" },
@@ -32,9 +32,9 @@ export const useFicheStyles = makeStyles({
   fermer: { position: "absolute", top: tokens.spacingVerticalL, right: tokens.spacingHorizontalL },
   expire: { color: tokens.colorStatusDangerForeground1 },
   description: { color: tokens.colorNeutralForeground3 },
-  contenu: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", padding: 0, overflowY: "auto" },
+  contenu: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", padding: 0, overflowY: "auto" },
   principal: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXL, padding: tokens.spacingHorizontalXXL },
-  faits: { display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: tokens.spacingVerticalL, columnGap: tokens.spacingHorizontalXXL, margin: 0 },
+  faits: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", rowGap: tokens.spacingVerticalL, columnGap: tokens.spacingHorizontalXXL, margin: 0 },
   fait: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXXS },
   dd: { margin: 0 },
   libelle: { color: tokens.colorNeutralForeground3 },
@@ -52,23 +52,6 @@ export const useFicheStyles = makeStyles({
   client: { display: "flex", alignItems: "center", columnGap: tokens.spacingHorizontalMNudge },
   contacts: { display: "flex", flexDirection: "column", alignItems: "flex-start", rowGap: tokens.spacingVerticalXS },
   accueil: { display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: tokens.spacingHorizontalS, rowGap: tokens.spacingVerticalXS },
-  historique: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },
-  evenement: {
-    display: "flex",
-    flexDirection: "column",
-    paddingLeft: tokens.spacingHorizontalL,
-    position: "relative",
-    "::before": {
-      content: '""',
-      position: "absolute",
-      left: 0,
-      top: tokens.spacingVerticalSNudge,
-      width: tokens.spacingHorizontalSNudge,
-      height: tokens.spacingHorizontalSNudge,
-      borderRadius: tokens.borderRadiusCircular,
-      backgroundColor: tokens.colorBrandBackground,
-    },
-  },
   // Pied sur toute la largeur de la fenêtre : Fluent le cale à droite (justify-self: end) même en « fluid »,
   // et son filet s'arrêtait au milieu sous le panneau
   pied: {
@@ -87,11 +70,23 @@ export const useFicheStyles = makeStyles({
 
 export const useEncaissementsStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalM },
-  totaux: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", columnGap: tokens.spacingHorizontalM },
-  total: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalXXS, padding: tokens.spacingHorizontalM, borderRadius: tokens.borderRadiusLarge, backgroundColor: tokens.colorNeutralBackground3 },
-  chiffre: { fontSize: tokens.fontSizeBase400, fontWeight: tokens.fontWeightSemibold, fontVariantNumeric: "tabular-nums" },
-  reste: { color: tokens.colorStatusWarningForeground1 },
+  // Note du séjour : libellés à gauche, montants alignés à droite, total puis reste mis en avant
+  note: {
+    display: "flex",
+    flexDirection: "column",
+    margin: 0,
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalL}`,
+    borderRadius: tokens.borderRadiusLarge,
+    backgroundColor: tokens.colorNeutralBackground3,
+  },
+  ligneNote: { display: "flex", alignItems: "baseline", justifyContent: "space-between", columnGap: tokens.spacingHorizontalL, padding: `${tokens.spacingVerticalXS} 0`, color: tokens.colorNeutralForeground2 },
+  montantNote: { margin: 0, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: tokens.colorNeutralForeground1 },
+  sousTotal: { borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`, marginTop: tokens.spacingVerticalXS, paddingTop: tokens.spacingVerticalS, fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground1 },
+  reste: { borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`, marginTop: tokens.spacingVerticalXS, paddingTop: tokens.spacingVerticalS, fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground1 },
+  grandMontant: { fontSize: tokens.fontSizeBase500, fontWeight: tokens.fontWeightBold },
+  du: { color: tokens.colorStatusWarningForeground1 },
   solde: { color: tokens.colorStatusSuccessForeground1 },
+  bloc: { display: "flex", flexDirection: "column", rowGap: tokens.spacingVerticalS },
   libelle: { color: tokens.colorNeutralForeground3 },
   liste: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column" },
   ligne: {

@@ -451,16 +451,34 @@ export default function Coquille({ onDeconnexion: deconnecter }: { onDeconnexion
                 </Skeleton>
               )}
               {situation && (
-                <div className={styles.ceSoir} data-visite="ce-soir">
-                  <Caption1>Ce soir</Caption1>
-                  <Text weight="semibold">
-                    {situation.occupes} sur {situation.total} occupées
-                  </Text>
-                  <ProgressBar value={situation.total ? situation.occupes / situation.total : 0} thickness="large" />
-                  <Caption1>
-                    {pluriel(situation.arrivees.length, "arrivée")}, {pluriel(situation.departs.length, "départ")}
-                  </Caption1>
-                </div>
+                // Toute la case ouvre le Planning : d'un coup d'œil, les chambres encore à vendre ce soir
+                <Tooltip content="Ouvrir le planning" relationship="description" positioning="after">
+                  <button type="button" className={mergeClasses(styles.ceSoir, styles.ceSoirBouton)} data-visite="ce-soir" onClick={() => naviguer({ page: "planning" })}>
+                    <span className={styles.ceSoirEntete}>
+                      <Caption1>Ce soir</Caption1>
+                      <Caption1>
+                        {situation.occupes} / {situation.total} occupées
+                      </Caption1>
+                    </span>
+                    <span className={styles.ceSoirLibres}>
+                      <span className={mergeClasses(styles.ceSoirNombre, situation.libres.length === 0 && styles.complet)}>{situation.libres.length}</span>
+                      <Text weight="semibold">{situation.libres.length === 0 ? "Complet" : situation.libres.length > 1 ? "chambres libres" : "chambre libre"}</Text>
+                    </span>
+                    <ProgressBar value={situation.total ? situation.occupes / situation.total : 0} thickness="large" />
+                    {situation.libres.length > 0 && (
+                      <span className={styles.ceSoirPuces}>
+                        {situation.libres.map((c) => (
+                          <span key={c.id} className={mergeClasses(styles.puceChambre, c.etat !== "propre" && styles.puceANettoyer)} title={c.etat === "propre" ? "Prête" : c.etat === "maintenance" ? "En maintenance" : "À nettoyer"}>
+                            {c.numero}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                    <Caption1>
+                      {pluriel(situation.arrivees.length, "arrivée")}, {pluriel(situation.departs.length, "départ")}
+                    </Caption1>
+                  </button>
+                </Tooltip>
               )}
               <NavItem value={GUIDE.page} icon={<GUIDE.Icone className={styles.iconeNav} />} className={lienNav(GUIDE.page)}>
                 {GUIDE.libelle}
@@ -517,6 +535,30 @@ export default function Coquille({ onDeconnexion: deconnecter }: { onDeconnexion
               </Skeleton>
             )}
             <div className={styles.railEspace} />
+            {situation && (
+              // Navigation réduite : le nombre de chambres libres ce soir reste visible, détail en info-bulle
+              <Tooltip
+                relationship="description"
+                positioning="after"
+                content={
+                  <>
+                    <Text weight="semibold" block>
+                      Ce soir : {situation.libres.length === 0 ? "complet" : pluriel(situation.libres.length, "chambre libre", "chambres libres")}
+                    </Text>
+                    {situation.libres.length > 0 && <Text block>{situation.libres.map((c) => c.numero).join(", ")}</Text>}
+                    <Caption1 block>
+                      {situation.occupes} sur {situation.total} occupées · {pluriel(situation.arrivees.length, "arrivée")}, {pluriel(situation.departs.length, "départ")}
+                    </Caption1>
+                  </>
+                }
+              >
+                <button type="button" className={styles.railLibres} data-visite="ce-soir" aria-label={`Ce soir : ${pluriel(situation.libres.length, "chambre libre", "chambres libres")}. Ouvrir le planning`} onClick={() => naviguer({ page: "planning" })}>
+                  <span className={mergeClasses(styles.railNombre, situation.libres.length === 0 && styles.complet)}>{situation.libres.length}</span>
+                  <span className={styles.railLegende}>{situation.libres.length > 1 ? "libres" : "libre"}</span>
+                  <ProgressBar value={situation.total ? situation.occupes / situation.total : 0} thickness="medium" className={styles.railJauge} />
+                </button>
+              </Tooltip>
+            )}
             {donnees ? (
               <MenuCompte prenom={donnees.hote.prenom} nom={donnees.hote.nom} role={ROLES[donnees.hote.role]} onDeconnexion={onDeconnexion} compact />
             ) : (

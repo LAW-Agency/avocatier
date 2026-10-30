@@ -495,5 +495,6 @@ export type Facture = {
   contenu: ContenuFacture
 }
 
-// Consommation du restaurant ou du bar sur la note d'un séjour (ticket « chambre » non annulé), en ariary
-export type Consommation = Pick<Ticket, "id" | "numero" | "le" | "total" | "lignes" | "libelle" | "factureId"> & { reservationId: string }
+// Consommation du restaurant ou du bar sur la note d'un séjour (ticket « chambre » non annulé), en ariary ; poste
+// (« Restaurant », « Bar ») et caissier pour le détail affiché aux hôtes
+export type Consommation = Pick<Ticket, "id" | "numero" | "le" | "total" | "lignes" | "libelle" | "factureId" | "caissierId"> & { reservationId: string; poste?: string }
