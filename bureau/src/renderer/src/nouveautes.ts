@@ -3,6 +3,8 @@ import {
   DataBarVerticalRegular,
   DocumentTextRegular,
   FoodRegular,
+  HistoryRegular,
+  ReceiptRegular,
   SparkleRegular,
   type FluentIcon,
 } from "@fluentui/react-icons"
@@ -19,6 +21,23 @@ export type Nouveaute = {
 }
 
 export const NOUVEAUTES: { version: string; liste: Nouveaute[] }[] = [
+  {
+    version: "1.2.1",
+    liste: [
+      {
+        titre: "Chronologie des séjours et des clients",
+        texte: "Demande, décisions, arrivée, départ, encaissements, consommations et facture, dans l'ordre et horodatés.",
+        Icone: HistoryRegular,
+        pour: ["hote", "reception"],
+      },
+      {
+        titre: "Consommations sur la fiche du séjour",
+        texte: "Tickets du restaurant et du bar mis sur la chambre, avec le point de vente et le caissier.",
+        Icone: ReceiptRegular,
+        pour: ["hote", "reception"],
+      },
+    ],
+  },
   {
     version: "1.2.0",
     liste: [

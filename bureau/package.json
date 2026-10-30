@@ -1,7 +1,7 @@
 {
   "name": "avocatier-hotes",
   "productName": "Chez L'Avocatier",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Logiciel des hôtes de Chez L'Avocatier : demandes, planning, clients et tarifs",
   "author": "LAW Agency",
   "private": true,
