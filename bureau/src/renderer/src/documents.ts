@@ -53,6 +53,8 @@ function page(titre: string, corps: string): string {
   .totaux { margin: 14px 0 0 auto; width: 46%; }
   .totaux td { border: none; padding: 5px 6px; }
   .totaux .principal td { border-top: 1px solid ${C.encre}; font-size: 12pt; font-weight: 600; color: ${C.forest}; padding-top: 9px; }
+  .annulee { margin: 18px 0 0; padding: 10px 14px; border: 2px solid ${C.bordeaux}; border-radius: 6px; color: ${C.bordeaux}; }
+  .annulee strong { letter-spacing: 0.08em; text-transform: uppercase; }
   .acquittee { display: inline-block; margin-top: 14px; padding: 6px 14px; border: 2px solid ${C.vert}; border-radius: 6px; color: ${C.vert}; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(-3deg); }
   h2 { margin: 28px 0 8px; font-size: 8pt; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: ${C.forest}; }
   .montant { font-size: 20pt; font-weight: 600; color: ${C.forest}; margin: 4px 0 0; }
@@ -179,9 +181,11 @@ export function factureFigee(f: Facture): string {
     .filter(([d]) => d !== "EUR" && (d !== "MGA" || c.consommations.length || f.devise === "MGA"))
     .map(([d, t]) => `1 € = ${formaterDansDevise(t, d)}`)
     .join(" · ")
-  const client = { prenom: c.client.nom, nom: "", email: c.client.email, telephone: c.client.telephone, pays: c.client.pays } as ClientPublic
+  const client = clientFacture(f)
+  const a = f.annulation
   const corps = `
 ${entete(c.facturation, "Facture", [`N° ${f.numero}`, `Date : ${dateLongue(f.le)}`, c.references.length > 1 ? `Réservations ${c.references.join(", ")}` : `Réservation ${c.references[0] ?? ""}`])}
+${a ? `<div class="annulee"><strong>Annulée</strong> par l'avoir ${echapper(a.avoir)} du ${echapper(dateLongue(a.le))} : ${echapper(a.motif)}</div>` : ""}
 ${destinataire("Facturé à", client)}
 <table>
   <thead><tr><th>Désignation</th><th class="droite">Quantité</th><th class="droite">Montant</th></tr></thead>
@@ -195,7 +199,7 @@ ${destinataire("Facturé à", client)}
   ${c.regle ? `<tr><td>Déjà réglé</td><td class="droite">${echapper(m(c.regle))}</td></tr>` : ""}
   ${c.regle ? `<tr><td><strong>${c.reste > 0 ? "Reste à payer" : c.reste < 0 ? "Trop-perçu" : "Solde"}</strong></td><td class="droite"><strong>${echapper(m(Math.abs(c.reste)))}</strong></td></tr>` : ""}
 </table>
-${c.reste <= 0 && c.regle > 0 ? `<div style="text-align:right"><span class="acquittee">Acquittée</span></div>` : ""}
+${c.reste <= 0 && c.regle > 0 && !a ? `<div style="text-align:right"><span class="acquittee">Acquittée</span></div>` : ""}
 ${
   c.reglements.length
     ? `<h2>Règlements reçus</h2>
@@ -212,6 +216,41 @@ ${
 }
 <div class="pied">Montants en ${echapper(DEVISES[f.devise].nom.toLowerCase())}${taux ? `, au taux du ${echapper(dateLongue(f.le))} : ${echapper(taux)}` : ""}.${c.facturation.mentions ? `<br>${lignes(c.facturation.mentions)}` : ""}</div>`
   return page(`Facture ${f.numero}`, corps)
+}
+
+const clientFacture = (f: Facture) =>
+  ({ prenom: f.contenu.client.nom, nom: "", email: f.contenu.client.email, telephone: f.contenu.client.telephone, pays: f.contenu.client.pays }) as ClientPublic
+
+// Avoir d'une facture annulée : reprend ses lignes et son total en négatif, dans sa devise et à ses taux. Les
+// règlements ne bougent pas : ils restent acquis au séjour et figureront sur la nouvelle facture
+export function avoirFacture(f: Facture): string {
+  const a = f.annulation
+  if (!a) throw new Error(`La facture ${f.numero} n'est pas annulée.`)
+  const c = f.contenu
+  const m = (montant: number) => formaterDansDevise(-montant, f.devise)
+  const lignesTableau = (liste: LigneFacture[]) =>
+    liste
+      .map(
+        (l) =>
+          `<tr><td>${echapper(l.libelle)}${l.detail ? `<br><span class="detail">${echapper(l.detail)}</span>` : ""}</td><td class="droite">${echapper(l.quantite)}</td><td class="droite">${echapper(m(l.montant))}</td></tr>`,
+      )
+      .join("")
+  const corps = `
+${entete(c.facturation, "Avoir", [`N° ${a.avoir}`, `Date : ${dateLongue(a.le)}`, `Annule la facture ${f.numero} du ${dateLongue(f.le)}`])}
+${destinataire("Au nom de", clientFacture(f))}
+<p><strong>Motif :</strong> ${echapper(a.motif)}</p>
+<table>
+  <thead><tr><th>Désignation</th><th class="droite">Quantité</th><th class="droite">Montant</th></tr></thead>
+  <tbody>
+    ${lignesTableau(c.sejours)}
+    ${c.consommations.length ? `<tr><td colspan="3" style="padding-top:16px"><p class="etiquette">Restaurant et bar</p></td></tr>${lignesTableau(c.consommations)}` : ""}
+  </tbody>
+</table>
+<table class="totaux">
+  <tr class="principal"><td>Total de l'avoir</td><td class="droite">${echapper(m(c.total))}</td></tr>
+</table>
+<div class="pied">Montants en ${echapper(DEVISES[f.devise].nom.toLowerCase())}, aux taux de la facture ${echapper(f.numero)}. Les règlements déjà reçus restent acquis au séjour et figurent sur la facture qui remplace celle-ci.${c.facturation.mentions ? `<br>${lignes(c.facturation.mentions)}` : ""}</div>`
+  return page(`Avoir ${a.avoir}`, corps)
 }
 
 // --- Ticket de caisse Restaurant et Bar (rouleau de 80 mm) ---

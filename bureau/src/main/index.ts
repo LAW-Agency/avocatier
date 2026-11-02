@@ -228,11 +228,13 @@ function deconnecter() {
   mettreAJourTitre()
 }
 
-// Adresse du serveur saisie à la connexion : http(s) seulement, sans chemin
+// Adresse du serveur saisie à la connexion, sans chemin : https, ou http seulement vers cet ordinateur (mot de passe
+// et jeton ne passent jamais en clair sur le Wi-Fi de l'hôtel). Logiciel de développement : http permis partout
 function lireServeur(valeur: string): string | null {
   try {
     const url = new URL(valeur.trim())
-    return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+    return url.protocol === "https:" || (url.protocol === "http:" && (local || !app.isPackaged)) ? url.origin : null
   } catch {
     return null
   }
@@ -242,7 +244,7 @@ ipcMain.handle("session:lire", () => ({ session: sessionActive(), serveurParDefa
 
 ipcMain.handle("session:connexion", async (_e, email: string, motDePasse: string, adresse: string, seSouvenir: boolean) => {
   const serveur = lireServeur(adresse)
-  if (!serveur) return { ok: false, erreur: "Adresse du serveur invalide (ex. https://avocatier.mg)." }
+  if (!serveur) return { ok: false, erreur: "Adresse du serveur invalide : elle doit commencer par https:// (ex. https://avocatier.mg)." }
   const resultat = await appeler<{ jeton: string; hote: Hote }>("POST", "/api/hotes/connexion", { email, motDePasse }, serveur)
   if (!resultat.ok) return resultat
   const garder = seSouvenir === true

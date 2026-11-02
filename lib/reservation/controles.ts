@@ -82,7 +82,7 @@ export function controlerDemande(demande: DemandeReservation, hebergement: Heber
 }
 
 export function controlerChangementStatut(
-  reservation: Pick<Reservation, "statut" | "depart"> | undefined,
+  reservation: Pick<Reservation, "statut" | "depart" | "arriveeLe"> | undefined,
   statut: StatutReservation,
 ): string | null {
   if (!reservation) return "Réservation introuvable."
@@ -91,6 +91,11 @@ export function controlerChangementStatut(
   }
   if (statut === "annulee" && reservation.depart <= aujourdhuiISO()) {
     return "Ce séjour est terminé : il ne peut plus être annulé."
+  }
+  // Client sur place : une annulation laisserait la chambre occupée sans départ possible ni ménage, et sa note
+  // (restaurant, encaissements) sans suite
+  if (statut === "annulee" && reservation.arriveeLe) {
+    return "Le client est arrivé : il ne s'annule plus. S'il part plus tôt, modifiez la date de départ puis enregistrez son départ."
   }
   return null
 }
@@ -354,16 +359,17 @@ export function lireNumeroTicket(numero: string): { prefixe: string; rang: numbe
 export const totalTicket = (lignes: Pick<NouveauTicket["lignes"][number], "prixUnitaire" | "quantite">[]) =>
   lignes.reduce((total, l) => total + l.prixUnitaire * l.quantite, 0)
 
-// Vente envoyée par un poste : mise sur la chambre (aucun règlement) ou réglée exactement sur place. La
+// Vente envoyée par un poste (prix des lignes revérifiés à l'écriture contre la carte) : mise sur la chambre (aucun règlement) ou réglée exactement sur place. La
 // contre-valeur d'un règlement en ariary est son montant ; dans une autre devise, celle calculée par le poste au
 // taux des hôtes. La monnaie se rend en espèces : reçu − rendu = total du ticket
 export function controlerTicket(t: NouveauTicket): string | null {
   if (!t.id || t.id.length > 64 || !t.posteId) return "Vente incomplète : poste ou identifiant manquant."
   if (!lireNumeroTicket(t.numero)) return "Numéro de ticket invalide."
-  if (Number.isNaN(Date.parse(t.le))) return "Heure de la vente invalide."
+  if (!t.sessionId) return "Ouvrez la caisse de ce poste avant de vendre."
   if (t.lignes.length === 0) return "Le ticket est vide : ajoutez au moins un article."
   if (t.lignes.length > LIGNES_TICKET_MAX) return `${LIGNES_TICKET_MAX} lignes au plus par ticket.`
   for (const l of t.lignes) {
+    if (!l.articleId) return "Chaque ligne du ticket doit être un article de la carte."
     if (!l.libelle.trim()) return "Chaque ligne du ticket doit avoir un libellé."
     if (!Number.isInteger(l.prixUnitaire) || !estEntre(l.prixUnitaire, 0, PRIX_ARTICLE_MAX)) return `Prix invalide pour « ${l.libelle} ».`
     if (!Number.isInteger(l.quantite) || !estEntre(l.quantite, 1, QUANTITE_MAX)) return `Quantité invalide pour « ${l.libelle} ».`

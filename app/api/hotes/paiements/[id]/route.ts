@@ -7,7 +7,9 @@ export const DELETE = pourLesGerants(async (_requete, membre, contexte: RouteCon
   const { id } = await contexte.params
   // Lu avant la suppression, pour le journal
   const paiement = (await gestion.listerPaiements()).find((p) => p.id === id)
-  if (!paiement || !(await gestion.supprimerPaiement(id))) return json({ erreur: "Cet encaissement n'existe plus." }, 404)
+  if (!paiement) return json({ erreur: "Cet encaissement n'existe plus." }, 404)
+  const resultat = await gestion.supprimerPaiement(id)
+  if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
   journaliser(membre, "paiement", "Encaissement supprimé", async () => `${formaterPrix(paiement.montant)} · ${await decrireReservation(paiement.reservationId)}`)
   return json({ ok: true })
 })

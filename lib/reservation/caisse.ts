@@ -43,7 +43,7 @@ export interface CaisseRestaurant {
   // Clôture : bilan figé avec les espèces comptées ; un écart demande un commentaire. Déjà clôturée : `deja`
   cloturerSession(id: string, cloture: ClotureSession, membreId: string): Promise<Resultat<{ session: SessionCaisse; deja: boolean }>>
 
-  // Vente d'un poste, dans sa session ouverte (sauf vente faite hors connexion) ; déjà reçue (même identifiant, renvoi après une coupure) : `deja`, sans rien changer
+  // Vente d'un poste, dans sa session ouverte, aux prix de la carte ; déjà reçue (même identifiant, renvoi après une coupure) : `deja`, sans rien changer
   enregistrerTicket(ticket: NouveauTicket, caissierId: string): Promise<Resultat<{ ticket: Ticket; deja: boolean }>>
   // Motif obligatoire ; hors gérants, seulement les tickets du jour ; jamais un ticket déjà facturé
   annulerTicket(id: string, motif: string, membre: { id: string; gerant: boolean }): Promise<Resultat<{ ticket: Ticket }>>

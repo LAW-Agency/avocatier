@@ -93,8 +93,12 @@ export function demarrerMisesAJour(rappel: (etat: EtatMiseAJour) => void) {
 // Notes de la version (corps de la publication GitHub, en HTML) réduites à du texte
 function texteDesNotes(notes: string | { version: string; note: string | null }[] | null | undefined): string | null {
   const brut = Array.isArray(notes) ? notes.map((n) => n.note ?? "").join("\n") : (notes ?? "")
-  const texte = brut
-    .replace(/<\/(p|li|h\d)>|<br\s*\/?>/gi, "\n")
+  // En HTML, les retours à la ligne entre les balises ne comptent pas (sinon « </li>⏎<li> » laissait une ligne
+  // vide entre deux puces) : seules les balises de bloc font les sauts de ligne, un paragraphe laisse une ligne vide
+  const html = /<[a-z][^>]*>/i.test(brut)
+  const texte = (html ? brut.replace(/\s+/g, " ") : brut)
+    .replace(/<\/(p|h\d|ul|ol)>/gi, "\n\n")
+    .replace(/<\/li>|<br\s*\/?>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
@@ -103,6 +107,8 @@ function texteDesNotes(notes: string | { version: string; note: string | null }[
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    // Espaces laissés en début et fin de ligne par les balises retirées
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
   return texte || null

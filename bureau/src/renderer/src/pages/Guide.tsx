@@ -588,7 +588,9 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
           par catégorie et par mode de paiement, articles les plus vendus et caisses clôturées avec un écart.
         </li>
         <li>
-          <strong>Carte</strong> : prix en ariary, rangés par catégorie. Un article déjà vendu se retire de la carte (interrupteur) au lieu d&apos;être supprimé. Les ventes de la période
+          <strong>Carte</strong> : prix en ariary, rangés par catégorie. Seuls les gérants ajoutent un article ou changent un prix ; toute l&apos;équipe de la caisse
+          retire un article épuisé (interrupteur) ou le remet. Un article déjà vendu se retire de la carte au lieu d&apos;être supprimé. Chaque vente reprend le prix de
+          la carte au moment où elle est enregistrée. Les ventes de la période
           apparaissent dans Revenus (gérants), à part du chiffre d&apos;affaires des séjours.
         </li>
       </ul>

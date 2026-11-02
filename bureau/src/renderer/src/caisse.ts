@@ -119,7 +119,6 @@ export function useCaisse(jour: DateISO | null) {
       const resultat = await ecrire<{ session: SessionCaisse }>("POST", "/api/hotes/caisse/sessions", {
         id: crypto.randomUUID(),
         posteId: poste.posteId,
-        ouverteLe: new Date().toISOString(),
         fondCaisse,
       })
       return resultat.ok ? null : resultat.erreur
@@ -129,11 +128,13 @@ export function useCaisse(jour: DateISO | null) {
 
   const cloturer = useCallback(
     async (id: string, especesComptees: Partial<Record<CodeDevise, number>>, commentaire: string): Promise<ResultatApi<{ session: SessionCaisse }>> =>
-      ecrire<{ session: SessionCaisse }>("PATCH", `/api/hotes/caisse/sessions/${encodeURIComponent(id)}`, { fermeeLe: new Date().toISOString(), especesComptees, commentaire }),
+      ecrire<{ session: SessionCaisse }>("PATCH", `/api/hotes/caisse/sessions/${encodeURIComponent(id)}`, { especesComptees, commentaire }),
     [ecrire],
   )
 
-  // Numéro attribué par le poste, identifiant unique : un renvoi après une coupure ne fait pas de doublon
+  // Numéro attribué par le poste, identifiant unique : un renvoi après une coupure ne fait pas de doublon. Heure et
+  // prix fixés par le serveur : une vente refusée (prix changé, article retiré) recharge la carte, et le ticket en
+  // cours reprend les prix à jour
   const vendre = useCallback(
     async (vente: Vente): Promise<ResultatApi<{ ticket: Ticket }>> => {
       if (lectureSeule) return { ok: false, erreur: MESSAGE_LECTURE_SEULE }
@@ -141,18 +142,19 @@ export function useCaisse(jour: DateISO | null) {
       const local = poste ?? (await window.avocatier.posteCaisse())
       const numero = await window.avocatier.numeroterTicket()
       if (!numero) return { ok: false, erreur: "Ce poste n'est pas encore enregistré." }
-      return ecrire<{ ticket: Ticket }>("POST", "/api/hotes/caisse/tickets", {
+      const resultat = await ecrire<{ ticket: Ticket }>("POST", "/api/hotes/caisse/tickets", {
         id: crypto.randomUUID(),
         numero,
         posteId: local.posteId,
         sessionId: session.id,
-        le: new Date().toISOString(),
         libelle: vente.libelle,
         lignes: vente.lignes,
         ...("reservationId" in vente ? { reservationId: vente.reservationId, reglements: [] } : { reglements: [vente.reglement] }),
       })
+      if (!resultat.ok) await charger()
+      return resultat
     },
-    [lectureSeule, poste, session, ecrire],
+    [lectureSeule, poste, session, ecrire, charger],
   )
 
   return { donnees, erreur, poste, session, jourEnCours: jourCharge !== jour, charger, ecrire, enregistrerPoste, ouvrir, cloturer, vendre, lectureSeule }

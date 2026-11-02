@@ -49,7 +49,10 @@ export default function ActionsReservation({ reservationId, statut, reference, t
   // Fenêtre de refus / annulation gardée ouverte pendant l'appel, avec le Spinner sur son bouton
   const [fenetre, setFenetre] = useState(false)
   if (statut !== "option" && statut !== "confirmee") return null
-  const clientId = donnees?.reservations.find((r) => r.id === reservationId)?.clientId
+  const reservation = donnees?.reservations.find((r) => r.id === reservationId)
+  // Client arrivé : plus d'annulation (le serveur la refuse), son séjour se termine par un départ
+  if (statut === "confirmee" && reservation?.arriveeLe) return null
+  const clientId = reservation?.clientId
   const email = donnees?.clients.find((c) => c.id === clientId)?.email
 
   async function envoyer(nouveau: "confirmee" | "refusee" | "annulee") {

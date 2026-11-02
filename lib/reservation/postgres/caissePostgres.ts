@@ -88,7 +88,7 @@ async function lireSession(executant: Executant, id: string): Promise<SessionCai
 const FOND_MAX = 100_000_000
 
 // Séjour déjà facturé (facture figée, ou facture éditée avant la caisse) : plus rien ne s'y ajoute
-const DEJA_FACTURE = `(r.facture_numero is not null or exists (select 1 from factures_reservations fr where fr.reservation_id = r.id))`
+const DEJA_FACTURE = `(r.facture_numero is not null or exists (select 1 from factures_reservations fr where fr.reservation_id = r.id and fr.en_vigueur))`
 
 const ID_POSTE = /^[A-Za-z0-9-]{8,64}$/
 
@@ -275,20 +275,15 @@ export const caissePostgres: CaisseRestaurant = {
         if (!poste) return { ok: false as const, erreur: "Poste de caisse inconnu : reconnectez le logiciel." }
         if (lireNumeroTicket(t.numero)!.prefixe !== poste.prefixe) return { ok: false as const, erreur: "Ce numéro de ticket n'appartient pas à ce poste." }
 
-        // Vente au comptoir : dans la session ouverte de ce poste. Vente faite hors connexion : enregistrée même si la
-        // caisse a été clôturée depuis (l'argent est dans le tiroir de la session suivante, l'écart l'expliquera)
-        if (t.sessionId) {
-          const [session] = await lignes<{ posteId: string; fermee: boolean }>(
-            tx,
-            `select poste_id as "posteId", fermee_le is not null as fermee from sessions_caisse where id = $1`,
-            [t.sessionId],
-          )
-          if (!session) return { ok: false as const, erreur: "Session de caisse inconnue : rouvrez la caisse." }
-          if (session.posteId !== t.posteId) return { ok: false as const, erreur: "Cette session de caisse appartient à un autre poste." }
-          if (session.fermee && !t.differe) return { ok: false as const, erreur: "La caisse de ce poste est clôturée : ouvrez-la pour vendre." }
-        } else if (!t.differe) {
-          return { ok: false as const, erreur: "Ouvrez la caisse de ce poste avant de vendre." }
-        }
+        // Vente au comptoir : dans la session ouverte de ce poste
+        const [session] = await lignes<{ posteId: string; fermee: boolean }>(
+          tx,
+          `select poste_id as "posteId", fermee_le is not null as fermee from sessions_caisse where id = $1`,
+          [t.sessionId],
+        )
+        if (!session) return { ok: false as const, erreur: "Session de caisse inconnue : rouvrez la caisse." }
+        if (session.posteId !== t.posteId) return { ok: false as const, erreur: "Cette session de caisse appartient à un autre poste." }
+        if (session.fermee) return { ok: false as const, erreur: "La caisse de ce poste est clôturée : ouvrez-la pour vendre." }
 
         let statut: StatutTicket = "paye"
         if (t.reservationId) {
@@ -299,23 +294,34 @@ export const caissePostgres: CaisseRestaurant = {
             [t.reservationId],
           )
           if (!r) return { ok: false as const, erreur: "Séjour introuvable." }
-          // Vente faite hors connexion : elle a eu lieu, on l'enregistre (une anomalie se verra au départ)
-          if (!t.differe) {
-            const aujourdhui = aujourdhuiISO()
-            if (r.statut !== "confirmee" || r.arrivee > aujourdhui || r.depart < aujourdhui) return { ok: false as const, erreur: "Ce séjour n'est pas en cours : choisissez une autre chambre." }
-            if (r.parti) return { ok: false as const, erreur: "Ce client est déjà parti : encaissez le ticket sur place." }
-            if (r.facture) return { ok: false as const, erreur: "Ce séjour est déjà facturé : encaissez le ticket sur place." }
-          }
+          const aujourdhui = aujourdhuiISO()
+          if (r.statut !== "confirmee" || r.arrivee > aujourdhui || r.depart < aujourdhui) return { ok: false as const, erreur: "Ce séjour n'est pas en cours : choisissez une autre chambre." }
+          if (r.parti) return { ok: false as const, erreur: "Ce client est déjà parti : encaissez le ticket sur place." }
+          if (r.facture) return { ok: false as const, erreur: "Ce séjour est déjà facturé : encaissez le ticket sur place." }
         }
 
-        // Article supprimé entre-temps (vente hors connexion) : la ligne garde son libellé et son prix
-        const ids = t.lignes.flatMap((l) => (l.articleId ? [l.articleId] : []))
-        const connus = new Set((await lignes<{ id: string }>(tx, "select id from articles where id = any($1)", [ids])).map((a) => a.id))
+        // Prix fixés par la carte, pas par le poste : un article retiré ou dont le prix a changé depuis le chargement
+        // de l'écran refuse la vente (le logiciel recharge alors la carte et met le ticket à jour)
+        const carte = new Map(
+          (
+            await lignes<Pick<Article, "id" | "nom" | "prix" | "actif">>(tx, "select id, nom, prix, actif from articles where id = any($1)", [
+              t.lignes.map((l) => l.articleId),
+            ])
+          ).map((a) => [a.id, a]),
+        )
+        for (const l of t.lignes) {
+          const article = carte.get(l.articleId ?? "")
+          if (!article?.actif) return { ok: false as const, erreur: `« ${l.libelle} » n'est plus à la carte : retirez-le du ticket.` }
+          if (article.prix !== l.prixUnitaire) {
+            return { ok: false as const, erreur: `Le prix de « ${article.nom} » a changé : le ticket est mis à jour, vérifiez le total puis validez de nouveau.` }
+          }
+        }
 
         await tx.query(
           `insert into tickets (id, numero, poste_id, session_id, caissier_id, le, statut, reservation_id, libelle, total)
            values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [t.id, t.numero, t.posteId, t.sessionId ?? null, caissierId, new Date(t.le), statut, t.reservationId ?? null, t.libelle.trim().slice(0, 80), totalTicket(t.lignes)],
+          // Heure du serveur : un poste ne date pas lui-même ses ventes
+          [t.id, t.numero, t.posteId, t.sessionId, caissierId, new Date(), statut, t.reservationId ?? null, t.libelle.trim().slice(0, 80), totalTicket(t.lignes)],
         )
         await tx.query(
           `insert into lignes_ticket (ticket_id, article_id, libelle, prix_unitaire, quantite, position)
@@ -325,8 +331,8 @@ export const caissePostgres: CaisseRestaurant = {
             t.id,
             JSON.stringify(
               t.lignes.map((l, position) => ({
-                article_id: l.articleId && connus.has(l.articleId) ? l.articleId : null,
-                libelle: l.libelle.trim().slice(0, 120),
+                article_id: l.articleId,
+                libelle: carte.get(l.articleId ?? "")!.nom.slice(0, 120),
                 prix_unitaire: l.prixUnitaire,
                 quantite: l.quantite,
                 position,
@@ -353,9 +359,8 @@ export const caissePostgres: CaisseRestaurant = {
     }
   },
 
-  async ouvrirSession({ id, posteId, ouverteLe, fondCaisse }, membreId) {
+  async ouvrirSession({ id, posteId, fondCaisse }, membreId) {
     if (!id || id.length > 64) return { ok: false, erreur: "Identifiant de session invalide." }
-    if (Number.isNaN(Date.parse(ouverteLe))) return { ok: false, erreur: "Heure d'ouverture invalide." }
     if (!Number.isInteger(fondCaisse) || fondCaisse < 0 || fondCaisse > FOND_MAX) {
       return { ok: false, erreur: "Saisissez le fond de caisse en ariary (0 s'il n'y en a pas)." }
     }
@@ -365,11 +370,11 @@ export const caissePostgres: CaisseRestaurant = {
         if (deja) return { ok: true as const, session: deja, deja: true }
         const [poste] = await lignes(tx, "select 1 from postes_caisse where id = $1", [posteId])
         if (!poste) return { ok: false as const, erreur: "Poste de caisse inconnu : reconnectez le logiciel." }
-        await tx.query("insert into sessions_caisse (id, poste_id, ouverte_par, ouverte_le, fond_caisse) values ($1, $2, $3, $4, $5)", [
+        // Heure du serveur, comme pour les ventes et la clôture
+        await tx.query("insert into sessions_caisse (id, poste_id, ouverte_par, ouverte_le, fond_caisse) values ($1, $2, $3, now(), $4)", [
           id,
           posteId,
           membreId,
-          new Date(ouverteLe),
           fondCaisse,
         ])
         return { ok: true as const, session: (await lireSession(tx, id))!, deja: false }
@@ -380,7 +385,7 @@ export const caissePostgres: CaisseRestaurant = {
     }
   },
 
-  async cloturerSession(id, { fermeeLe, especesComptees, commentaire }, membreId) {
+  async cloturerSession(id, { especesComptees, commentaire }, membreId) {
     const comptees: Partial<Record<CodeDevise, number>> = {}
     for (const [devise, montant] of Object.entries(especesComptees)) {
       if (!estCodeDevise(devise) || !Number.isFinite(montant) || montant < 0 || (devise === "MGA" && !Number.isInteger(montant))) {
@@ -388,7 +393,6 @@ export const caissePostgres: CaisseRestaurant = {
       }
       comptees[devise] = Math.round(montant * 100) / 100
     }
-    if (Number.isNaN(Date.parse(fermeeLe))) return { ok: false, erreur: "Heure de clôture invalide." }
     return transaction(async (tx) => {
       const [session] = await lignes<{ fond: number; fermee: boolean }>(
         tx,
@@ -404,8 +408,8 @@ export const caissePostgres: CaisseRestaurant = {
         return { ok: false as const, erreur: "Les espèces comptées ne correspondent pas : expliquez l'écart avant de clôturer." }
       }
       await tx.query(
-        "update sessions_caisse set fermee_le = $2, fermee_par = $3, especes_comptees = $4, bilan = $5, commentaire = $6 where id = $1",
-        [id, new Date(fermeeLe), membreId, JSON.stringify(comptees), JSON.stringify(bilan), explication],
+        "update sessions_caisse set fermee_le = now(), fermee_par = $2, especes_comptees = $3, bilan = $4, commentaire = $5 where id = $1",
+        [id, membreId, JSON.stringify(comptees), JSON.stringify(bilan), explication],
       )
       return { ok: true as const, session: (await lireSession(tx, id))!, deja: false }
     })
@@ -415,10 +419,11 @@ export const caissePostgres: CaisseRestaurant = {
     const raison = motif.trim().slice(0, 300)
     if (!raison) return { ok: false, erreur: "Indiquez le motif de l'annulation." }
     return transaction(async (tx) => {
-      const [t] = await lignes<{ statut: StatutTicket; jour: string; facture: boolean }>(
+      const [t] = await lignes<{ statut: StatutTicket; jour: string; facture: boolean; clos: boolean }>(
         tx,
         `select t.statut, (t.le at time zone '${FUSEAU}')::date::text as jour,
-           (t.facture_id is not null or coalesce((select ${DEJA_FACTURE} from reservations r where r.id = t.reservation_id), false)) as facture
+           (t.facture_id is not null or coalesce((select ${DEJA_FACTURE} from reservations r where r.id = t.reservation_id), false)) as facture,
+           coalesce((select s.fermee_le is not null from sessions_caisse s where s.id = t.session_id), false) as clos
          from tickets t where t.id = $1 for update`,
         [id],
       )
@@ -426,6 +431,8 @@ export const caissePostgres: CaisseRestaurant = {
       if (t.statut === "annule") return { ok: false as const, erreur: "Ce ticket est déjà annulé." }
       if (t.facture) return { ok: false as const, erreur: "Ce ticket figure sur une facture de séjour : il ne s'annule plus." }
       if (!membre.gerant && t.jour !== aujourdhuiISO()) return { ok: false as const, erreur: "Seul un gérant annule un ticket d'un jour passé." }
+      // Caisse déjà comptée et clôturée : annuler un ticket payé ferait sortir de l'argent d'un tiroir déjà vérifié
+      if (!membre.gerant && t.clos && t.statut === "paye") return { ok: false as const, erreur: "La caisse de ce ticket est clôturée : seul un gérant peut l'annuler." }
       await tx.query("update tickets set statut = 'annule', annule_le = now(), annule_par = $2, motif_annulation = $3 where id = $1", [id, membre.id, raison])
       return { ok: true as const, ticket: (await lireTicket(tx, id))! }
     })

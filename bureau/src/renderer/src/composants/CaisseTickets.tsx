@@ -110,8 +110,10 @@ export default function CaisseTickets({ caisse, donnees, jour, onJour }: { caiss
     setImpression(null)
   }
 
-  // Hors gérants, seuls les tickets du jour s'annulent (vérifié aussi par le serveur)
-  const annulable = (t: Ticket) => t.statut !== "annule" && !t.factureId && (gerant || aujourdhui)
+  // Hors gérants, seuls les tickets du jour s'annulent, et pas un ticket payé d'une caisse déjà clôturée (vérifié
+  // aussi par le serveur)
+  const clos = (t: Ticket) => t.statut === "paye" && !!donnees.sessions.find((s) => s.id === t.sessionId)?.fermeeLe
+  const annulable = (t: Ticket) => t.statut !== "annule" && !t.factureId && (gerant || (aujourdhui && !clos(t)))
 
   return (
     <div className={styles.page}>

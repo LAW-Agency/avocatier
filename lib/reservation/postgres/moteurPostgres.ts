@@ -202,6 +202,9 @@ export async function attribuerChambre(
   return { chambreId }
 }
 
+// Demandes du site en option (une demande de plusieurs chambres compte pour une) par compte client
+const DEMANDES_EN_ATTENTE_MAX = 3
+
 export const moteurPostgres: MoteurReservation = {
   async listerHebergements() {
     return lireHebergements(db())
@@ -243,6 +246,17 @@ export const moteurPostgres: MoteurReservation = {
         if (erreur || !hebergement) return { ok: false, erreur: erreur ?? "Cet hébergement n'existe pas." }
 
         const { arrivee, depart, adultes, enfants, chambres, navette, telephone, message } = demande
+        // Demandes en attente d'un même compte comptées sous son verrou : sans limite, un compte (ou un robot) pourrait
+        // bloquer tout le planning par des options de 48 h renouvelées
+        await tx.query("select pg_advisory_xact_lock(hashtext($1))", [`demandes:${clientId}`])
+        const [{ enAttente }] = await lignes<{ enAttente: number }>(
+          tx,
+          "select count(distinct coalesce(groupe, id))::int as \"enAttente\" from reservations where client_id = $1 and statut = 'option'",
+          [clientId],
+        )
+        if (enAttente >= DEMANDES_EN_ATTENTE_MAX) {
+          return { ok: false, erreur: `Vous avez déjà ${enAttente} demandes en attente de réponse : attendez la réponse des hôtes ou annulez-en une depuis votre compte.` }
+        }
         const libres = await chambresLibres(tx, hebergement.id, arrivee, depart)
         if (libres.length === 0) return { ok: false, erreur: DATES_PRISES }
         if (libres.length < chambres) {
@@ -278,7 +292,7 @@ export const moteurPostgres: MoteurReservation = {
               voyageurs.adultes,
               voyageurs.enfants,
               navette,
-              telephone,
+              telephone.slice(0, 40),
               message,
               montant,
               maintenant,
@@ -370,13 +384,20 @@ export const moteurPostgres: MoteurReservation = {
   async changerStatut(reservationId, statut, note) {
     return transaction<ResultatAction>(async (tx) => {
       await expirerOptions(tx)
-      const [reservation] = await lignes<Pick<Reservation, "statut" | "depart"> & { groupe: string | null }>(
+      const [ligne] = await lignes<Pick<Reservation, "statut" | "depart"> & { groupe: string | null; arriveeLe: Date | null; facture: string | null }>(
         tx,
-        "select statut, depart, groupe from reservations where id = $1 for update",
+        `select statut, depart, groupe, arrivee_le as "arriveeLe",
+           (select f.numero from factures_reservations fr join factures f on f.id = fr.facture_id
+            where fr.reservation_id = r.id and fr.en_vigueur) as facture
+         from reservations r where id = $1 for update`,
         [reservationId],
       )
+      const reservation = ligne && { ...ligne, arriveeLe: ligne.arriveeLe?.toISOString() }
       const erreur = controlerChangementStatut(reservation, statut)
       if (erreur) return { ok: false, erreur }
+      if (statut === "annulee" && ligne.facture) {
+        return { ok: false, erreur: `Ce séjour figure sur la facture ${ligne.facture} : un gérant doit d'abord l'annuler par un avoir.` }
+      }
       // Les hôtes ne remettent jamais en option : l'échéance disparaît. Une demande de plusieurs chambres se
       // confirme ou se refuse en entier ; un séjour confirmé s'annule chambre par chambre
       const groupe = reservation.statut === "option" ? reservation.groupe : null
@@ -567,5 +588,35 @@ export const comptesPostgres: DepotComptes = {
       )
       return ligne ? versClient(ligne) : null
     })
+  },
+
+  async revoquerJeton(empreinte, expireLe) {
+    // Jetons expirés : plus rien à refuser, la signature suffit
+    await db().query("delete from jetons_revoques where expire_le < now()")
+    await db().query("insert into jetons_revoques (empreinte, expire_le) values ($1, $2) on conflict (empreinte) do nothing", [empreinte, expireLe])
+  },
+
+  async jetonRevoque(empreinte) {
+    const [ligne] = await lignes(db(), "select 1 from jetons_revoques where empreinte = $1", [empreinte])
+    return Boolean(ligne)
+  },
+
+  async noterEchecConnexion(cles) {
+    // Au-delà d'un jour, une tentative ne compte plus pour aucune limite
+    await db().query("delete from tentatives_connexion where le < now() - interval '1 day'")
+    await db().query("insert into tentatives_connexion (cle) select unnest($1::text[])", [cles])
+  },
+
+  async echecsConnexion(cles, depuis) {
+    const liste = await lignes<{ cle: string; nombre: number }>(
+      db(),
+      "select cle, count(*)::int as nombre from tentatives_connexion where cle = any($1) and le > $2 group by cle",
+      [cles, depuis],
+    )
+    return Object.fromEntries(liste.map((l) => [l.cle, l.nombre]))
+  },
+
+  async effacerEchecsConnexion(cle) {
+    await db().query("delete from tentatives_connexion where cle = $1", [cle])
   },
 }

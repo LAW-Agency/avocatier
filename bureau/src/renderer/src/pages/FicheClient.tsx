@@ -457,6 +457,7 @@ function EncaissementsClient({ paiements }: { paiements: Paiement[] }) {
 function FacturesClient({ factures, anciennes }: { factures: Facture[]; anciennes: Reservation[] }) {
   const styles = useFicheClientStyles()
   const { d } = useDonneesChargees()
+  const { imprimerFactureFigee, imprimerAvoir } = useFichiers()
   const sejour = (id: string) => d.reservations.find((r) => r.id === id)
   const lignes = [
     ...factures.map((f) => ({
@@ -465,8 +466,9 @@ function FacturesClient({ factures, anciennes }: { factures: Facture[]; ancienne
       numero: f.numero,
       total: formaterDansDevise(f.total, f.devise),
       sejours: f.reservationIds.map(sejour).filter((r): r is Reservation => !!r),
+      facture: f,
     })),
-    ...anciennes.map((r) => ({ id: r.id, le: r.factureLe ?? r.creeLe, numero: r.factureNumero ?? "", total: "", sejours: [r] })),
+    ...anciennes.map((r) => ({ id: r.id, le: r.factureLe ?? r.creeLe, numero: r.factureNumero ?? "", total: "", sejours: [r], facture: undefined })),
   ].sort((a, b) => b.le.localeCompare(a.le))
   if (!lignes.length) return <Vide Icone={DocumentPdfRegular} titre="Aucune facture" texte="Les factures éditées au départ (séjour, restaurant et bar, règlements) apparaîtront ici." />
   return (
@@ -480,10 +482,22 @@ function FacturesClient({ factures, anciennes }: { factures: Facture[]; ancienne
             <Text weight="semibold">{f.numero}</Text>
             <Caption1 className={styles.libelle}>
               Éditée le {formaterHeure(f.le)} · {f.sejours.map((r) => `${r.reference} (${d.chambres.find((c) => c.id === r.chambreId)?.numero ?? "?"})`).join(", ")}
+              {f.facture?.annulation && ` · annulée le ${formaterHeure(f.facture.annulation.le)} par l'avoir ${f.facture.annulation.avoir} (« ${f.facture.annulation.motif} »)`}
             </Caption1>
           </div>
-          {f.total && <Text weight="semibold">{f.total}</Text>}
-          {f.sejours[0] && <BoutonFacture reservation={f.sejours[0]} appearance="subtle" />}
+          {f.total && <Text weight="semibold" strikethrough={!!f.facture?.annulation}>{f.total}</Text>}
+          {f.facture?.annulation ? (
+            <>
+              <Button appearance="subtle" icon={<DocumentPdfRegular />} onClick={() => f.facture && void imprimerFactureFigee(f.facture)}>
+                Facture
+              </Button>
+              <Button appearance="subtle" icon={<DocumentPdfRegular />} onClick={() => f.facture && void imprimerAvoir(f.facture)}>
+                Avoir {f.facture.annulation.avoir}
+              </Button>
+            </>
+          ) : (
+            f.sejours[0] && <BoutonFacture reservation={f.sejours[0]} appearance="subtle" />
+          )}
         </li>
       ))}
     </ul>

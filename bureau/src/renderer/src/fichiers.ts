@@ -2,7 +2,7 @@ import { useState } from "react"
 import type { CodeDevise, Facture, Paiement, Reservation, SessionCaisse, Ticket } from "@partage/types"
 import type { FeuilleClasseur, ResultatFichier } from "../../partage/ipc"
 import { convertir } from "@partage/folio"
-import { facture, factureFigee, numeroRecu, rapportCloture, recu, ticketCaisse } from "./documents"
+import { avoirFacture, facture, factureFigee, numeroRecu, rapportCloture, recu, ticketCaisse } from "./documents"
 import { nomDe, restaurantSur, useDonneesChargees } from "./donnees"
 import { nomExport } from "./exports"
 import { useAnnoncer } from "./toasts"
@@ -53,6 +53,25 @@ export function useFichiers() {
     return null
   }
 
+  // Facture figée réimprimée telle quelle (marquée « Annulée » si un avoir l'a annulée), et son avoir
+  async function imprimerFactureFigee(f: Facture) {
+    annoncerResultat(await window.avocatier.enregistrerPdf(`Facture ${f.numero} ${f.contenu.client.nom}.pdf`, factureFigee(f)), `Facture ${f.numero} enregistrée`, "Facture non enregistrée")
+  }
+
+  async function imprimerAvoir(f: Facture) {
+    if (!f.annulation) return
+    const { avoir } = f.annulation
+    annoncerResultat(await window.avocatier.enregistrerPdf(`Avoir ${avoir} ${f.contenu.client.nom}.pdf`, avoirFacture(f)), `Avoir ${avoir} enregistré`, "Avoir non enregistré")
+  }
+
+  // Annulation d'une facture par un avoir (gérants), puis PDF de l'avoir. Renvoie l'erreur à afficher
+  async function annulerFacture(f: Facture, motif: string): Promise<string | null> {
+    const resultat = await executer<{ facture: Facture }>("PATCH", `/api/hotes/factures/${encodeURIComponent(f.id)}`, { annuler: true, motif })
+    if (!resultat.ok) return resultat.erreur
+    await imprimerAvoir(resultat.donnees.facture)
+    return null
+  }
+
   async function imprimerRecu(p: Paiement) {
     const r = d.reservations.find((x) => x.id === p.reservationId)
     if (!r) return
@@ -78,5 +97,5 @@ export function useFichiers() {
     if (!resultat.ok && !resultat.annule) annoncer({ titre: "Rapport de caisse non imprimé", texte: resultat.erreur, intent: "error", duree: 10_000 })
   }
 
-  return { exporter, exportEnCours, imprimerFacture, imprimerRecu, imprimerTicket, imprimerCloture }
+  return { exporter, exportEnCours, imprimerFacture, imprimerFactureFigee, imprimerAvoir, annulerFacture, imprimerRecu, imprimerTicket, imprimerCloture }
 }

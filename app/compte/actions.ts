@@ -1,12 +1,22 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { after } from "next/server"
+import {
+  adresseIp,
+  connexionBloquee,
+  inscriptionBloquee,
+  noterConnexionReussie,
+  noterEchecConnexion,
+  noterInscription,
+  revoquerJeton,
+} from "@/lib/auth/connexions"
 import { cheminInterne, clientConnecte } from "@/lib/auth/dal"
 import { hacherMotDePasse, verifierMotDePasse } from "@/lib/auth/motDePasse"
 import { DUREE_LIEN_MS, empreinteJeton, nouveauJeton } from "@/lib/auth/recuperation"
-import { fermerSession, ouvrirSession } from "@/lib/auth/session"
+import { COOKIE_SESSION, fermerSession, ouvrirSession } from "@/lib/auth/session"
 import { urlDuSite } from "@/lib/email/modeles"
 import { envoyerLienDeReinitialisation, notifierAnnulationParLeClient, notifierMotDePasseModifie } from "@/lib/email/notifications"
 import { comptes, moteur } from "@/lib/reservation"
@@ -35,10 +45,16 @@ export async function connexion(_etat: EtatFormulaire, formData: FormData): Prom
   const email = texte(formData, "email").toLowerCase()
   const motDePasse = String(formData.get("motDePasse") ?? "")
 
+  const ip = adresseIp(await headers())
+  const bloquee = await connexionBloquee(email, ip)
+  if (bloquee) return { erreur: bloquee, valeurs: { email } }
+
   const client = email ? await comptes.trouverParEmail(email) : null
   if (!client || !verifierMotDePasse(motDePasse, client.motDePasseHash)) {
+    await noterEchecConnexion(email, ip)
     return { erreur: "E-mail ou mot de passe incorrect.", valeurs: { email } }
   }
+  await noterConnexionReussie(email)
   // L'équipe (hôtes, réception) gère les réservations depuis son logiciel : aucune session sur le site
   if (client.role !== "client") {
     return { erreur: "Ce compte de l'équipe se connecte depuis le logiciel Chez L'Avocatier, pas depuis le site.", valeurs: { email } }
@@ -67,13 +83,19 @@ export async function inscription(_etat: EtatFormulaire, formData: FormData): Pr
   if (await comptes.trouverParEmail(valeurs.email)) {
     return { erreur: "Un compte existe déjà avec cette adresse : connectez-vous.", valeurs }
   }
+  const ip = adresseIp(await headers())
+  const bloquee = await inscriptionBloquee(ip)
+  if (bloquee) return { erreur: bloquee, valeurs }
 
   const client = await comptes.creer({ ...valeurs, motDePasseHash: hacherMotDePasse(motDePasse) })
+  await noterInscription(ip)
   await ouvrirSession(client.id)
   return poursuivre(formData)
 }
 
 export async function deconnexion(formData: FormData) {
+  // Cookie refusé par le serveur, pas seulement effacé du navigateur
+  await revoquerJeton((await cookies()).get(COOKIE_SESSION)?.value)
   await fermerSession()
   redirect(cheminInterne(formData.get("suite"), "/"))
 }

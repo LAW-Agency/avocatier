@@ -1,9 +1,10 @@
-import { journaliser, json, lireCorps, pourLaCaisse } from "@/lib/api/hotes"
+import { journaliser, json, lireCorps, pourLaCaisse, pourLesGerants } from "@/lib/api/hotes"
 import { caisse } from "@/lib/reservation"
 import { formaterDansDevise } from "@/lib/reservation/devises"
 import type { ModificationArticle } from "@/lib/reservation/types"
 
-// Modifier un article de la carte : { nom?, categorie?, prix?, description?, actif?, ordre? }
+// Modifier un article de la carte : { nom?, categorie?, prix?, description?, actif?, ordre? }. Toute l'équipe de la
+// caisse retire un article épuisé ou le remet ({ actif } seul) ; le reste, prix compris, est réservé aux gérants
 export const PATCH = pourLaCaisse(async (requete, membre, contexte: RouteContext<"/api/hotes/caisse/articles/[id]">) => {
   const { id } = await contexte.params
   const c = await lireCorps(requete)
@@ -14,6 +15,9 @@ export const PATCH = pourLaCaisse(async (requete, membre, contexte: RouteContext
   if (typeof c?.description === "string") modification.description = c.description
   if (typeof c?.actif === "boolean") modification.actif = c.actif
   if (typeof c?.ordre === "number") modification.ordre = c.ordre
+  if (membre.role !== "hote" && Object.keys(modification).some((cle) => cle !== "actif")) {
+    return json({ erreur: "Seul un gérant modifie la carte : vous pouvez seulement retirer un article épuisé ou le remettre." }, 403)
+  }
   const resultat = await caisse.modifierArticle(id, modification)
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 400)
   const { article } = resultat
@@ -22,8 +26,8 @@ export const PATCH = pourLaCaisse(async (requete, membre, contexte: RouteContext
   return json({ ok: true, article })
 })
 
-// Supprimer un article jamais vendu (sinon : le désactiver)
-export const DELETE = pourLaCaisse(async (_requete, membre, contexte: RouteContext<"/api/hotes/caisse/articles/[id]">) => {
+// Supprimer un article jamais vendu (sinon : le désactiver), gérants
+export const DELETE = pourLesGerants(async (_requete, membre, contexte: RouteContext<"/api/hotes/caisse/articles/[id]">) => {
   const { id } = await contexte.params
   const resultat = await caisse.supprimerArticle(id)
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)

@@ -45,8 +45,9 @@ export interface GestionHotel {
   // Client venu au comptoir ou au téléphone, sans compte sur le site
   creerClientLocal(client: NouveauClientLocal): Promise<ResultatClient>
   modifierNoteClient(id: string, note: string): Promise<ResultatAction>
-  // Coordonnées corrigées (un compte du site garde son e-mail, qui lui sert d'identifiant)
-  modifierClient(id: string, modification: ModificationClient): Promise<ResultatAction>
+  // Coordonnées corrigées. L'e-mail d'un compte du site lui sert d'identifiant : seul un gérant le change, et ses
+  // sessions et liens de récupération ne valent plus
+  modifierClient(id: string, modification: ModificationClient, gerant: boolean): Promise<ResultatAction>
   // Deux fiches du même client réunies : réservations et coordonnées passent sur la fiche gardée (celle du
   // compte du site si l'une en est un), l'autre est supprimée. Renvoie la fiche gardée
   fusionnerClients(gardeId: string, doublonId: string): Promise<ResultatClient>
@@ -55,9 +56,11 @@ export interface GestionHotel {
   effacerClient(id: string): Promise<ResultatAction>
 
   // Réservation confirmée d'office, saisie par l'équipe (`membreId` : auteur, noté dans l'historique)
-  creerReservationDirecte(reservation: ReservationDirecte, auteur: string): Promise<ResultatDemande>
-  // Demande ou séjour confirmé modifié (dates, hébergement, chambre, voyageurs, navette, montant), noté dans l'historique
-  modifierReservation(id: string, modification: ModificationReservation, auteur: string): Promise<ResultatModification>
+  // `remise` : montant sous le tarif permis (gérants seulement)
+  creerReservationDirecte(reservation: ReservationDirecte, auteur: string, remise: boolean): Promise<ResultatDemande>
+  // Demande ou séjour confirmé modifié (dates, hébergement, chambre, voyageurs, navette, montant), noté dans l'historique.
+  // Sans `remise`, le montant ne descend pas sous le tarif (sauf s'il reste celui d'un séjour aux mêmes dates)
+  modifierReservation(id: string, modification: ModificationReservation, auteur: string, remise: boolean): Promise<ResultatModification>
   // Arrivée / départ du client (réservation confirmée), noté dans l'historique avec son auteur ; `annuler` efface
   // l'enregistrement (erreur de saisie). Départ avec un reste à payer : refusé sans `note` (pourquoi le client part
   // sans avoir soldé). `soldeDu` : reste à payer au moment du mouvement (euros)
@@ -79,7 +82,8 @@ export interface GestionHotel {
   ajouterPaiement(reservationId: string, paiement: { montantDevise: number; devise: CodeDevise; mode: ModePaiement; note: string }, membreId: string): Promise<ResultatAction>
   // Restaurant et bar mis sur la note des séjours (tickets non annulés)
   listerConsommations(): Promise<Consommation[]>
-  supprimerPaiement(id: string): Promise<boolean>
+  // Refusée pour un encaissement repris sur une facture figée (un remboursement le corrige)
+  supprimerPaiement(id: string): Promise<ResultatAction>
 
   // Calendriers des plateformes (Booking.com, Airbnb…) : un par chambre et par plateforme
   listerCalendriers(): Promise<CalendrierExterne[]>
@@ -100,6 +104,9 @@ export interface GestionHotel {
   // Facture du séjour (et des autres chambres de son groupe au nom du même client) dans la devise choisie ;
   // déjà facturé : la même (`deja`)
   editerFacture(reservationId: string, devise: CodeDevise, membreId: string): Promise<{ ok: true; facture: Facture; deja: boolean } | { ok: false; erreur: string }>
+  // Facture figée annulée par un avoir numéroté (motif obligatoire) : ses séjours et leurs tickets redeviennent
+  // modifiables, puis facturables de nouveau
+  annulerFacture(factureId: string, motif: string, membreId: string): Promise<{ ok: true; facture: Facture } | { ok: false; erreur: string }>
   // Facture éditée avant la caisse du restaurant (numéro sur la réservation) : réimpression seulement
   numeroterFacture(reservationId: string): Promise<{ ok: true; numero: string; le: string } | { ok: false; erreur: string }>
 

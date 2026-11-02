@@ -1,9 +1,10 @@
-import { journaliser, json, lireCorps, pourLaCaisse } from "@/lib/api/hotes"
+import { journaliser, json, lireCorps, pourLesGerants } from "@/lib/api/hotes"
 import { caisse } from "@/lib/reservation"
 import { formaterDansDevise } from "@/lib/reservation/devises"
 
-// Nouvel article de la carte : { nom, categorie, prix (ariary), description?, ordre? }
-export const POST = pourLaCaisse(async (requete, membre) => {
+// Nouvel article de la carte (gérants : les prix ne se fixent pas à la caisse) : { nom, categorie, prix (ariary),
+// description?, ordre? }
+export const POST = pourLesGerants(async (requete, membre) => {
   const c = await lireCorps(requete)
   const resultat = await caisse.creerArticle({
     nom: String(c?.nom ?? ""),
