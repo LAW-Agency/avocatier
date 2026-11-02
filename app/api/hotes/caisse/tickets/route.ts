@@ -6,20 +6,19 @@ import type { CodeDevise, LigneTicket, ModePaiement, NouveauTicket, ReglementTic
 const liste = (valeur: unknown): Record<string, unknown>[] =>
   Array.isArray(valeur) ? valeur.filter((x): x is Record<string, unknown> => !!x && typeof x === "object") : []
 
-// Vente d'un poste de caisse : { id, numero, posteId, sessionId?, le, libelle?, lignes: [{ articleId?, libelle,
-// prixUnitaire, quantite }], reservationId? (sur la chambre) ou reglements: [{ mode, devise, montant, contreValeur,
-// rendu }], differe? (vendu hors connexion) }. Renvoyer la même vente ne la duplique pas.
+// Vente d'un poste de caisse, dans sa session ouverte : { id, numero, posteId, sessionId, libelle?, lignes: [{ articleId,
+// libelle, prixUnitaire, quantite }], reservationId? (sur la chambre) ou reglements: [{ mode, devise, montant,
+// contreValeur, rendu }] }. Heure de la vente donnée par le serveur, prix revérifiés contre la carte. Renvoyer la même
+// vente ne la duplique pas.
 export const POST = pourLaCaisse(async (requete, membre) => {
   const c = await lireCorps(requete)
   const ticket: NouveauTicket = {
     id: String(c?.id ?? ""),
     numero: String(c?.numero ?? ""),
     posteId: String(c?.posteId ?? ""),
-    le: String(c?.le ?? ""),
+    sessionId: String(c?.sessionId ?? ""),
     libelle: String(c?.libelle ?? ""),
-    ...(typeof c?.sessionId === "string" && c.sessionId && { sessionId: c.sessionId }),
     ...(typeof c?.reservationId === "string" && c.reservationId && { reservationId: c.reservationId }),
-    differe: c?.differe === true,
     lignes: liste(c?.lignes).map(
       (l): LigneTicket => ({
         ...(typeof l.articleId === "string" && l.articleId && { articleId: l.articleId }),
@@ -44,7 +43,7 @@ export const POST = pourLaCaisse(async (requete, membre) => {
   if (!resultat.deja) {
     journaliser(membre, "restaurant", t.statut === "chambre" ? "Ticket mis sur la chambre" : "Ticket encaissé", async () => {
       const detail = t.reservationId ? await decrireReservation(t.reservationId) : `reçu ${t.reglements.map((r) => formaterDansDevise(r.montant, r.devise)).join(" + ")}`
-      return [t.numero, formaterDansDevise(t.total, "MGA"), detail, ticket.differe && "vendu hors connexion"].filter(Boolean).join(" · ")
+      return [t.numero, formaterDansDevise(t.total, "MGA"), detail].join(" · ")
     })
   }
   return json({ ok: true, ticket: t, deja: resultat.deja })

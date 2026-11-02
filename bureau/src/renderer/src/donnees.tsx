@@ -332,4 +332,5 @@ export const restaurantSur = (r: Reservation, d: Pick<Donnees, "consommations">)
 export const soldeDe = (r: Reservation, d: Note) => soldeSejour(r, d.paiements, d.consommations, d.devises.taux)
 
 // Facture figée du séjour (avec les autres chambres de son groupe)
-export const factureDe = (r: Pick<Reservation, "id">, d: Pick<Donnees, "factures">) => d.factures.find((f) => f.reservationIds.includes(r.id))
+// Facture en vigueur d'un séjour (une facture annulée par un avoir ne compte plus)
+export const factureDe = (r: Pick<Reservation, "id">, d: Pick<Donnees, "factures">) => d.factures.find((f) => f.reservationIds.includes(r.id) && !f.annulation)

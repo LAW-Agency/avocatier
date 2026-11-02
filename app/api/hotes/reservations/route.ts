@@ -23,7 +23,7 @@ export const POST = pourLesHotes(async (requete, membre) => {
     telephone: texte("telephone"),
     message: texte("message"),
   }
-  const resultat = await gestion.creerReservationDirecte(reservation, nomDuMembre(membre))
+  const resultat = await gestion.creerReservationDirecte(reservation, nomDuMembre(membre), membre.role === "hote")
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
   journaliser(membre, "reservation", "Réservation saisie", () => decrireReservation(resultat.reservation.id))
   rafraichirSite()

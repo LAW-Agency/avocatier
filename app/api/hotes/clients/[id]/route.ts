@@ -2,7 +2,7 @@ import { journaliser, json, lireCorps, nomDuMembre, pourLesGerants, pourLesHotes
 import { comptes, gestion } from "@/lib/reservation"
 
 // { note } : note interne sur un client. { coordonnees: { prenom, nom, email, telephone, pays } } : coordonnées
-// corrigées (un compte du site garde son e-mail)
+// corrigées (l'e-mail d'un compte du site ne change que par un gérant)
 export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext<"/api/hotes/clients/[id]">) => {
   const { id } = await contexte.params
   const corps = await lireCorps(requete)
@@ -17,7 +17,7 @@ export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext
       email: texte("email"),
       telephone: texte("telephone", 40),
       pays: texte("pays", 60),
-    })
+    }, membre.role === "hote")
     if (!resultat.ok) return json({ erreur: resultat.erreur }, 400)
     journaliser(membre, "client", "Coordonnées modifiées", async () => {
       const apres = await comptes.trouverParId(id)

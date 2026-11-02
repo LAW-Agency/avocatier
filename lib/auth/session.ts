@@ -43,7 +43,8 @@ export async function fermerSession() {
 
 // `emiseLe` (ms) : ouverture de la session, déduite de l'expiration. Comparée au dernier changement
 // de mot de passe par clientConnecte (lib/auth/dal.ts) pour refuser les sessions plus anciennes.
-export type Session = { clientId: string; emiseLe: number }
+// `expireLe` (ms) : fin de validité, jusqu'où une déconnexion doit le refuser (lib/auth/connexions.ts)
+export type Session = { clientId: string; emiseLe: number; expireLe: number }
 
 // Session si le cookie est intact et non expiré
 export async function lireSession(): Promise<Session | null> {
@@ -60,5 +61,5 @@ export function verifierJeton(valeur: string | undefined): Session | null {
   const recue = Buffer.from(signature)
   if (attendue.length !== recue.length || !timingSafeEqual(attendue, recue)) return null
   if (Number(expiration) < Date.now()) return null
-  return { clientId, emiseLe: Number(expiration) - DUREE_S * 1000 }
+  return { clientId, emiseLe: Number(expiration) - DUREE_S * 1000, expireLe: Number(expiration) }
 }

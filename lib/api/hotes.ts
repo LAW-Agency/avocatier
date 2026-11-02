@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache"
 import { after, NextResponse, type NextRequest } from "next/server"
+import { jetonRevoque } from "@/lib/auth/connexions"
 import { verifierJeton } from "@/lib/auth/session"
 import { comptes, gestion, moteur } from "@/lib/reservation"
 import { formaterPlage } from "@/lib/reservation/dates"
@@ -19,10 +20,12 @@ export const estDeLEquipe = (client: Pick<ClientPublic, "role" | "actif">): clie
 
 export async function membreDeLaRequete(requete: Request): Promise<Membre | null> {
   const entete = requete.headers.get("authorization") ?? ""
-  const session = verifierJeton(entete.startsWith("Bearer ") ? entete.slice(7) : undefined)
-  if (!session) return null
-  const client = await comptes.trouverParId(session.clientId)
-  if (!client || !estDeLEquipe(client)) return null
+  const jeton = entete.startsWith("Bearer ") ? entete.slice(7) : undefined
+  const session = verifierJeton(jeton)
+  if (!jeton || !session) return null
+  const [client, revoque] = await Promise.all([comptes.trouverParId(session.clientId), jetonRevoque(jeton)])
+  // Jeton d'un poste déconnecté : il ne vaut plus, même copié ailleurs
+  if (!client || !estDeLEquipe(client) || revoque) return null
   // Mot de passe changé ou compte réactivé depuis la connexion : le jeton ne vaut plus
   if (client.sessionsValidesDepuis && session.emiseLe < Date.parse(client.sessionsValidesDepuis)) return null
   return client

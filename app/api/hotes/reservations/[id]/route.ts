@@ -63,6 +63,7 @@ export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext
         montantTotal: montant === null || montant === undefined || montant === "" ? null : Number(montant),
       },
       nomDuMembre(membre),
+      membre.role === "hote",
     )
     if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
     const { changements } = resultat

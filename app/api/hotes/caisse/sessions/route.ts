@@ -2,12 +2,12 @@ import { journaliser, json, lireCorps, pourLaCaisse } from "@/lib/api/hotes"
 import { caisse } from "@/lib/reservation"
 import { formaterDansDevise } from "@/lib/reservation/devises"
 
-// Ouverture de la caisse d'un poste : { id (créé par le logiciel), posteId, ouverteLe, fondCaisse (ariary) }.
-// Renvoyer la même ouverture ne la duplique pas
+// Ouverture de la caisse d'un poste : { id (créé par le logiciel), posteId, fondCaisse (ariary) }, à l'heure du
+// serveur. Renvoyer la même ouverture ne la duplique pas
 export const POST = pourLaCaisse(async (requete, membre) => {
   const c = await lireCorps(requete)
   const resultat = await caisse.ouvrirSession(
-    { id: String(c?.id ?? ""), posteId: String(c?.posteId ?? ""), ouverteLe: String(c?.ouverteLe ?? ""), fondCaisse: Number(c?.fondCaisse) },
+    { id: String(c?.id ?? ""), posteId: String(c?.posteId ?? ""), fondCaisse: Number(c?.fondCaisse) },
     membre.id,
   )
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)

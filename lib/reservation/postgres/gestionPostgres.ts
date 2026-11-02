@@ -38,7 +38,7 @@ import type {
   ResultatDemande,
   ResultatModification,
 } from "../types"
-import { codeErreur, db, lignes, transaction } from "./db"
+import { codeErreur, db, lignes, transaction, type Executant } from "./db"
 import {
   attribuerChambre,
   CHAMBRE,
@@ -90,9 +90,31 @@ const versConsommation = ({ le, factureId, caissierId, ...reste }: LigneConsomma
 })
 
 const FACTURE = `f.id, f.numero, f.le, f.client_id as "clientId", f.devise, f.taux, f.total, f.contenu,
-  array(select fr.reservation_id from factures_reservations fr where fr.facture_id = f.id) as "reservationIds"`
-type LigneFacture = Omit<Facture, "le"> & { le: Date }
-const versFacture = ({ le, ...reste }: LigneFacture): Facture => ({ ...reste, le: le.toISOString() })
+  array(select fr.reservation_id from factures_reservations fr where fr.facture_id = f.id) as "reservationIds",
+  f.avoir_numero as "avoirNumero", f.annulee_le as "annuleeLe", f.annulee_par as "annuleePar", f.motif_annulation as "motifAnnulation"`
+type LigneFacture = Omit<Facture, "le" | "annulation"> & {
+  le: Date
+  avoirNumero: string | null
+  annuleeLe: Date | null
+  annuleePar: string | null
+  motifAnnulation: string
+}
+const versFacture = ({ le, avoirNumero, annuleeLe, annuleePar, motifAnnulation, ...reste }: LigneFacture): Facture => ({
+  ...reste,
+  le: le.toISOString(),
+  ...(avoirNumero &&
+    annuleeLe && { annulation: { avoir: avoirNumero, le: annuleeLe.toISOString(), motif: motifAnnulation, ...(annuleePar && { par: annuleePar }) } }),
+})
+
+// Facture en vigueur d'un séjour (figée et non annulée) : son numéro, ou null
+async function factureEnVigueur(executant: Executant, reservationId: string): Promise<string | null> {
+  const [f] = await lignes<{ numero: string }>(
+    executant,
+    "select f.numero from factures_reservations fr join factures f on f.id = fr.facture_id where fr.reservation_id = $1 and fr.en_vigueur",
+    [reservationId],
+  )
+  return f?.numero ?? null
+}
 
 const CALENDRIER = `id, hebergement_id as "hebergementId", chambre_id as "chambreId", plateforme, nom, url_import as "urlImport", jeton,
   synchronise_le as "synchroniseLe", erreur, cree_le as "creeLe"`
@@ -104,6 +126,7 @@ function versCalendrier({ synchroniseLe, creeLe, ...reste }: LigneCalendrier): C
 
 const EMAIL_PRIS = "Un compte existe déjà avec cette adresse e-mail."
 const NUMERO_PRIS = (numero: string) => `Une autre chambre s'appelle déjà « ${numero} » : choisissez un autre numéro.`
+const REMISE_GERANTS = (tarif: number) => `Montant inférieur au tarif (${formaterDansDevise(tarif, "EUR")}) : une remise est réservée aux gérants.`
 const EMAIL_D_UN_AUTRE ="Un autre client a déjà cette adresse e-mail : s'il s'agit de la même personne, fusionnez les deux fiches."
 
 // Avant toute saisie des hôtes, les factures portent au moins le nom et l'adresse de l'hôtel
@@ -195,24 +218,32 @@ export const gestionPostgres: GestionHotel = {
     return (resultat.rowCount ?? 0) > 0 ? { ok: true } : { ok: false, erreur: "Client introuvable." }
   },
 
-  async modifierClient(id, modification) {
-    const [client] = await lignes<{ compte: boolean }>(
+  async modifierClient(id, modification, gerant) {
+    const [client] = await lignes<{ compte: boolean; email: string | null }>(
       db(),
-      "select mot_de_passe_hash <> '' as compte from clients where id = $1 and role = 'client' and efface_le is null",
+      "select mot_de_passe_hash <> '' as compte, email from clients where id = $1 and role = 'client' and efface_le is null",
       [id],
     )
     if (!client) return { ok: false, erreur: "Client introuvable." }
     const erreur = controlerModificationClient(modification, client.compte)
     if (erreur) return { ok: false, erreur }
+    const email = modification.email.trim().toLowerCase()
+    // Changer l'adresse d'un compte du site, c'est pouvoir en récupérer le mot de passe : jamais à la réception
+    const nouvelIdentifiant = client.compte && email !== (client.email ?? "")
+    if (nouvelIdentifiant && !gerant) {
+      return { ok: false, erreur: "Ce client se connecte au site avec cette adresse : seul un gérant peut la changer." }
+    }
     try {
-      await db().query("update clients set prenom = $2, nom = $3, email = nullif($4, ''), telephone = $5, pays = $6 where id = $1", [
-        id,
-        modification.prenom.trim(),
-        modification.nom.trim(),
-        modification.email.trim().toLowerCase(),
-        modification.telephone.trim(),
-        modification.pays.trim(),
-      ])
+      await transaction(async (tx) => {
+        await tx.query(
+          `update clients set prenom = $2, nom = $3, email = nullif($4, ''), telephone = $5, pays = $6,
+             sessions_valides_depuis = case when $7 then now() else sessions_valides_depuis end
+           where id = $1`,
+          [id, modification.prenom.trim(), modification.nom.trim(), email, modification.telephone.trim(), modification.pays.trim(), nouvelIdentifiant],
+        )
+        // Liens de récupération envoyés à l'ancienne adresse : plus valables
+        if (nouvelIdentifiant) await tx.query("delete from jetons_reinitialisation where client_id = $1", [id])
+      })
       return { ok: true }
     } catch (e) {
       if (codeErreur(e) === "23505") return { ok: false, erreur: EMAIL_D_UN_AUTRE }
@@ -240,6 +271,8 @@ export const gestionPostgres: GestionHotel = {
       const [reste, part] = doublon.compte ? [doublon, garde] : [garde, doublon]
 
       await tx.query("update reservations set client_id = $1 where client_id = $2", [reste.id, part.id])
+      // Ses factures aussi : sans cela, la fiche ne pouvait pas être supprimée (clé étrangère des factures)
+      await tx.query("update factures set client_id = $1 where client_id = $2", [reste.id, part.id])
       // Adresse libérée avant d'être reprise (unicité)
       await tx.query("update clients set email = null where id = $1", [part.id])
       await tx.query(
@@ -294,7 +327,7 @@ export const gestionPostgres: GestionHotel = {
     })
   },
 
-  async creerReservationDirecte(r, auteur) {
+  async creerReservationDirecte(r, auteur, remise) {
     try {
       return await transaction<ResultatDemande>(async (tx) => {
         await verrouiller(tx, r.hebergementId)
@@ -309,6 +342,8 @@ export const gestionPostgres: GestionHotel = {
         if ("erreur" in chambre) return { ok: false, erreur: chambre.erreur }
 
         const saisons = saisonsDatees(await lireReglesSaisons(tx))
+        const tarif = calculerDevis(hebergement, r.arrivee, r.depart, saisons).total
+        if (r.montantTotal !== null && r.montantTotal < tarif && !remise) return { ok: false, erreur: REMISE_GERANTS(tarif) }
         const [{ numero }] = await lignes<{ numero: number }>(tx, "select nextval('reservations_numero')::int as numero")
         const maintenant = new Date()
         const [ligne] = await lignes<LigneReservation>(
@@ -329,7 +364,7 @@ export const gestionPostgres: GestionHotel = {
             r.navette,
             r.telephone.trim() || client.telephone,
             r.message.trim().slice(0, 2000),
-            r.montantTotal ?? calculerDevis(hebergement, r.arrivee, r.depart, saisons).total,
+            r.montantTotal ?? tarif,
             r.source,
             maintenant,
             JSON.stringify([{ statut: "confirmee", le: maintenant.toISOString(), note: `Saisie dans le logiciel par ${auteur}` }]),
@@ -343,7 +378,7 @@ export const gestionPostgres: GestionHotel = {
     }
   },
 
-  async modifierReservation(id, m, auteur) {
+  async modifierReservation(id, m, auteur, remise) {
     try {
       return await transaction<ResultatModification>(async (tx) => {
         // Option arrivée à échéance : expirée avant d'être lue
@@ -373,7 +408,29 @@ export const gestionPostgres: GestionHotel = {
           chambreId = attribuee.chambreId
         }
 
-        const montantTotal = m.montantTotal ?? calculerDevis(hebergement, m.arrivee, m.depart, saisonsDatees(await lireReglesSaisons(tx))).total
+        const tarif = calculerDevis(hebergement, m.arrivee, m.depart, saisonsDatees(await lireReglesSaisons(tx))).total
+        const montantTotal = m.montantTotal ?? tarif
+        // Sous le tarif : une remise, réservée aux gérants. Reste permis le montant inchangé d'un séjour qui garde son
+        // hébergement et ses dates (prix d'avant un changement de tarif, remise déjà accordée)
+        const memeSejour = m.hebergementId === avant.hebergementId && m.arrivee === avant.arrivee && m.depart === avant.depart
+        if (!remise && montantTotal < tarif && !(memeSejour && montantTotal === avant.montantTotal)) {
+          return { ok: false, erreur: REMISE_GERANTS(tarif) }
+        }
+        // Séjour sur une facture en vigueur : seul un changement de chambre de la même catégorie reste possible, le
+        // reste rendrait la facture fausse (un gérant l'annule d'abord par un avoir)
+        const facture = await factureEnVigueur(tx, id)
+        if (
+          facture &&
+          (m.hebergementId !== avant.hebergementId ||
+            m.arrivee !== avant.arrivee ||
+            m.depart !== avant.depart ||
+            m.adultes !== avant.adultes ||
+            m.enfants !== avant.enfants ||
+            m.navette !== avant.navette ||
+            montantTotal !== avant.montantTotal)
+        ) {
+          return { ok: false, erreur: `Ce séjour figure sur la facture ${facture} : un gérant doit d'abord l'annuler par un avoir, puis le séjour pourra être modifié et facturé de nouveau.` }
+        }
         const chambres = await lireChambres(tx)
         const changements = changementsReservation(
           avant,
@@ -437,6 +494,18 @@ export const gestionPostgres: GestionHotel = {
       if (mouvement === "arrivee") {
         if (!annuler && r.arriveeLe) return { ok: false, erreur: "L'arrivée de ce client est déjà enregistrée." }
         if (!annuler && r.arrivee > aujourdhuiISO()) return { ok: false, erreur: "Ce séjour ne commence pas encore aujourd'hui." }
+        // Chambre encore occupée par le client précédent (départ pas enregistré) : deux clients dans la même chambre
+        if (!annuler) {
+          const [occupant] = await lignes<{ reference: string }>(
+            tx,
+            `select reference from reservations
+             where chambre_id = $1 and id <> $2 and statut = 'confirmee' and arrivee_le is not null and depart_le is null limit 1`,
+            [r.chambreId, reservationId],
+          )
+          if (occupant) {
+            return { ok: false, erreur: `La chambre est encore occupée (${occupant.reference}) : enregistrez d'abord le départ du client précédent, ou changez ce séjour de chambre.` }
+          }
+        }
         if (annuler && !r.arriveeLe) return { ok: false, erreur: "Aucune arrivée enregistrée à annuler." }
         if (annuler && r.departLe) return { ok: false, erreur: "Annulez d'abord le départ." }
         await tx.query("update reservations set arrivee_le = $2 where id = $1", [reservationId, annuler ? null : new Date()])
@@ -559,7 +628,7 @@ export const gestionPostgres: GestionHotel = {
       await tx.query("select pg_advisory_xact_lock(hashtext('factures'))")
       const [deja] = await lignes<LigneFacture>(
         tx,
-        `select ${FACTURE} from factures f join factures_reservations fr on fr.facture_id = f.id where fr.reservation_id = $1`,
+        `select ${FACTURE} from factures f join factures_reservations fr on fr.facture_id = f.id where fr.reservation_id = $1 and fr.en_vigueur`,
         [reservationId],
       )
       if (deja) return { ok: true as const, facture: versFacture(deja), deja: true }
@@ -579,7 +648,7 @@ export const gestionPostgres: GestionHotel = {
            h.nom as hebergement, c.numero as chambre, r.client_id as "clientId"
          from reservations r join hebergements h on h.id = r.hebergement_id join chambres c on c.id = r.chambre_id
          where (r.id = $1 or ($2::text is not null and r.groupe = $2 and r.client_id = $3 and r.statut = 'confirmee' and r.facture_numero is null
-           and not exists (select 1 from factures_reservations fr where fr.reservation_id = r.id)))
+           and not exists (select 1 from factures_reservations fr where fr.reservation_id = r.id and fr.en_vigueur)))
          order by r.arrivee, c.numero`,
         [reservationId, r.groupe, r.clientId],
       )
@@ -619,33 +688,78 @@ export const gestionPostgres: GestionHotel = {
     })
   },
 
+  async annulerFacture(factureId, motif, membreId) {
+    const raison = motif.trim().slice(0, 300)
+    if (!raison) return { ok: false, erreur: "Indiquez le motif de l'annulation (séjour prolongé, erreur de montant…)." }
+    return transaction(async (tx) => {
+      // Même verrou que l'édition : une facture ne s'édite pas pendant qu'on annule celle de ses séjours
+      await tx.query("select pg_advisory_xact_lock(hashtext('factures'))")
+      const [f] = await lignes<{ annulee: boolean }>(tx, "select annulee_le is not null as annulee from factures where id = $1 for update", [factureId])
+      if (!f) return { ok: false as const, erreur: "Cette facture n'existe pas." }
+      if (f.annulee) return { ok: false as const, erreur: "Cette facture est déjà annulée." }
+      const [{ suivant }] = await lignes<{ suivant: number }>(tx, "select nextval('avoirs_numero')::int as suivant")
+      await tx.query(
+        "update factures set annulee_le = now(), annulee_par = $2, motif_annulation = $3, avoir_numero = $4 where id = $1",
+        [factureId, membreId, raison, `AV-${aujourdhuiISO().slice(0, 4)}-${String(suivant).padStart(4, "0")}`],
+      )
+      // Séjours libérés pour une nouvelle facture, tickets de nouveau sur leur note (et annulables)
+      await tx.query("update factures_reservations set en_vigueur = false where facture_id = $1", [factureId])
+      await tx.query("update tickets set facture_id = null where facture_id = $1", [factureId])
+      const [ligne] = await lignes<LigneFacture>(tx, `select ${FACTURE} from factures f where f.id = $1`, [factureId])
+      return { ok: true as const, facture: versFacture(ligne) }
+    })
+  },
+
   async ajouterPaiement(reservationId, { montantDevise, devise, mode, note }, membreId) {
     const { taux } = await moteurPostgres.reglagesDevises()
     // Contre-valeur en euros au taux du jour (au centime) ; reçu en euros : le montant lui-même
     const montant = estCodeDevise(devise) ? convertir(montantDevise, devise, "EUR", taux) : NaN
     const erreur = controlerPaiement(montantDevise, devise, montant, mode)
     if (erreur) return { ok: false, erreur }
-    const [r] = await lignes(db(), "select 1 from reservations where id = $1", [reservationId])
-    if (!r) return { ok: false, erreur: "Réservation introuvable." }
-    await db().query(
-      "insert into paiements (reservation_id, montant, devise, montant_devise, taux, mode, note, enregistre_par) values ($1, $2, $3, $4, $5, $6, $7, $8)",
-      [
-        reservationId,
-        montant,
-        devise,
-        devise === "EUR" ? null : montantDevise,
-        devise === "EUR" ? null : taux[devise],
-        mode satisfies ModePaiement,
-        note.trim().slice(0, 200),
-        membreId,
-      ],
-    )
-    return { ok: true }
+    return transaction<ResultatAction>(async (tx) => {
+      // Ligne verrouillée : deux remboursements simultanés ne dépassent pas ensemble ce qui a été encaissé
+      const [r] = await lignes<{ paye: number }>(
+        tx,
+        `select coalesce((select sum(montant) from paiements p where p.reservation_id = r.id), 0)::numeric as paye
+         from reservations r where r.id = $1 for update`,
+        [reservationId],
+      )
+      if (!r) return { ok: false, erreur: "Réservation introuvable." }
+      // Un remboursement rend au plus ce que le client a versé sur ce séjour (contre-valeur en euros)
+      if (montant < 0 && Math.round((r.paye + montant) * 100) < 0) {
+        return { ok: false, erreur: `Remboursement supérieur aux encaissements de ce séjour (${formaterDansDevise(Math.max(0, r.paye), "EUR")} au total).` }
+      }
+      await tx.query(
+        "insert into paiements (reservation_id, montant, devise, montant_devise, taux, mode, note, enregistre_par) values ($1, $2, $3, $4, $5, $6, $7, $8)",
+        [
+          reservationId,
+          montant,
+          devise,
+          devise === "EUR" ? null : montantDevise,
+          devise === "EUR" ? null : taux[devise],
+          mode satisfies ModePaiement,
+          note.trim().slice(0, 200),
+          membreId,
+        ],
+      )
+      return { ok: true }
+    })
   },
 
   async supprimerPaiement(id) {
-    const resultat = await db().query("delete from paiements where id = $1", [id])
-    return (resultat.rowCount ?? 0) > 0
+    return transaction<ResultatAction>(async (tx) => {
+      // Encaissement antérieur à une facture figée de son séjour : il y figure, le supprimer la rendrait fausse
+      const [facture] = await lignes<{ numero: string }>(
+        tx,
+        `select f.numero from paiements p join factures_reservations fr on fr.reservation_id = p.reservation_id
+           join factures f on f.id = fr.facture_id
+         where p.id = $1 and fr.en_vigueur and p.le <= f.le`,
+        [id],
+      )
+      if (facture) return { ok: false, erreur: `Cet encaissement figure sur la facture ${facture.numero} : enregistrez plutôt un remboursement.` }
+      const resultat = await tx.query("delete from paiements where id = $1", [id])
+      return (resultat.rowCount ?? 0) > 0 ? { ok: true } : { ok: false, erreur: "Cet encaissement n'existe plus." }
+    })
   },
 
   async listerCalendriers() {

@@ -48,12 +48,18 @@ export default function CaisseVente({ caisse, donnees }: { caisse: Caisse; donne
   const { annoncer } = useAnnoncer()
   const { reglages } = useReglages()
   const { imprimerTicket } = useFichiers()
-  const [lignes, setLignes] = useState<LigneTicket[]>([])
+  const [panier, setLignes] = useState<LigneTicket[]>([])
   const [libelle, setLibelle] = useState("")
   const [categorie, setCategorie] = useState(TOUT)
   const [recherche, setRecherche] = useState("")
   const [fenetre, setFenetre] = useState<"encaisser" | "chambre" | null>(null)
 
+  // Ticket en cours toujours aux nom et prix de la carte chargée : un gérant qui change un prix pendant la vente
+  // (vente refusée par le serveur, carte rechargée) met le total à jour
+  const lignes = panier.map((l) => {
+    const a = donnees.articles.find((x) => x.id === l.articleId)
+    return a ? { ...l, libelle: a.nom, prixUnitaire: a.prix } : l
+  })
   const actifs = donnees.articles.filter((a) => a.actif)
   const categories = [...new Set(actifs.map((a) => a.categorie))]
   const filtre = recherche.trim().toLocaleLowerCase("fr")

@@ -31,6 +31,7 @@ import { useState, type FormEvent } from "react"
 import { formaterDansDevise } from "@partage/devises"
 import type { Article } from "@partage/types"
 import type { Caisse, DonneesEcranCaisse } from "../caisse"
+import { useDonneesChargees } from "../donnees"
 import { useRestaurantStyles } from "../pages/useRestaurantStyles.styles"
 import { Vide } from "./commun"
 import { useFormulairesStyles } from "./useFormulairesStyles.styles"
@@ -39,11 +40,13 @@ const ariary = (montant: number) => formaterDansDevise(montant, "MGA")
 
 const sansAccents = (texte: string) => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr")
 
-// Carte du restaurant et du bar, modifiée par toute l'équipe de la caisse : catégories en colonnes, une ligne par
-// article (prix en ariary, interrupteur « à la carte », modifier / supprimer dans le menu …). Un article déjà vendu
-// se retire de la carte au lieu d'être supprimé
+// Carte du restaurant et du bar : catégories en colonnes, une ligne par article (prix en ariary, interrupteur « à la
+// carte », modifier / supprimer dans le menu …). Toute l'équipe de la caisse retire un article épuisé ou le remet ;
+// ajouter, modifier (prix compris) et supprimer sont réservés aux gérants (vérifié aussi par le serveur). Un article
+// déjà vendu se retire de la carte au lieu d'être supprimé
 export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donnees: DonneesEcranCaisse }) {
   const styles = useRestaurantStyles()
+  const { gerant } = useDonneesChargees()
   const [edition, setEdition] = useState<Article | "nouveau" | null>(null)
   const [enCours, setEnCours] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -79,9 +82,11 @@ export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donne
             {donnees.articles.length} articles en ariary{retires ? `, dont ${retires} retiré${retires > 1 ? "s" : ""} de la carte` : ""}
           </Caption1>
         </div>
-        <Button appearance="primary" icon={<AddRegular />} disabled={caisse.lectureSeule} onClick={() => setEdition("nouveau")}>
-          Nouvel article
-        </Button>
+        {gerant && (
+          <Button appearance="primary" icon={<AddRegular />} disabled={caisse.lectureSeule} onClick={() => setEdition("nouveau")}>
+            Nouvel article
+          </Button>
+        )}
       </div>
       {erreur && (
         <MessageBar intent="error">
@@ -119,7 +124,7 @@ export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donne
                             onChange={(_e, data) => modifier(a, { actif: data.checked })}
                           />
                         </Tooltip>
-                        <Menu>
+                        {gerant && <Menu>
                           <MenuTrigger disableButtonEnhancement>
                             <Button
                               appearance="subtle"
@@ -139,7 +144,7 @@ export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donne
                               </MenuItem>
                             </MenuList>
                           </MenuPopover>
-                        </Menu>
+                        </Menu>}
                       </li>
                     ))}
                   </ul>
@@ -148,7 +153,7 @@ export default function CaisseCarte({ caisse, donnees }: { caisse: Caisse; donne
             })}
         </div>
       )}
-      {edition && <FenetreArticle article={edition === "nouveau" ? null : edition} categories={categories} caisse={caisse} onFin={() => setEdition(null)} />}
+      {edition && gerant && <FenetreArticle article={edition === "nouveau" ? null : edition} categories={categories} caisse={caisse} onFin={() => setEdition(null)} />}
     </div>
   )
 }

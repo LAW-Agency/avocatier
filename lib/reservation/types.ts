@@ -380,15 +380,13 @@ export type Ticket = {
   factureId?: string // sur une facture de séjour : plus modifiable
 }
 
-// Vente envoyée par un poste : réglée sur place (reglements) ou mise sur la chambre (reservationId).
-// differe : vente faite hors connexion, envoyée au retour du réseau (le séjour n'est plus vérifié : la vente a eu
-// lieu, un ticket arrivé après le départ ou la facture remonte comme anomalie)
-export type NouveauTicket = Pick<Ticket, "id" | "numero" | "posteId" | "le" | "libelle"> & {
-  sessionId?: string
+// Vente envoyée par un poste, dans sa session ouverte : réglée sur place (reglements) ou mise sur la chambre
+// (reservationId). L'heure de la vente est celle du serveur ; chaque ligne reprend le prix de son article à la carte
+export type NouveauTicket = Pick<Ticket, "id" | "numero" | "posteId" | "libelle"> & {
+  sessionId: string
   lignes: LigneTicket[]
   reservationId?: string
   reglements: ReglementTicket[]
-  differe?: boolean
 }
 
 // Séjour en cours sur lequel la caisse peut mettre un ticket (sans autre donnée du client que son nom)
@@ -430,8 +428,9 @@ export type SessionCaisse = {
   bilan: BilanSession
 }
 
-export type NouvelleSession = Pick<SessionCaisse, "id" | "posteId" | "ouverteLe" | "fondCaisse">
-export type ClotureSession = { fermeeLe: string; especesComptees: Partial<Record<CodeDevise, number>>; commentaire: string }
+// Heures d'ouverture et de clôture : celles du serveur
+export type NouvelleSession = Pick<SessionCaisse, "id" | "posteId" | "fondCaisse">
+export type ClotureSession = { especesComptees: Partial<Record<CodeDevise, number>>; commentaire: string }
 
 // Restaurant et bar sur une période (Revenus et vue d'ensemble de la caisse, gérants), en ariary ; tickets annulés
 // exclus des ventes
@@ -493,6 +492,8 @@ export type Facture = {
   total: number
   reservationIds: string[]
   contenu: ContenuFacture
+  // Annulée par un avoir (gérants) : les séjours peuvent être modifiés puis facturés de nouveau
+  annulation?: { avoir: string; le: string; par?: string; motif: string } // avoir « AV-2026-0003 »
 }
 
 // Consommation du restaurant ou du bar sur la note d'un séjour (ticket « chambre » non annulé), en ariary ; poste

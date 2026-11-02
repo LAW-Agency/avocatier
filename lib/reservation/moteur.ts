@@ -76,4 +76,13 @@ export interface DepotComptes {
   // Consomme le jeton et remplace le mot de passe ; les sessions ouvertes avant `le` sont refusées.
   // null si le jeton n'est plus valable
   reinitialiserMotDePasse(empreinte: string, motDePasseHash: string, le: Date): Promise<ClientPublic | null>
+
+  // Déconnexion : le jeton de session (son empreinte) est refusé jusqu'à son expiration
+  revoquerJeton(empreinte: string, expireLe: Date): Promise<void>
+  jetonRevoque(empreinte: string): Promise<boolean>
+  // Connexions refusées et comptes créés, par clé (« email:… », « ip:… », « inscription:<ip> ») : notés, comptés
+  // depuis `depuis` ; les échecs d'un e-mail s'effacent après une connexion réussie
+  noterEchecConnexion(cles: string[]): Promise<void>
+  echecsConnexion(cles: string[], depuis: Date): Promise<Record<string, number>>
+  effacerEchecsConnexion(cle: string): Promise<void>
 }
