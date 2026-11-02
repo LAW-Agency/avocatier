@@ -1,10 +1,13 @@
 import {
   CalculatorRegular,
   DataBarVerticalRegular,
+  DocumentDismissRegular,
   DocumentTextRegular,
   FoodRegular,
   HistoryRegular,
+  LockClosedRegular,
   ReceiptRegular,
+  ShieldCheckmarkRegular,
   SparkleRegular,
   type FluentIcon,
 } from "@fluentui/react-icons"
@@ -21,6 +24,33 @@ export type Nouveaute = {
 }
 
 export const NOUVEAUTES: { version: string; liste: Nouveaute[] }[] = [
+  {
+    version: "1.2.2",
+    liste: [
+      {
+        titre: "Annuler une facture par un avoir",
+        texte: "Un séjour à corriger après sa facture ? Annulez-la par un avoir numéroté, modifiez le séjour, puis facturez de nouveau.",
+        Icone: DocumentDismissRegular,
+        pour: ["hote"],
+      },
+      {
+        titre: "Carte protégée",
+        texte: "Les prix de la carte se modifient par les gérants ; chacun peut retirer un article épuisé. Chaque vente reprend le prix de la carte.",
+        Icone: FoodRegular,
+      },
+      {
+        titre: "Séjours plus sûrs",
+        texte: "Un client arrivé ne s'annule plus, une chambre encore occupée refuse une nouvelle arrivée, et les remises sont réservées aux gérants.",
+        Icone: ShieldCheckmarkRegular,
+        pour: ["hote", "reception"],
+      },
+      {
+        titre: "Connexion renforcée",
+        texte: "La déconnexion ferme vraiment la session, et les essais de mot de passe répétés sont bloqués un quart d'heure.",
+        Icone: LockClosedRegular,
+      },
+    ],
+  },
   {
     version: "1.2.1",
     liste: [
