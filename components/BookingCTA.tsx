@@ -3,7 +3,8 @@ import ButtonLink from "@/components/ButtonLink"
 
 interface BookingCTAProps {
   title?: string
-  text?: string   // réassurance sous le titre : comment se passe la réservation
+  lead?: string            // phrase d'accroche sous le titre
+  text?: string | string[] // réassurance : comment se passe la réservation (un ou plusieurs paragraphes)
   label?: string
   image?: string
 }
@@ -11,10 +12,12 @@ interface BookingCTAProps {
 // Bandeau final « Réserver » sur grande photo — réutilisable en bas de chaque page
 export default function BookingCTA({
   title = "Et si votre prochaine escapade commençait ici ?",
+  lead,
   text = "Faites votre demande en quelques minutes : Joëlle et Stéphane confirment personnellement votre séjour sous 48 h.",
   label = "Réserver votre séjour",
   image = "/images/hotel/coucher-soleil-piscine.jpeg",
 }: BookingCTAProps) {
+  const paragraphs = Array.isArray(text) ? text : [text]
   return (
     <section className="relative isolate overflow-hidden">
       {/* Parallaxe : la photo glisse plus lentement que la page */}
@@ -26,7 +29,12 @@ export default function BookingCTA({
         <h2 className="font-heading text-section text-balance text-primary-light">
           {title}
         </h2>
-        <p className="mx-auto max-w-xl text-base md:text-lg leading-relaxed text-balance text-primary-light/85">{text}</p>
+        {lead && <p className="font-heading text-lg md:text-xl text-balance text-sand">{lead}</p>}
+        <div className="mx-auto max-w-xl space-y-4">
+          {paragraphs.map((p) => (
+            <p key={p} className="text-base md:text-lg leading-relaxed text-balance text-primary-light/85">{p}</p>
+          ))}
+        </div>
         <ButtonLink href="/reserver">{label}</ButtonLink>
       </div>
     </section>

@@ -26,7 +26,7 @@ export default function BeachPool() {
 
         <div className="max-w-7xl mx-auto h-full px-4 pb-8 md:pb-12 flex items-end">
           <div data-reveal>
-            <SectionTitle title="L’océan à quelques pas" light />
+            <SectionTitle title="L’océan pour horizon, le paradis à vos pieds" light />
           </div>
         </div>
       </div>
@@ -34,12 +34,26 @@ export default function BeachPool() {
       {/* Sous le titre : le texte et le jardin dans la colonne de gauche, la piscine en grand à droite */}
       <div className="max-w-7xl mx-auto px-4 pt-8 md:pt-12 grid md:grid-cols-12 gap-x-4 lg:gap-x-6 gap-y-8">
         <div id="piscine-jardin" className="md:col-span-5 lg:col-span-4 flex flex-col gap-8 md:gap-10">
-          <p data-reveal className="max-w-[60ch] text-body">
-            Quelques pas sur la pelouse, et vous voilà les pieds dans le sable. La plage privée borde le
-            jardin : l’ombre des cocotiers, une eau calme pour la baignade et, chaque soir, le soleil qui
-            plonge dans l’océan. Entre deux baignades, la piscine vous attend au milieu du jardin,
-            transats et bar à portée de main.
-          </p>
+          <div data-reveal className="max-w-[60ch] space-y-4">
+            <p className="font-heading text-lg md:text-xl text-balance text-primary-accent">
+              Ici, la plage est au bout du jardin !
+            </p>
+            <p className="text-body">
+              Imaginez… Quelques pas sur la pelouse, et déjà le sable chaud sous vos pieds. Notre plage privée
+              vous offre un cadre privilégié pour profiter pleinement de l’océan Indien : baignades dans une
+              eau paisible, moments de détente à l’ombre des cocotiers et couchers de soleil inoubliables face
+              à l’horizon.
+            </p>
+            <p className="text-body">
+              Envie de prolonger le plaisir ? Au cœur du jardin tropical, notre piscine vous invite à la
+              détente. Installez-vous confortablement sur un transat, savourez un rafraîchissement au bar et
+              laissez doucement le temps s’écouler.
+            </p>
+            <p className="text-body">
+              Entre plage, piscine et douceur tropicale, tout est réuni pour vivre des vacances inoubliables au
+              bord de l’océan Indien. À Vohilava, le bonheur est à quelques pas…
+            </p>
+          </div>
 
           {/* Le cadre s'étire pour finir à la même hauteur que la photo de la piscine */}
           <figure className="relative overflow-hidden rounded-card h-64 md:h-auto md:min-h-56 md:flex-1">
@@ -55,7 +69,7 @@ export default function BeachPool() {
           </figure>
         </div>
 
-        <figure className="relative overflow-hidden rounded-card h-72 md:h-[34rem] md:col-span-7 lg:col-span-8">
+        <figure className="relative overflow-hidden rounded-card h-72 md:h-auto md:min-h-[34rem] md:col-span-7 lg:col-span-8">
           {/* Se révèle juste après le jardin */}
           <Image
             src="/images/pool/piscine-bungalows.jpeg"
