@@ -5,10 +5,10 @@ import SectionTitle from "@/components/home/SectionTitle"
 // TODO client : produits à confirmer (cahier des charges : « produits & saveurs locales »),
 // ainsi que la mention « bio » reprise sur le site (accueil, hôtel, restaurant)
 const produits = [
-  { nom: "Vanille", detail: "Vanille bourbon de Madagascar, dans les glaces et les desserts maison." },
-  { nom: "Poisson", detail: "Issu de la pêche locale du jour, grillé avec les légumes de saison." },
-  { nom: "Riz", detail: "Riz de Madagascar, base de la cuisine malgache, présent à chaque repas." },
-  { nom: "Fruits tropicaux", detail: "Papaye, banane, agrumes : cultivés sur l’île, au fil des saisons." },
+  { nom: "Vanille de Madagascar", detail: "Pour des desserts et des glaces maison délicieusement parfumés." },
+  { nom: "Poisson frais", detail: "Pêché localement et préparé selon les arrivages." },
+  { nom: "Riz de Madagascar", detail: "L’incontournable de la cuisine malgache, servi au fil des repas." },
+  { nom: "Fruits tropicaux", detail: "Papayes, bananes et agrumes pour une touche de fraîcheur et d’exotisme." },
 ]
 
 // Produits & saveurs locales — section vert nuit : photo à gauche, texte et produits à droite
@@ -34,14 +34,12 @@ export default function Saveurs() {
           className="md:col-span-7 space-y-8"
         >
           <div className="space-y-5">
-            <SectionTitle title="Le goût de Sainte-Marie" light />
+            <SectionTitle title="Le goût authentique de Sainte-Marie" light />
             <p className="max-w-[60ch] text-body text-primary-light/80">
-              Nous privilégions les circuits courts et les produits bio : poisson de la pêche locale,
-              légumes et fruits de saison, riz, vanille et coco issus de producteurs de l’île. Une cuisine
-              plus fraîche et plus authentique, qui soutient directement l’économie de Sainte-Marie.
+              Chez L’Avocatier, nous privilégions les produits locaux, frais et bio, issus des producteurs de l’île. Poissons fraîchement pêchés, fruits tropicaux, légumes de saison, vanille et noix de coco composent une cuisine généreuse aux saveurs de Madagascar.
             </p>
             <p className="max-w-[60ch] text-body text-primary-light/80">
-              Recettes malgaches et classiques français arrivent à table avec soin, sur des sets tressés à la main.
+              Entre recettes traditionnelles malgaches et inspirations françaises, chaque assiette célèbre les richesses de l’île et le savoir-faire local.
             </p>
           </div>
 
@@ -53,6 +51,10 @@ export default function Saveurs() {
               </div>
             ))}
           </dl>
+
+          <p className="max-w-[60ch] font-heading text-lg md:text-xl text-balance text-sand">
+            Des produits authentiques, des saveurs généreuses et un véritable goût de Madagascar !
+          </p>
         </div>
       </div>
     </section>

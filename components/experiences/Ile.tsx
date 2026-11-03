@@ -15,20 +15,21 @@ export default function Ile() {
         {/* Présentation de l'île */}
         <div className="grid md:grid-cols-12 gap-6 lg:gap-14 items-end">
           <div data-reveal className="md:col-span-7 space-y-6">
-            <SectionTitle title="Découvrir Sainte-Marie" />
+            <SectionTitle title="Découvrez Sainte-Marie, l’île aux mille trésors" />
             <p className="max-w-[30ch] font-heading text-[clamp(1.375rem,1.1rem+1vw,2rem)] leading-snug text-balance">
-              Nosy Boraha, comme on l’appelle en malgache, s’étire sur une soixantaine de kilomètres au
-              large de la côte est de Madagascar.
+              Au large de la côte est de Madagascar, Nosy Boraha dévoile un véritable décor de carte postale :
+              plages de sable fin, cocotiers, lagons turquoise et petits villages de pêcheurs.
             </p>
           </div>
           <div data-reveal style={{ "--reveal-delay": "150ms" } as CSSProperties} className="md:col-span-5 lg:col-span-4 lg:col-start-9 space-y-4">
             <p className="max-w-[60ch] text-body">
-              Une route côtière la parcourt de village de pêcheurs en village, entre cocotiers, lagons
-              turquoise et petites criques.
+              Ancien refuge des pirates, l’île conserve les traces de son histoire, notamment son célèbre cimetière face à la baie.
             </p>
             <p className="max-w-[60ch] text-body">
-              Ancien repaire de pirates, l’île en garde un cimetière historique face à la baie.
-              Aujourd’hui, ce sont sa nature préservée et son rythme paisible qui séduisent les voyageurs.
+              Entre nature préservée, rencontres authentiques et douceur de vivre, Sainte-Marie vous promet un dépaysement inoubliable.
+            </p>
+            <p className="max-w-[60ch] text-body">
+              Une île à explorer, des merveilles à découvrir et des souvenirs à emporter !
             </p>
           </div>
         </div>

@@ -31,13 +31,16 @@ export default function EspacesCommuns() {
       <div className="max-w-7xl mx-auto px-4">
         <div data-reveal className="grid md:grid-cols-12 gap-6 lg:gap-14 items-end mb-8 md:mb-12">
           <div className="md:col-span-5">
-            <SectionTitle title="Des espaces communs pleins de caractère" />
+            <SectionTitle title="Des espaces communs pleins de charme" />
           </div>
-          <p className="md:col-span-7 max-w-[60ch] text-body">
-            Fresques murales, luminaires tressés, mobilier en bois&nbsp;: la décoration, artisanale,
-            raconte Madagascar. Ouvert sur le jardin, le salon se prête à la lecture comme aux
-            conversations de fin de journée.
-          </p>
+          <div className="md:col-span-7 max-w-[60ch] space-y-4 text-body">
+            <p>
+              Fresques colorées, luminaires artisanaux et mobilier en bois donnent à nos espaces une âme toute malgache. Ouvert sur le jardin tropical, le salon est un lieu chaleureux où l’on aime se retrouver, lire ou partager de beaux moments de convivialité.
+            </p>
+            <p>
+              L’authenticité de Madagascar dans une atmosphère douce et accueillante.
+            </p>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-12 gap-4 lg:gap-6">
