@@ -25,6 +25,7 @@ import type {
   ReservationDirecte,
   ResultatAction,
   ResultatDemande,
+  ResultatEnvoi,
   ResultatModification,
 } from "./types"
 
@@ -79,7 +80,12 @@ export interface GestionHotel {
 
   listerPaiements(): Promise<Paiement[]>
   // Montant dans la devise reçue ; contre-valeur en euros calculée au taux du jour
-  ajouterPaiement(reservationId: string, paiement: { montantDevise: number; devise: CodeDevise; mode: ModePaiement; note: string }, membreId: string): Promise<ResultatAction>
+  // `id` choisi par le logiciel : un second envoi du même encaissement n'en crée pas un autre
+  ajouterPaiement(
+    reservationId: string,
+    paiement: { id?: string; montantDevise: number; devise: CodeDevise; mode: ModePaiement; note: string },
+    membreId: string,
+  ): Promise<ResultatEnvoi>
   // Restaurant et bar mis sur la note des séjours (tickets non annulés)
   listerConsommations(): Promise<Consommation[]>
   // Refusée pour un encaissement repris sur une facture figée (un remboursement le corrige)

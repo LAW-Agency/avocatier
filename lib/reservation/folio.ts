@@ -17,6 +17,12 @@ export const convertir = (montant: number, de: CodeDevise, vers: CodeDevise, tau
 
 const centimes = (euros: number) => Math.round(euros * 100) / 100
 
+// Plus petit billet d'ariary : les montants à payer en ariary s'arrondissent à 100 Ar, un reste plus petit est soldé
+export const BILLET_ARIARY = 100
+
+// Montant à proposer en ariary : un reste dû arrondi au billet supérieur, un trop-perçu à rendre au billet inférieur
+export const arrondiBillet = (montant: number) => (montant > 0 ? Math.ceil(montant / BILLET_ARIARY) : -Math.floor(-montant / BILLET_ARIARY)) * BILLET_ARIARY
+
 // Restaurant et bar sur la note de la réservation (ariary)
 export const restaurantDe = (reservationId: string, consommations: Pick<Consommation, "reservationId" | "total">[]) =>
   consommations.filter((c) => c.reservationId === reservationId).reduce((t, c) => t + c.total, 0)
@@ -75,8 +81,8 @@ export function resteDu(r: Pick<Reservation, "id" | "statut" | "montantTotal">, 
 export function soldeSejour(r: Pick<Reservation, "id" | "statut" | "montantTotal">, paiements: EncaissementNote[], consommations: Pick<Consommation, "reservationId" | "total">[], taux: Taux): number {
   const { euros, ariary } = resteDu(r, paiements, consommations, taux)
   const solde = centimes(euros + ariary / pourUnEuro("MGA", taux))
-  // Écart d'arrondi des conversions : soldé
-  return Math.abs(solde) < 0.01 ? 0 : solde
+  // Écart d'arrondi des conversions, ou moins que le plus petit billet d'ariary (montants arrondis à la caisse) : soldé
+  return Math.abs(solde) < 0.01 || (taux.MGA !== undefined && Math.abs(solde) * taux.MGA < BILLET_ARIARY) ? 0 : solde
 }
 
 // Même solde, compté directement dans une devise (montant à proposer au client) : le restaurant reste exact en
@@ -94,7 +100,7 @@ export function soldeEn(
 }
 
 // Reste d'une facture assez petit pour être un arrondi de conversion
-export const estSoldee = (reste: number, devise: CodeDevise) => Math.abs(reste) < (devise === "MGA" ? 50 : 0.05)
+export const estSoldee = (reste: number, devise: CodeDevise) => Math.abs(reste) < (devise === "MGA" ? BILLET_ARIARY : 0.05)
 
 export type SejourFacture = Pick<Reservation, "id" | "reference" | "arrivee" | "depart" | "adultes" | "enfants" | "navette" | "montantTotal"> & {
   hebergement: string // « Bungalow Océan »

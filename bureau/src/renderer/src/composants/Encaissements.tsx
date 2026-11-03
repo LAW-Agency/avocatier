@@ -3,7 +3,7 @@ import { DeleteRegular, MoneyRegular, ReceiptRegular } from "@fluentui/react-ico
 import { useState, type FormEvent } from "react"
 import { formaterHeure, nombreNuits, pluriel } from "@partage/dates"
 import { dateDesTaux, DEVISES, formaterDansDevise, tauxARevoir } from "@partage/devises"
-import { convertir, soldeEn } from "@partage/folio"
+import { arrondiBillet, convertir, soldeEn } from "@partage/folio"
 import type { CodeDevise, ModePaiement, Paiement, Reservation } from "@partage/types"
 import { numeroRecu } from "../documents"
 import { restaurantSur, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
@@ -13,8 +13,12 @@ import { useEncaissementsStyles } from "./useReservationStyles.styles"
 import { montantRecu, usePrix } from "../montants"
 import TicketsRestaurant from "./TicketsRestaurant"
 
-// Montant proposé dans la devise choisie : le reste à payer, ou le trop-perçu à rendre (négatif)
-const proposition = (solde: number) => (solde === 0 ? "" : String(solde).replace(".", ","))
+// Montant proposé dans la devise choisie : le reste à payer, ou le trop-perçu à rendre (négatif) ; en ariary, arrondi
+// aux 100 Ar (pas de billet plus petit)
+function proposition(solde: number, devise: CodeDevise) {
+  const montant = devise === "MGA" ? arrondiBillet(solde) : solde
+  return montant === 0 ? "" : String(montant).replace(".", ",")
+}
 
 // Encaissements d'une réservation : hébergement, restaurant et bar mis sur la chambre, déjà payé, reste dû ; saisie
 // d'un paiement en ariary, en euros ou en dollars (négatif : remboursement), contre-valeur en euros au taux du jour.
@@ -39,18 +43,21 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
   const choixDevises = [...new Set<CodeDevise>(["MGA", "EUR", ...d.devises.actives])]
   const [devise, setDevise] = useState<CodeDevise>("MGA")
   const soldeDans = (code: CodeDevise) => soldeEn(code, r, d.paiements, d.consommations, d.devises.taux)
-  const [montant, setMontant] = useState(() => proposition(soldeDans("MGA")))
+  const [montant, setMontant] = useState(() => proposition(soldeDans("MGA"), "MGA"))
   const [mode, setMode] = useState<ModePaiement>("especes")
   const [note, setNote] = useState("")
   const [enCours, setEnCours] = useState(false)
   // Ligne dont le reçu s'enregistre ou qui se supprime
   const [ligneEnCours, setLigneEnCours] = useState<{ id: string; action: "recu" | "suppression" } | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  // Identifiant de l'encaissement en cours de saisie, gardé jusqu'à ce qu'il soit enregistré : si la réponse se perd
+  // et qu'on réessaie, le serveur ne l'enregistre pas une seconde fois
+  const [envoi, setEnvoi] = useState(() => crypto.randomUUID())
   const membre = (id?: string) => d.equipe.find((m) => m.id === id)?.prenom
 
   function choisirDevise(code: CodeDevise) {
     setDevise(code)
-    setMontant(proposition(soldeDans(code)))
+    setMontant(proposition(soldeDans(code), code))
   }
 
   async function encaisser(e: FormEvent) {
@@ -58,11 +65,12 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
     setEnCours(true)
     setErreur(null)
     const valeur = Number(montant.replace(/\s/g, "").replace(",", "."))
-    const resultat = await executer("POST", "/api/hotes/paiements", { reservationId: r.id, montant: valeur, devise, mode, note })
+    const resultat = await executer("POST", "/api/hotes/paiements", { id: envoi, reservationId: r.id, montant: valeur, devise, mode, note })
     setEnCours(false)
     if (!resultat.ok) return setErreur(resultat.erreur)
+    setEnvoi(crypto.randomUUID())
     // Les données rechargées arrivent juste après : reste calculé sur ce qui vient d'être reçu
-    setMontant(proposition(soldeEn(devise, r, [...d.paiements, { reservationId: r.id, montant: convertir(valeur, devise, "EUR", d.devises.taux), devise, montantDevise: valeur, tauxAriary: d.devises.taux.MGA }], d.consommations, d.devises.taux)))
+    setMontant(proposition(soldeEn(devise, r, [...d.paiements, { reservationId: r.id, montant: convertir(valeur, devise, "EUR", d.devises.taux), devise, montantDevise: valeur, tauxAriary: d.devises.taux.MGA }], d.consommations, d.devises.taux), devise))
     setNote("")
   }
 

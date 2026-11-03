@@ -41,10 +41,16 @@ export function chevauche(debutA: DateISO, finA: DateISO, debutB: DateISO, finB:
   return debutA < finB && debutB < finA
 }
 
+const JOUR_SAINTE_MARIE = new Intl.DateTimeFormat("en-CA", { timeZone: "Indian/Antananarivo" })
+
 // Date du jour à Sainte-Marie (UTC+3), quel que soit le fuseau du serveur
 export function aujourdhuiISO(): DateISO {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Indian/Antananarivo" }).format(new Date())
+  return JOUR_SAINTE_MARIE.format(new Date())
 }
+
+// Jour à Sainte-Marie d'un instant ISO (encaissement, demande reçue…) : ses 10 premiers caractères sont le jour UTC,
+// la veille entre minuit et 3 h
+export const jourDe = (instant: string): DateISO => JOUR_SAINTE_MARIE.format(new Date(instant))
 
 export function formaterDate(iso: DateISO, options: Intl.DateTimeFormatOptions = {}): string {
   return new Intl.DateTimeFormat("fr-FR", {

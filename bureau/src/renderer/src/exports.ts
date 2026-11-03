@@ -1,4 +1,4 @@
-import { nombreNuits, pluriel } from "@partage/dates"
+import { jourDe, nombreNuits, pluriel } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
 import { formaterDansDevise } from "@partage/devises"
 import type { ClientPublic, Paiement, Reservation } from "@partage/types"
@@ -157,7 +157,7 @@ export function feuilleClients(clients: ClientPublic[], d: Donnees, precision?: 
         vide(c.telephone),
         vide(c.pays),
         c.origine === "site" ? "Compte du site" : "Réception",
-        c.creeLe.slice(0, 10),
+        jourDe(c.creeLe),
         sejours.length,
         confirmes.reduce((t, r) => t + nombreNuits(r.arrivee, r.depart), 0),
         confirmes.reduce((t, r) => t + r.montantTotal, 0),

@@ -168,7 +168,7 @@ export type DemandeReservation = {
 }
 
 export type ResultatDemande =
-  | { ok: true; reservation: Reservation }
+  | { ok: true; reservation: Reservation; deja?: true } // deja : même envoi reçu une seconde fois, rien de créé
   | { ok: false; erreur: string }
 
 // Demande du site : une réservation par chambre demandée
@@ -177,6 +177,8 @@ export type ResultatDemandeSite = { ok: true; reservations: Reservation[] } | { 
 export type NouveauClient = Omit<Client, "id" | "creeLe" | "role" | "sessionsValidesDepuis" | "actif" | "origine" | "note">
 
 export type ResultatAction = { ok: true } | { ok: false; erreur: string }
+// Écriture envoyée par le logiciel avec son identifiant : un second envoi (réponse perdue, « Réessayer ») ne crée rien
+export type ResultatEnvoi = { ok: true; deja?: true } | { ok: false; erreur: string }
 
 // Tarifs modifiés par les hôtes (logiciel, Tarifs) : prix de base en euros et liste complète des saisons
 export type ModificationTarifs = {
@@ -255,6 +257,7 @@ export type EffacementJournal = { ids: string[] } | { avant: string } | { tout: 
 
 // Réservation saisie dans le logiciel (téléphone, WhatsApp, Booking.com, comptoir) : confirmée d'office
 export type ReservationDirecte = {
+  id?: string // choisi par le logiciel : un second envoi renvoie la réservation déjà créée
   clientId: string
   hebergementId: string
   chambreId: string | null // null : première chambre libre de la catégorie

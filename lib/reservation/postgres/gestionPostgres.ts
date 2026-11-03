@@ -35,6 +35,7 @@ import type {
   ReglagesFacturation,
   Reservation,
   ResultatAction,
+  ResultatEnvoi,
   ResultatDemande,
   ResultatModification,
 } from "../types"
@@ -76,6 +77,15 @@ const versPaiement = ({ le, enregistrePar, montantDevise, taux, tauxAriary, ...r
   ...(taux !== null && { taux }),
   ...(tauxAriary !== null && { tauxAriary }),
 })
+
+// Identifiant choisi par le logiciel pour un envoi (encaissement, réservation) : un second envoi est reconnu
+const ID_ENVOI = /^[A-Za-z0-9-]{8,64}$/
+
+// Réservation déjà créée par un premier envoi du même identifiant
+async function reservationEnvoyee(executant: Executant, id: string): Promise<ResultatDemande | null> {
+  const [ligne] = await lignes<LigneReservation>(executant, `select ${RESERVATION} from reservations where id = $1`, [id])
+  return ligne ? { ok: true, reservation: versReservation(ligne), deja: true } : null
+}
 
 // Tickets du restaurant et du bar sur la note des séjours (non annulés)
 const CONSOMMATION = `t.id, t.numero, t.le, t.total, t.libelle, t.facture_id as "factureId", t.reservation_id as "reservationId",
@@ -330,10 +340,14 @@ export const gestionPostgres: GestionHotel = {
   },
 
   async creerReservationDirecte(r, auteur, remise) {
+    if (r.id !== undefined && !ID_ENVOI.test(r.id)) return { ok: false, erreur: "Identifiant de réservation invalide." }
     try {
       return await transaction<ResultatDemande>(async (tx) => {
         await verrouiller(tx, r.hebergementId)
         await expirerOptions(tx)
+        // Même envoi reçu une seconde fois (réponse perdue en route) : la réservation déjà créée, pas une deuxième
+        const deja = r.id ? await reservationEnvoyee(tx, r.id) : null
+        if (deja) return deja
         const hebergement = (await lireHebergements(tx)).find((h) => h.id === r.hebergementId)
         const erreur = controlerReservationDirecte(r, hebergement, aujourdhuiISO())
         if (erreur || !hebergement) return { ok: false, erreur: erreur ?? "Choisissez un hébergement." }
@@ -350,9 +364,9 @@ export const gestionPostgres: GestionHotel = {
         const maintenant = new Date()
         const [ligne] = await lignes<LigneReservation>(
           tx,
-          `insert into reservations (reference, client_id, hebergement_id, chambre_id, arrivee, depart, adultes, enfants, navette,
+          `insert into reservations (id, reference, client_id, hebergement_id, chambre_id, arrivee, depart, adultes, enfants, navette,
              telephone, message, montant_total, statut, source, cree_le, historique)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'confirmee', $13, $14, $15)
+           values (coalesce($16, gen_random_uuid()::text), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'confirmee', $13, $14, $15)
            returning ${RESERVATION}`,
           [
             `AVO-${r.arrivee.slice(0, 4)}-${String(numero).padStart(4, "0")}`,
@@ -370,12 +384,16 @@ export const gestionPostgres: GestionHotel = {
             r.source,
             maintenant,
             JSON.stringify([{ statut: "confirmee", le: maintenant.toISOString(), note: `Saisie dans le logiciel par ${auteur}` }]),
+            r.id ?? null,
           ],
         )
         return { ok: true, reservation: versReservation(ligne) }
       })
     } catch (erreur) {
       if (codeErreur(erreur) === "23P01") return { ok: false, erreur: DATES_PRISES }
+      // Les deux envois en même temps (autre catégorie, donc autre verrou) : le premier l'a créée
+      const deja = codeErreur(erreur) === "23505" && r.id ? await reservationEnvoyee(db(), r.id) : null
+      if (deja) return deja
       throw erreur
     }
   },
@@ -712,13 +730,14 @@ export const gestionPostgres: GestionHotel = {
     })
   },
 
-  async ajouterPaiement(reservationId, { montantDevise, devise, mode, note }, membreId) {
+  async ajouterPaiement(reservationId, { id, montantDevise, devise, mode, note }, membreId) {
+    if (id !== undefined && !ID_ENVOI.test(id)) return { ok: false, erreur: "Identifiant d'encaissement invalide." }
     const { taux } = await moteurPostgres.reglagesDevises()
     // Contre-valeur en euros au taux du jour (au centime) ; reçu en euros : le montant lui-même
     const montant = estCodeDevise(devise) ? convertir(montantDevise, devise, "EUR", taux) : NaN
     const erreur = controlerPaiement(montantDevise, devise, montant, mode)
     if (erreur) return { ok: false, erreur }
-    return transaction<ResultatAction>(async (tx) => {
+    return transaction<ResultatEnvoi>(async (tx) => {
       // Ligne verrouillée : deux remboursements simultanés ne dépassent pas ensemble ce qui a été encaissé
       const [r] = await lignes<{ paye: number; recuDevise: number; recuDeviseEuros: number }>(
         tx,
@@ -729,6 +748,20 @@ export const gestionPostgres: GestionHotel = {
         [reservationId, devise],
       )
       if (!r) return { ok: false, erreur: "Réservation introuvable." }
+      // Même envoi reçu une seconde fois (réponse perdue, « Réessayer ») : déjà enregistré, rien de plus. Un autre
+      // montant sous le même identifiant (saisie changée entre les deux envois) : refusé, à vérifier dans la liste
+      if (id) {
+        const [deja] = await lignes<{ montant: number; devise: string; montantDevise: number | null }>(
+          tx,
+          `select montant, devise, montant_devise as "montantDevise" from paiements where id = $1`,
+          [id],
+        )
+        if (deja) {
+          return deja.devise === devise && (deja.montantDevise ?? deja.montant) === montantDevise
+            ? { ok: true, deja: true }
+            : { ok: false, erreur: "Le premier envoi de cet encaissement a déjà été enregistré, avec un autre montant : vérifiez les règlements reçus avant d'en saisir un autre." }
+        }
+      }
       // Un remboursement rend au plus ce que le client a versé sur ce séjour (contre-valeur en euros). Rendu dans une
       // devise reçue sur ce séjour : compté au taux où elle a été reçue, pas au taux du jour (les 33 000 Ar reçus se
       // rendent même si le taux a baissé depuis)
@@ -737,7 +770,7 @@ export const gestionPostgres: GestionHotel = {
         return { ok: false, erreur: `Remboursement supérieur aux encaissements de ce séjour (${formaterDansDevise(Math.max(0, r.paye), "EUR")} au total).` }
       }
       await tx.query(
-        "insert into paiements (reservation_id, montant, devise, montant_devise, taux, taux_ariary, mode, note, enregistre_par) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        "insert into paiements (id, reservation_id, montant, devise, montant_devise, taux, taux_ariary, mode, note, enregistre_par) values (coalesce($10, gen_random_uuid()::text), $1, $2, $3, $4, $5, $6, $7, $8, $9)",
         [
           reservationId,
           montant,
@@ -748,6 +781,7 @@ export const gestionPostgres: GestionHotel = {
           mode satisfies ModePaiement,
           note.trim().slice(0, 200),
           membreId,
+          id ?? null,
         ],
       )
       return { ok: true }
