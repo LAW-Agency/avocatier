@@ -120,10 +120,12 @@ export default function Header() {
             <nav aria-label="Navigation principale" className="hidden lg:flex items-center gap-5 xl:gap-8">
               {navLinks.map((link) => (
                 <div key={link.label} className="relative group">
+                  {/* Page en cours : soulignée en permanence ; les autres le sont au survol */}
                   <Link
                     href={link.href}
+                    aria-current={(link.href === "/" ? pathname === "/" : pathname.startsWith(link.href)) ? "page" : undefined}
                     className={`relative flex items-center gap-1 py-2 text-sm xl:text-[0.95rem] font-medium tracking-wide transition-colors duration-500 ${linkColor}
-                      after:absolute after:left-0 after:bottom-0.5 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-current after:transition-transform after:duration-500 hover:after:scale-x-100`}
+                      after:absolute after:left-0 after:bottom-0.5 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-current after:transition-transform after:duration-500 hover:after:scale-x-100 aria-[current=page]:after:scale-x-100`}
                   >
                     {link.label}
                     {link.submenu && (
