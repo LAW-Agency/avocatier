@@ -227,6 +227,7 @@ export type Paiement = {
   devise: CodeDevise
   montantDevise?: number
   taux?: number
+  tauxAriary?: number // 1 € = tauxAriary Ar le jour de l'encaissement (absent sur les très anciens : taux du jour)
   mode: ModePaiement
   note: string
   le: string // date-heure ISO

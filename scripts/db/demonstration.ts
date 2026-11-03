@@ -710,12 +710,13 @@ async function demonstration() {
     await db.query("select setval('reservations_numero', $1)", [sejours.length])
     if (facturables.length) await db.query("select setval('factures_numero', $1)", [facturables.length])
 
-    // Encaissements dans l'ordre chronologique : numéros de reçu croissants
+    // Encaissements dans l'ordre chronologique : numéros de reçu croissants ; en euros, au taux de l'ariary du moment
     paiements.sort((a, b) => a.le.localeCompare(b.le))
+    const [devises] = (await db.query<{ ariary: number | null }>("select (taux ->> 'MGA')::float as ariary from reglages_devises")).rows
     await inserer(
       "paiements",
-      "reservation_id text, montant integer, mode text, note text, le timestamptz, enregistre_par text",
-      paiements.map((p) => ({ reservation_id: p.reservation.id, montant: p.montant, mode: p.mode, note: p.note, le: p.le, enregistre_par: p.par })),
+      "reservation_id text, montant integer, taux_ariary numeric, mode text, note text, le timestamptz, enregistre_par text",
+      paiements.map((p) => ({ reservation_id: p.reservation.id, montant: p.montant, taux_ariary: devises?.ariary ?? null, mode: p.mode, note: p.note, le: p.le, enregistre_par: p.par })),
       "order by le",
     )
 

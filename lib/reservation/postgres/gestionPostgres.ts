@@ -59,20 +59,22 @@ import {
 
 // Implémentation PostgreSQL du contrat ../gestion (schéma : migrations/003_logiciel_hotes.sql)
 
-const PAIEMENT = `id, reservation_id as "reservationId", montant, devise, montant_devise as "montantDevise", taux, mode, note, le,
-  enregistre_par as "enregistrePar", numero`
-type LignePaiement = Omit<Paiement, "le" | "enregistrePar" | "montantDevise" | "taux"> & {
+const PAIEMENT = `id, reservation_id as "reservationId", montant, devise, montant_devise as "montantDevise", taux, taux_ariary as "tauxAriary",
+  mode, note, le, enregistre_par as "enregistrePar", numero`
+type LignePaiement = Omit<Paiement, "le" | "enregistrePar" | "montantDevise" | "taux" | "tauxAriary"> & {
   le: Date
   enregistrePar: string | null
   montantDevise: number | null
   taux: number | null
+  tauxAriary: number | null
 }
-const versPaiement = ({ le, enregistrePar, montantDevise, taux, ...reste }: LignePaiement): Paiement => ({
+const versPaiement = ({ le, enregistrePar, montantDevise, taux, tauxAriary, ...reste }: LignePaiement): Paiement => ({
   ...reste,
   le: le.toISOString(),
   ...(enregistrePar && { enregistrePar }),
   ...(montantDevise !== null && { montantDevise }),
   ...(taux !== null && { taux }),
+  ...(tauxAriary !== null && { tauxAriary }),
 })
 
 // Tickets du restaurant et du bar sur la note des séjours (non annulés)
@@ -467,22 +469,22 @@ export const gestionPostgres: GestionHotel = {
 
   async enregistrerMouvement(reservationId, mouvement, { annuler = false, auteur, note = "" }) {
     return transaction<{ ok: true; soldeDu: number } | { ok: false; erreur: string }>(async (tx) => {
-      const [ligne] = await lignes<{ statut: string; arrivee: string; arriveeLe: Date | null; departLe: Date | null; chambreId: string; montantTotal: number; paye: number; restaurant: number }>(
+      const [ligne] = await lignes<{ statut: string; arrivee: string; arriveeLe: Date | null; departLe: Date | null; chambreId: string; montantTotal: number; restaurant: number }>(
         tx,
         `select statut, arrivee, arrivee_le as "arriveeLe", depart_le as "departLe", chambre_id as "chambreId", montant_total as "montantTotal",
-           coalesce((select sum(montant) from paiements p where p.reservation_id = r.id), 0)::numeric as paye,
            coalesce((select sum(total) from tickets t where t.reservation_id = r.id and t.statut = 'chambre'), 0)::int as restaurant
          from reservations r where id = $1 for update`,
         [reservationId],
       )
       if (!ligne) return { ok: false, erreur: "Réservation introuvable." }
-      // Solde en euros, restaurant et bar compris (ariary convertis au taux du jour)
+      // Solde en euros, restaurant et bar compris (ariary encore dus convertis au taux du jour)
       const { taux } = await moteurPostgres.reglagesDevises()
+      const paiements = (await lignes<LignePaiement>(tx, `select ${PAIEMENT} from paiements where reservation_id = $1`, [reservationId])).map(versPaiement)
       const r = {
         ...ligne,
         solde: soldeSejour(
           { id: reservationId, statut: ligne.statut as Reservation["statut"], montantTotal: ligne.montantTotal },
-          [{ reservationId, montant: ligne.paye }],
+          paiements,
           [{ reservationId, total: ligne.restaurant }],
           taux,
         ),
@@ -730,13 +732,14 @@ export const gestionPostgres: GestionHotel = {
         return { ok: false, erreur: `Remboursement supérieur aux encaissements de ce séjour (${formaterDansDevise(Math.max(0, r.paye), "EUR")} au total).` }
       }
       await tx.query(
-        "insert into paiements (reservation_id, montant, devise, montant_devise, taux, mode, note, enregistre_par) values ($1, $2, $3, $4, $5, $6, $7, $8)",
+        "insert into paiements (reservation_id, montant, devise, montant_devise, taux, taux_ariary, mode, note, enregistre_par) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         [
           reservationId,
           montant,
           devise,
           devise === "EUR" ? null : montantDevise,
           devise === "EUR" ? null : taux[devise],
+          taux.MGA ?? null,
           mode satisfies ModePaiement,
           note.trim().slice(0, 200),
           membreId,

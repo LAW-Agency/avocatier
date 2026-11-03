@@ -6,7 +6,7 @@ import { DEVISES, formaterDansDevise } from "@partage/devises"
 import { convertir, soldeEn } from "@partage/folio"
 import type { CodeDevise, ModePaiement, Paiement, Reservation } from "@partage/types"
 import { numeroRecu } from "../documents"
-import { encaisseDe, restaurantSur, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
+import { restaurantSur, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useEncaissementsStyles } from "./useReservationStyles.styles"
@@ -27,13 +27,15 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
   const { imprimerRecu } = useFichiers()
   const paiements = paiementsDe(r)
   const solde = soldeDe(r, d)
-  const encaisse = encaisseDe(r, d)
   const restaurant = restaurantSur(r, d)
   const tickets = d.consommations.filter((c) => c.reservationId === r.id)
   const actif = r.statut === "confirmee" || r.statut === "option"
   const nuits = nombreNuits(r.arrivee, r.depart)
   const restaurantEuros = convertir(restaurant, "MGA", "EUR", d.devises.taux)
   const du = (actif ? r.montantTotal : 0) + restaurantEuros
+  // Ce que les règlements ont couvert, vu au taux du jour : les ariary pour leur montant exact, le reste à son taux
+  // d'encaissement (total − encaissé = reste, même après un changement de taux)
+  const encaisse = paiements.length ? du - solde : 0
   const choixDevises = [...new Set<CodeDevise>(["MGA", "EUR", ...d.devises.actives])]
   const [devise, setDevise] = useState<CodeDevise>("MGA")
   const soldeDans = (code: CodeDevise) => soldeEn(code, r, d.paiements, d.consommations, d.devises.taux)
@@ -60,7 +62,7 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
     setEnCours(false)
     if (!resultat.ok) return setErreur(resultat.erreur)
     // Les données rechargées arrivent juste après : reste calculé sur ce qui vient d'être reçu
-    setMontant(proposition(soldeEn(devise, r, [...d.paiements, { reservationId: r.id, montant: convertir(valeur, devise, "EUR", d.devises.taux), devise, montantDevise: valeur }], d.consommations, d.devises.taux)))
+    setMontant(proposition(soldeEn(devise, r, [...d.paiements, { reservationId: r.id, montant: convertir(valeur, devise, "EUR", d.devises.taux), devise, montantDevise: valeur, tauxAriary: d.devises.taux.MGA }], d.consommations, d.devises.taux)))
     setNote("")
   }
 
