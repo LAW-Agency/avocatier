@@ -83,30 +83,31 @@ export const lieux: { nom: string; texte: string; image: PhotoLibre }[] = [
 
 // Excursions et activités nautiques
 // TODO client : préciser lesquelles l'hôtel organise ou recommande (prestataires, tarifs, saison)
-export const activites: { nom: string; texte: string; icon: LucideIcon }[] = [
+export const activites: { nom: string; periode?: string; texte: string; icon: LucideIcon }[] = [
   {
     nom: "Observation des baleines",
-    texte: "De juillet à septembre, sorties en mer encadrées à la rencontre des baleines à bosse et de leurs baleineaux.",
+    periode: "Juillet à septembre",
+    texte: "Partez en mer à la rencontre des majestueuses baleines à bosse et de leurs baleineaux. Un spectacle naturel exceptionnel !",
     icon: Waves,
   },
   {
     nom: "Plongée et snorkeling",
-    texte: "Récifs coralliens, tortues et poissons tropicaux : randonnée palmée ou plongée encadrée par un centre local.",
+    texte: "Explorez les fonds marins, les récifs coralliens et leurs poissons tropicaux. Masque et tuba ou plongée, à vous de choisir !",
     icon: Shell,
   },
   {
     nom: "Balade en pirogue",
-    texte: "Excursion sur le lagon en pirogue traditionnelle, vers l’île aux Nattes ou le long de la côte.",
+    texte: "Embarquez à bord d’une pirogue traditionnelle pour découvrir les eaux turquoise du lagon et rejoindre la magnifique île aux Nattes.",
     icon: Sailboat,
   },
   {
-    nom: "Pêche",
-    texte: "Sortie au petit matin avec les pêcheurs du village, ou pêche au large.",
+    nom: "Pêche traditionnelle",
+    texte: "Partagez un moment authentique avec les pêcheurs du village ou tentez une sortie de pêche au large.",
     icon: Fish,
   },
   {
     nom: "Tour de l’île",
-    texte: "À vélo, en scooter ou en voiture avec chauffeur : villages, plages et points de vue de la côte est.",
+    texte: "Partez à la découverte des villages, des plages sauvages et des paysages magnifiques de Sainte-Marie, à votre rythme et selon vos envies.",
     icon: Bike,
   },
 ]

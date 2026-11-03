@@ -10,15 +10,15 @@ export default function Histoire() {
       <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-12 gap-10 lg:gap-14 items-center">
 
         <div data-reveal className="md:col-span-5 space-y-5">
-          <SectionTitle title="Une adresse à taille humaine" />
+          <SectionTitle title="Le charme d’une adresse confidentielle" />
           <p className="max-w-[60ch] text-body">
-            Quelques bungalows et chambres seulement, un grand jardin tropical, une piscine et la plage
-            au bout de la pelouse : Chez L’Avocatier a choisi l’intimité plutôt que le nombre. Un format
-            qui garantit à chacun un séjour au calme et l’attention de ses hôtes.
+            Quelques bungalows et chambres nichés dans un écrin tropical, une piscine, une plage au bout du jardin… Chez L’Avocatier, nous avons choisi l’intimité et la tranquillité plutôt que le nombre.
           </p>
           <p className="max-w-[60ch] text-body">
-            Le panneau peint au bord de la route de Vohilava résume l’essentiel : piscine, accès direct
-            à la plage, calme et coucher de soleil face à l’océan. Une promesse simple, tenue chaque jour.
+            Joëlle et Stéphane vous accueillent personnellement dans une atmosphère chaleureuse et conviviale, pour un séjour placé sous le signe de la détente, de l’authenticité et de la douceur de vivre.
+          </p>
+          <p className="max-w-[60ch] text-body">
+            Un petit paradis où l’on se sent tout simplement bien !
           </p>
         </div>
 

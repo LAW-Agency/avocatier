@@ -43,9 +43,13 @@ export default function HotelPage() {
 
       <SplitSection
         id="jardin"
-        title="Le jardin tropical"
-        text="Cocotiers, massifs fleuris et grande pelouse : le jardin relie votre bungalow à la piscine et à la plage. Un transat au soleil, un hamac à l’ombre, un bon livre : le programme de la journée est vite trouvé."
-        cta={{ label: "Voir les bungalows", href: "/hebergements" }}
+        title="Un jardin tropical, une invitation à la détente"
+        text={[
+          "Cocotiers, fleurs exotiques et pelouse verdoyante composent un écrin de nature entre votre bungalow, la piscine et la plage.",
+          "Un hamac à l’ombre, un transat au soleil, le bruit des vagues en fond sonore… Ici, le bonheur est de ne rien faire, simplement profiter !",
+          "Laissez-vous séduire par la douceur de vivre Chez L’Avocatier.",
+        ]}
+        cta={{ label: "Découvrez nos bungalows", href: "/hebergements" }}
         image={{
           src: "/images/hotel/jardin.jpeg",
           alt: "La pelouse du jardin tropical et la piscine sous un ciel de nuages",
@@ -69,20 +73,25 @@ export default function HotelPage() {
         }}
       >
         <p>
-          Il suffit de traverser la pelouse : la plage s’ouvre à quelques pas de votre hébergement.
-          L’eau calme du lagon invite à la baignade, tandis qu’au large glissent les pirogues des pêcheurs.
+          Quelques pas sur la pelouse et vous voilà les pieds dans le sable ! Profitez d’une plage paisible, d’un lagon propice à la baignade et du ballet des pirogues de pêcheurs.
         </p>
         <p>
-          À l’ombre des cocotiers, un hamac vous attend. Et chaque soir, le même rendez-vous : le soleil
-          qui se couche face à la plage.
+          À l’ombre des cocotiers, laissez-vous bercer par la douceur tropicale et savourez chaque soir un magnifique coucher de soleil face à l’océan.
+        </p>
+        <p>
+          Ici, la mer est votre voisine et le bonheur à portée de main !
         </p>
       </PanoramaSection>
 
       <SplitSection
         id="piscine"
-        title="La piscine, au cœur du jardin"
-        text="Bordée de pierre et entourée de transats, la piscine se prête aussi bien aux longues baignades qu’aux siestes au soleil. Son escalier immergé permet d’y entrer en douceur, et le bar n’est qu’à quelques pas."
-        cta={{ label: "Voir les disponibilités", href: "/reserver" }}
+        title="La piscine, votre oasis de fraîcheur"
+        text={[
+          "Au cœur du jardin tropical, profitez de notre piscine bordée de pierre, entourée de transats et propice à la détente. Pour quelques longueurs, un moment de fraîcheur ou une pause au soleil, tout invite à savourer l’instant présent.",
+          "Et pour prolonger le plaisir, le bar vous attend à quelques pas !",
+          "Un petit plongeon, un verre à la main… Voilà les vacances !",
+        ]}
+        cta={{ label: "Consultez nos disponibilités", href: "/reserver" }}
         image={{
           src: "/images/pool/piscine-escalier.jpeg",
           alt: "Les marches en pierre de la piscine, eau turquoise et végétation tropicale",
@@ -97,8 +106,11 @@ export default function HotelPage() {
       <SplitSection
         id="restaurant"
         title="Restaurant & bar, face à l’océan"
-        text="Petit-déjeuner continental, cuisine maison à base de produits locaux et bio, bar au bord de la piscine : ici, on dîne face à l’océan, sans avoir à reprendre la route."
-        cta={{ label: "Découvrir la table", href: "/restaurant" }}
+        text={[
+          "Savourez un délicieux petit-déjeuner, découvrez une cuisine maison aux saveurs locales et profitez d’un verre au bord de la piscine. Des produits frais et bio, une ambiance conviviale et l’océan Indien en toile de fond.",
+          "Ici, la gourmandise aussi prend des airs de vacances !",
+        ]}
+        cta={{ label: "Découvrez notre restaurant et notre bar", href: "/restaurant" }}
         image={{
           src: "/images/restaurant/jardin-table-plage.jpeg",
           alt: "Une table sous la paillote, sur la pelouse au bord de la plage, au soleil couchant",

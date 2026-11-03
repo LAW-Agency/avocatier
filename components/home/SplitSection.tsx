@@ -41,8 +41,8 @@ export default function SplitSection({
 }: SplitSectionProps) {
   const dark = tone === "forest"
   const paragraphs = Array.isArray(text) ? text : [text]
-  // Texte long : la photo reste à l'écran pendant qu'on lit (desktop)
-  const long = paragraphs.length > 1
+  // Texte long (plus haut que la photo) : la photo reste à l'écran pendant qu'on lit (desktop)
+  const long = paragraphs.join("").length > 700
   return (
     <section id={id} className={`py-section ${toneClasses[tone].section}`}>
       <div className={`max-w-7xl mx-auto px-4 grid md:grid-cols-12 gap-8 md:gap-10 lg:gap-14 ${long ? "items-start" : "items-center"}`}>

@@ -4,7 +4,7 @@ import ButtonLink from "@/components/ButtonLink"
 interface PageHeroProps {
   title: string
   tagline: string
-  text: string
+  text: string | string[]   // un ou plusieurs paragraphes
   image: {
     src: string
     alt: string
@@ -17,8 +17,9 @@ interface PageHeroProps {
 // Hero plein écran des pages intérieures : photo, titre en bas à gauche, texte et boutons à droite.
 // Header transparent par-dessus : la page doit figurer dans HERO_PAGES (components/Header.tsx).
 export default function PageHero({ title, tagline, text, image, secondary, rubriques }: PageHeroProps) {
+  const paragraphs = Array.isArray(text) ? text : [text]
   return (
-    <section className="relative isolate flex h-dvh min-h-[38rem] items-end overflow-hidden bg-forest">
+    <section className="relative isolate flex min-h-[max(100dvh,38rem)] items-end overflow-hidden bg-forest">
       {/* Conteneur séparé : l'apparition de la photo ne remplace pas son zoom au défilement */}
       <div className="absolute inset-0 -z-20 animate-photo-entree motion-reduce:animate-none">
         <Image
@@ -52,7 +53,11 @@ export default function PageHero({ title, tagline, text, image, secondary, rubri
           </h1>
 
           <div className="lg:col-span-5 space-y-6">
-            <p className="max-w-md text-base md:text-lg leading-relaxed text-primary-light/85">{text}</p>
+            <div className="max-w-md space-y-3">
+              {paragraphs.map((p) => (
+                <p key={p} className="text-base md:text-lg leading-relaxed text-primary-light/85">{p}</p>
+              ))}
+            </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap [&>a]:whitespace-nowrap">
               <ButtonLink href="/reserver" className="w-full sm:w-auto">
                 Réserver votre séjour

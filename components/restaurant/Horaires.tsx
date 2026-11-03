@@ -13,7 +13,10 @@ export default function Horaires() {
       <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-12 gap-10 lg:gap-14 items-start">
 
         <div data-reveal className="md:col-span-6 lg:col-span-5 space-y-6">
-          <SectionTitle title="Horaires" />
+          <SectionTitle title="Horaires de notre restaurant & bar" />
+          <p className="max-w-[60ch] text-body">
+            Pour profiter pleinement de vos journées à Sainte-Marie, nous vous accueillons :
+          </p>
           <dl className="divide-y divide-primary-dark/15 border-y border-primary-dark/15">
             {horaires.map(({ service, heures }) => (
               <div key={service} className="flex items-baseline justify-between gap-6 py-4">
@@ -30,11 +33,13 @@ export default function Horaires() {
           className="md:col-span-6 lg:col-span-6 lg:col-start-7 rounded-card bg-mist p-6 md:p-10 space-y-5"
         >
           <h3 className="font-heading text-2xl md:text-3xl leading-tight text-balance">
-            Une demande particulière ?
+            Une envie particulière ?
           </h3>
           <p className="max-w-[55ch] text-body">
-            Allergie, régime particulier, anniversaire ou repas en groupe : prévenez-nous à l’avance,
-            Joëlle et Stéphane organiseront votre accueil en conséquence.
+            Allergies, régime alimentaire, anniversaire ou repas en groupe ? Faites-nous part de vos souhaits à l’avance. Joëlle et Stéphane feront leur possible pour vous réserver un accueil personnalisé.
+          </p>
+          <p className="max-w-[55ch] text-body">
+            Une question ou une réservation ? Nous serons ravis d’échanger avec vous !
           </p>
 
           {(contact.phone || contact.email) && (
@@ -58,7 +63,7 @@ export default function Horaires() {
             </ul>
           )}
 
-          <ButtonLink href="/contact" variant="link">Nous contacter</ButtonLink>
+          <ButtonLink href="/contact" variant="link">Contactez-nous</ButtonLink>
         </div>
       </div>
     </section>

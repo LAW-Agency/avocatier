@@ -23,8 +23,12 @@ export default function RestaurantPage() {
     <div>
       <PageHero
         title="Restaurant & Bar"
-        tagline="Une table face à l’océan Indien"
-        text="Produits locaux et bio, assiettes généreuses et vue sur l’océan, du petit-déjeuner au dîner. Le bar, lui, vous attend au bord de la piscine."
+        tagline="Une cuisine savoureuse face à l’océan Indien"
+        text={[
+          "Des produits locaux, une cuisine maison généreuse et des saveurs qui sentent bon Madagascar… Du petit-déjeuner au dîner, profitez d’une belle expérience gourmande face à l’océan.",
+          "Et pour prolonger ces instants de plaisir, retrouvez notre bar au bord de la piscine pour savourer un verre dans une ambiance tropicale.",
+          "Chez L’Avocatier, les vacances se dégustent aussi à table !",
+        ]}
         image={{
           src: "/images/restaurant/table-ocean-coucher-soleil.jpeg",
           alt: "Table et paillote dans le jardin, face à l'océan au coucher du soleil",
@@ -41,11 +45,15 @@ export default function RestaurantPage() {
       {/* Notre cuisine : un texte court, beaucoup d'air */}
       <section id="cuisine" className="py-section">
         <div data-reveal className="max-w-3xl mx-auto px-4 text-center space-y-6">
-          <SectionTitle title="Une cuisine maison, généreuse et soignée" center />
+          <SectionTitle title="Une cuisine maison, généreuse et pleine de saveurs" center />
           <p className="text-body text-balance">
-            Tout commence par le produit : poisson des pêcheurs de l’île, fruits et légumes de saison,
-            ingrédients locaux, frais et bio. Les saveurs de Madagascar y croisent les classiques de la
-            cuisine française, dans des assiettes généreuses servies entre le jardin et l’océan.
+            Poissons frais des pêcheurs locaux, fruits et légumes de saison, produits frais… Notre cuisine met à l’honneur les richesses de Madagascar et les saveurs de la cuisine française.
+          </p>
+          <p className="text-body text-balance">
+            Des assiettes gourmandes et préparées avec soin, à savourer dans un cadre privilégié entre jardin tropical et océan Indien.
+          </p>
+          <p className="text-body text-balance">
+            Le plaisir des bons produits, la générosité du fait maison et le bonheur de partager !
           </p>
         </div>
       </section>
@@ -84,11 +92,13 @@ export default function RestaurantPage() {
         }}
       >
         <p>
-          Jus de fruits frais, cocktails et rhums arrangés : installé sous sa paillote, entre la
-          piscine et le jardin, le bar vous accueille tout au long de la journée.
+          Jus de fruits frais, cocktails et rhums arrangés… Installez-vous sous notre paillote, au cœur du jardin tropical, et profitez d’un moment de détente au bord de la piscine.
         </p>
         <p>
-          Et quand le soleil décline, c’est ici que l’on se retrouve pour l’apéritif.
+          En journée comme à l’heure de l’apéritif, notre bar est le rendez-vous idéal pour savourer la douceur des vacances.
+        </p>
+        <p>
+          Un verre à la main, les pieds presque dans l’eau… Le bonheur tout simplement !
         </p>
       </PanoramaSection>
 
@@ -97,7 +107,14 @@ export default function RestaurantPage() {
       {/* Horaires, puis réserver / nous contacter */}
       <Horaires/>
 
-      <BookingCTA title="Le soleil se couche, la table est mise"/>
+      <BookingCTA
+        title="Le soleil se couche, la table est mise…"
+        text={[
+          "Imaginez un dîner aux saveurs de Madagascar, face à l’océan Indien, dans une ambiance douce et tropicale.",
+          "Envie de partager ce moment gourmand ? Contactez Joëlle et Stéphane pour réserver votre table. Ils seront ravis de vous accueillir !",
+          "Chez L’Avocatier, les plus beaux souvenirs se partagent aussi autour d’une bonne table !",
+        ]}
+      />
     </div>
   );
 }

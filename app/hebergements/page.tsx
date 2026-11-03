@@ -25,8 +25,12 @@ export default async function HebergementsPage() {
     <div>
       <PageHero
         title="Hébergements"
-        tagline="Votre refuge tropical à Sainte-Marie"
-        text="Bungalows et chambres au cœur du jardin, à deux pas de la piscine et de la plage. Partout, une salle d’eau privative, le Wi-Fi et un coffre-fort, pour un séjour aussi simple que serein."
+        tagline="Votre cocon tropical à Sainte-Marie"
+        text={[
+          "Nichés dans un jardin tropical, nos bungalows et chambres vous accueillent dans une atmosphère chaleureuse et dépaysante, à quelques pas de la piscine et de la plage.",
+          "Chaque hébergement dispose de sa salle d’eau privative, du Wi-Fi et d’un coffre-fort pour profiter pleinement de votre séjour en toute sérénité.",
+          "Posez vos valises, déconnectez et savourez la douceur de vivre Chez L’Avocatier !",
+        ]}
         image={{
           src: "/images/rooms/bungalow-ocean-2.jpeg",
           alt: "Un bungalow aux murs vert profond : lit à baldaquin, moustiquaire et suspensions tressées",
@@ -45,11 +49,14 @@ export default async function HebergementsPage() {
             <div className="md:col-span-5">
               <SectionTitle title="Les bungalows, entre jardin et océan" />
             </div>
-            <p className="md:col-span-7 max-w-[60ch] text-body">
-              Chaque bungalow a sa décoration, ses couleurs et sa salle d’eau privative, et ouvre
-              directement sur le jardin, à quelques pas de l’océan. En amoureux ou en famille, il y en
-              a un à votre mesure.
-            </p>
+            <div className="md:col-span-7 max-w-[60ch] space-y-4 text-body">
+              <p>
+                Avec leur décoration colorée et leur charme tropical, nos bungalows vous offrent un véritable cocon de tranquillité. Chacun dispose de sa salle d’eau privative et s’ouvre sur le jardin, à quelques pas de la plage.
+              </p>
+              <p>
+                En amoureux ou en famille, trouvez votre petit nid pour des vacances inoubliables à Sainte-Marie !
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-x-4 gap-y-14 md:grid-cols-3 lg:gap-x-6">
@@ -71,12 +78,16 @@ export default async function HebergementsPage() {
           <div className="max-w-7xl mx-auto px-4">
             <div data-reveal className="grid md:grid-cols-12 gap-6 lg:gap-14 items-end mb-10 md:mb-14">
               <div className="md:col-span-5">
-                <SectionTitle title="Les chambres" />
+                <SectionTitle title="Les chambres, confort et douceur tropicale" />
               </div>
-              <p className="md:col-span-7 max-w-[60ch] text-body">
-                Plus compactes, les chambres offrent le même confort et le même soin que les bungalows.
-                Idéales pour une escale sur l’île ou un séjour à deux.
-              </p>
+              <div className="md:col-span-7 max-w-[60ch] space-y-4 text-body">
+                <p>
+                  Cosy et accueillantes, nos chambres vous offrent tout le confort nécessaire pour un séjour agréable à Sainte-Marie. Idéales pour une escapade en amoureux ou une belle découverte de l’île.
+                </p>
+                <p>
+                  Un petit cocon pour se ressourcer et profiter pleinement des vacances !
+                </p>
+              </div>
             </div>
 
             <div className="grid gap-x-6 gap-y-14 md:grid-cols-2">
@@ -99,8 +110,10 @@ export default async function HebergementsPage() {
           <div data-reveal className="md:col-span-5 space-y-5">
             <SectionTitle title="Bon à savoir" light />
             <p className="max-w-[60ch] text-body text-primary-light/80">
-              Les prix indiqués sont des tarifs de base par nuit, qui peuvent varier selon la saison.
-              Choisissez vos dates : le montant exact de votre séjour s’affiche aussitôt, sans surprise.
+              Nos tarifs sont indiqués par nuit et peuvent varier selon la saison. Sélectionnez vos dates de séjour pour découvrir instantanément le prix exact de votre réservation.
+            </p>
+            <p className="max-w-[60ch] text-body text-primary-light/80">
+              Pas de mauvaise surprise, juste le plaisir de préparer vos vacances en toute sérénité !
             </p>
           </div>
 

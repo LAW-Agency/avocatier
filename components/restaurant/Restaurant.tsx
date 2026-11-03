@@ -11,13 +11,13 @@ export default function Restaurant() {
         <div data-reveal className="md:col-span-5 space-y-5">
           <SectionTitle title="Le restaurant, entre jardin et océan" />
           <p className="max-w-[60ch] text-body">
-            Au déjeuner comme au dîner, la carte suit les arrivages du marché local et la pêche du
-            jour : poisson grillé, légumes de saison, viandes mijotées, riz parfumé et desserts maison
-            à la vanille de Madagascar.
+            Du déjeuner au dîner, laissez-vous tenter par une cuisine savoureuse au rythme des produits du marché et de la pêche du jour : poissons grillés, légumes frais, spécialités gourmandes et desserts maison à la vanille de Madagascar.
           </p>
           <p className="max-w-[60ch] text-body">
-            Selon la météo et vos envies, on vous sert en salle ou dans le jardin, sous la paillote,
-            l’océan en toile de fond.
+            Installez-vous en salle ou sous la paillote, au cœur du jardin tropical, avec l’océan Indien en toile de fond.
+          </p>
+          <p className="max-w-[60ch] text-body">
+            Un cadre enchanteur, des saveurs authentiques et le plaisir de bien manger en vacances !
           </p>
         </div>
 

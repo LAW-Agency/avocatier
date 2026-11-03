@@ -18,8 +18,11 @@ export default function ExperiencesPage() {
     <div>
       <PageHero
         title="Expériences"
-        tagline="Ici, les journées ont un autre rythme"
-        text="Un café face à l’océan. Une baignade avant le petit-déjeuner. Une sieste sous les cocotiers. Puis, quand l’envie vous prend : les baleines, l’île aux Nattes ou les fonds marins de Sainte-Marie."
+        tagline="Sainte-Marie, mille façons de s’émerveiller"
+        text={[
+          "Baignades dans les eaux turquoise, rencontres avec les baleines, balades en pirogue, découvertes de paysages préservés… Sainte-Marie regorge de trésors à explorer.",
+          "Vivez l’île à votre rythme, entre aventure, nature et moments inoubliables !",
+        ]}
         image={{
           src: "/images/beach/plage-cocotier.jpeg",
           alt: "Cocotier penché au-dessus de la plage et de l'océan",
@@ -43,13 +46,16 @@ export default function ExperiencesPage() {
           </p>
           <div className="md:col-span-5 space-y-4">
             <h2 className="font-heading text-2xl md:text-3xl leading-tight text-balance">
-              La saison des baleines à bosse à Sainte-Marie
+              Le spectacle magique des baleines à bosse
             </h2>
             <p className="max-w-[60ch] text-body">
-              Chaque hiver austral, les baleines à bosse remontent de l’Antarctique pour donner naissance
-              à leurs petits dans le canal qui sépare Sainte-Marie de la Grande Terre : l’un des sites
-              d’observation les plus réputés de l’océan Indien. Les sorties en mer se font avec des
-              opérateurs locaux ; depuis la plage, on aperçoit parfois leurs souffles au large.
+              Chaque année, de juillet à septembre, les baleines à bosse quittent les eaux froides de l’Antarctique pour rejoindre les eaux chaudes de Sainte-Marie et donner naissance à leurs petits.
+            </p>
+            <p className="max-w-[60ch] text-body">
+              Partez à leur rencontre lors d’une excursion en mer avec des guides locaux ou admirez parfois leurs souffles depuis la plage.
+            </p>
+            <p className="max-w-[60ch] text-body">
+              Un spectacle naturel exceptionnel et une émotion inoubliable au cœur de l’océan Indien !
             </p>
           </div>
         </div>
