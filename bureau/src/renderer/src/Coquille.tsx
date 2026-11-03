@@ -464,7 +464,7 @@ export default function Coquille({ onDeconnexion: deconnecter }: { onDeconnexion
                       <span className={mergeClasses(styles.ceSoirNombre, situation.libres.length === 0 && styles.complet)}>{situation.libres.length}</span>
                       <Text weight="semibold">{situation.libres.length === 0 ? "Complet" : situation.libres.length > 1 ? "chambres libres" : "chambre libre"}</Text>
                     </span>
-                    <ProgressBar value={situation.total ? situation.occupes / situation.total : 0} thickness="large" />
+                    <ProgressBar value={situation.total ? situation.occupes / situation.total : 0} />
                     {situation.libres.length > 0 && (
                       <span className={styles.ceSoirPuces}>
                         {situation.libres.map((c) => (
