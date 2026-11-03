@@ -63,10 +63,29 @@ export default function Footer() {
               <Image src="/logo-texte-blanc.svg" alt="" width={2036} height={530} className="h-10 md:h-12 w-auto" />
             </Link>
 
-            <p className="max-w-sm text-pretty text-[0.95rem] leading-relaxed text-primary-light/75">
-              Hôtel et bungalows face à l’océan à Vohilava, sur l’île Sainte-Marie. Une adresse confidentielle
-              tenue par Joëlle &amp; Stéphane.
-            </p>
+            <div className="max-w-md space-y-4 text-pretty text-[0.95rem] leading-relaxed text-primary-light/75">
+              <h2 className={headingStyle}>Votre petit paradis face à l’océan Indien</h2>
+              <p>
+                À Vohilava, sur la magnifique île Sainte-Marie à Madagascar, Chez L’Avocatier vous accueille dans un
+                cadre tropical privilégié, entre plage de sable fin, cocotiers et lagon turquoise.
+              </p>
+              <p>
+                Joëlle et Stéphane vous ouvrent les portes de leur adresse pleine de charme, où authenticité,
+                convivialité et douceur de vivre se conjuguent pour vous offrir un séjour inoubliable.
+              </p>
+              <ul className="space-y-2">
+                {[
+                  "Des bungalows et chambres de charme au cœur d’un jardin tropical",
+                  "Une plage privée et une piscine pour savourer chaque instant",
+                  "Un accueil chaleureux et personnalisé, dans une atmosphère authentique",
+                ].map((atout) => (
+                  <li key={atout} className="flex gap-3">
+                    <span aria-hidden="true" className="mt-[0.6em] h-1.5 w-1.5 shrink-0 rounded-full bg-sand" />
+                    {atout}
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             {socials.length > 0 && (
               <ul className="flex items-center gap-3">

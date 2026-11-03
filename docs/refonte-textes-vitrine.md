@@ -41,6 +41,8 @@ Partout, « Madagascar » ou « île Sainte-Marie » accompagne « Sainte-Marie 
 
 ## Accueil
 
+> **Mise à jour du 2026-11-03.** Les sections 3 à 7, les avis, le bandeau final de l'accueil et le pied de page portent désormais les textes longs fournis par le client (titres compris), intégrés tels quels dans `app/page.tsx`, `components/home/` et `components/Footer.tsx`. Les versions ci-dessous sont l'état précédent. Restent inchangés : le hero, la bande des atouts, la note « 10/10 — Excellent emplacement » (libellé de la plateforme) et le bandeau final des autres pages.
+
 ### 1. Hero
 - **Diagnostic.** L'accroche du cahier des charges est forte, mais la phrase qui la suit ne parlait ni de la plage privée, ni de la piscine, ni de l'île.
 - **Texte original.** Des bungalows entre jardin tropical et océan Indien, et l'accueil chaleureux de Joëlle et Stéphane.
@@ -238,6 +240,7 @@ Partout, « Madagascar » ou « île Sainte-Marie » accompagne « Sainte-Marie 
 - **Galerie, avant.** Le jardin, la plage, les bungalows et la table de Chez L'Avocatier, en images. Touchez une photo pour l'ouvrir en plein écran.
 - **Galerie, après.** Avant de venir, flânez dans le jardin, sur la plage et dans les bungalows de Chez L'Avocatier. Ouvrez une photo pour la voir en plein écran. (« Touchez » ne convenait pas sur ordinateur.)
 - **Pied de page, avant.** Une adresse intimiste face à l'océan, tenue par Joëlle & Stéphane à Vohilava, sur l'île Sainte-Marie.
+- **Pied de page (2026-11-03).** Remplacé par le texte du client « Votre petit paradis face à l'océan Indien » (deux paragraphes et trois atouts).
 - **Pied de page, après.** Hôtel et bungalows face à l'océan à Vohilava, sur l'île Sainte-Marie. Une adresse confidentielle tenue par Joëlle & Stéphane. (Le pied de page apparaît sur toutes les pages : il porte ici le mot-clé principal.)
 
 ---
