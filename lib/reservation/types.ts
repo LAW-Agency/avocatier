@@ -478,6 +478,7 @@ export type ContenuFacture = {
   reglements: ReglementFacture[]
   total: number
   regle: number
+  ecartChange?: number // règlements reçus à un autre taux que celui de la facture : total − réglé − écart = reste
   reste: number
 }
 

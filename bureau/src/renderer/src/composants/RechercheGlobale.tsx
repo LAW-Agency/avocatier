@@ -31,7 +31,7 @@ import { numeroRecu } from "../documents"
 import { ETATS_CHAMBRE, MODES_PAIEMENT } from "../libelles"
 import { SECTIONS_GUIDE, normaliser, sectionVisible } from "../pages/Guide"
 import { useReglages } from "../reglages"
-import { usePrix } from "../montants"
+import { montantRecu, usePrix } from "../montants"
 import { lancerVisite } from "./VisiteGuidee"
 
 const useStyles = makeStyles({
@@ -193,14 +193,14 @@ export const RechercheGlobale = forwardRef<HTMLInputElement, RechercheGlobalePro
       resultats: d.paiements
         .filter((p) => {
           const r = d.reservations.find((x) => x.id === p.reservationId)
-          return trouve(p.note, MODES_PAIEMENT[p.mode], formaterPrix(p.montant), String(p.montant), r?.reference, numeroRecu(p))
+          return trouve(p.note, MODES_PAIEMENT[p.mode], montantRecu(p), formaterPrix(p.montant), String(p.montantDevise ?? p.montant), r?.reference, numeroRecu(p))
         })
         .sort((a, b) => b.le.localeCompare(a.le))
         .map((p) => {
           const r = d.reservations.find((x) => x.id === p.reservationId)
           return {
             cle: `paiement-${p.id}`,
-            libelle: `${formaterPrix(p.montant)} · ${MODES_PAIEMENT[p.mode]}`,
+            libelle: `${montantRecu(p)} · ${MODES_PAIEMENT[p.mode]}`,
             detail: [r?.reference, r && nomDe(clientDe(r.clientId)), p.note].filter(Boolean).join(" · "),
             Icone: MoneyRegular,
             ouvrir: r ? versReservation(r.reference) : aller({ page: "reservations" }),

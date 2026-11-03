@@ -28,32 +28,45 @@ export const encaisseSur = (reservationId: string, paiements: Pick<Paiement, "re
 // Encaissement tel que la note le lit (un encaissement pas encore enregistré n'a ni date ni taux)
 export type EncaissementNote = Pick<Paiement, "reservationId" | "montant"> & Partial<Pick<Paiement, "le" | "devise" | "montantDevise" | "taux" | "tauxAriary">>
 
-// Impute un montant (positif : encaissement, négatif : remboursement) d'abord sur ce qui est dû dans sa devise
-// (`propre`), puis sur l'autre part de la note à son propre taux (`taux` = unités propres pour une unité de l'autre) ;
-// le surplus reste dans sa devise
-function imputer(propre: number, autre: number, montant: number, taux: number): [number, number] {
-  const sens = Math.sign(montant)
-  let reste = Math.abs(montant)
-  const surPropre = Math.min(reste, Math.max(sens * propre, 0))
-  reste -= surPropre
-  const surAutre = Math.min(reste / taux, Math.max(sens * autre, 0))
-  reste -= surAutre * taux
-  return [propre - sens * (surPropre + reste), autre - sens * surAutre]
+// Reporte un surplus (montant positif dans une devise) sur ce qui reste dû dans l'autre (`du`), en remontant les
+// encaissements de cette devise du plus récent au plus ancien, chacun à son taux (unités du surplus pour une unité
+// de l'autre) ; renvoie le surplus restant et le dû restant
+function reporter(surplus: number, du: number, encaissements: { montant: number; taux: number }[]): [number, number] {
+  for (const { montant, taux } of encaissements) {
+    if (surplus <= 0 || du <= 0) break
+    if (montant <= 0) continue // un remboursement n'apporte rien à reporter
+    const part = Math.min(montant, surplus, du * taux)
+    surplus -= part
+    du -= part / taux
+  }
+  return [surplus, du]
 }
 
 // Reste dû d'un séjour dans ses deux devises (négatif : trop-perçu) : l'hébergement en euros, le restaurant et le bar
-// en ariary. Chaque encaissement, dans l'ordre de réception, règle sa propre devise puis l'autre au taux de son jour :
-// un séjour soldé le reste quel que soit le taux saisi ensuite, le taux du jour ne s'applique qu'à ce qui reste dû.
-// Une réservation annulée, refusée ou expirée ne doit plus son hébergement ; le restaurant consommé reste dû
+// en ariary. Les encaissements règlent d'abord ce qui est dû dans leur propre devise ; un surplus règle ensuite l'autre
+// part au taux du jour où il a été reçu. Un séjour soldé le reste quel que soit le taux saisi ensuite, le taux du jour
+// ne s'applique qu'à ce qui reste dû, et un trop-perçu reste dans la devise payée en trop (33 000 Ar reçus deux fois :
+// 33 000 Ar à rendre). Une réservation annulée, refusée ou expirée ne doit plus son hébergement ; le restaurant
+// consommé reste dû
 export function resteDu(r: Pick<Reservation, "id" | "statut" | "montantTotal">, paiements: EncaissementNote[], consommations: Pick<Consommation, "reservationId" | "total">[], taux: Taux) {
   let euros = r.statut === "confirmee" || r.statut === "option" ? r.montantTotal : 0
   let ariary = restaurantDe(r.id, consommations)
-  const recus = paiements.filter((p) => p.reservationId === r.id).sort((a, b) => (a.le ?? "~").localeCompare(b.le ?? "~"))
-  for (const p of recus) {
-    const tauxAriary = p.tauxAriary ?? (p.devise === "MGA" ? p.taux : undefined) ?? pourUnEuro("MGA", taux)
-    if (p.devise === "MGA" && p.montantDevise !== undefined) [ariary, euros] = imputer(ariary, euros, p.montantDevise, tauxAriary)
-    // Euros, ou autre devise pour sa contre-valeur en euros figée à l'encaissement
-    else [euros, ariary] = imputer(euros, ariary, p.montant, 1 / tauxAriary)
+  const tauxDe = (p: EncaissementNote) => p.tauxAriary ?? (p.devise === "MGA" ? p.taux : undefined) ?? pourUnEuro("MGA", taux)
+  // Du plus récent au plus ancien (un encaissement pas encore enregistré d'abord)
+  const recus = paiements.filter((p) => p.reservationId === r.id).sort((a, b) => (b.le ?? "~").localeCompare(a.le ?? "~"))
+  // Ariary pour leur montant exact ; euros, ou autre devise pour sa contre-valeur en euros figée à l'encaissement
+  const enAriary = recus.filter((p) => p.devise === "MGA" && p.montantDevise !== undefined).map((p) => ({ montant: p.montantDevise!, taux: tauxDe(p) }))
+  const enEuros = recus.filter((p) => !(p.devise === "MGA" && p.montantDevise !== undefined)).map((p) => ({ montant: p.montant, taux: 1 / tauxDe(p) }))
+  ariary -= enAriary.reduce((t, p) => t + p.montant, 0)
+  euros -= enEuros.reduce((t, p) => t + p.montant, 0)
+  if (ariary < 0 && euros > 0) {
+    const [surplus, du] = reporter(-ariary, euros, enAriary)
+    ariary = -surplus
+    euros = du
+  } else if (euros < 0 && ariary > 0) {
+    const [surplus, du] = reporter(-euros, ariary, enEuros)
+    euros = -surplus
+    ariary = du
   }
   return { euros, ariary }
 }
@@ -133,7 +146,13 @@ export function contenuFacture(entree: {
   const somme = (lignes: { montant: number }[]) => arrondiDevise(lignes.reduce((t, l) => t + l.montant, 0), devise)
   const total = somme([...sejours, ...consommations])
   const regle = somme(reglements)
-  const reste = arrondiDevise(total - regle, devise)
+  // Reste : même calcul que le logiciel (chaque encaissement à son propre taux). Un règlement converti au taux de la
+  // facture peut ne pas couvrir tout à fait ce qu'il a réglé à son taux : la différence s'affiche en écart de change
+  const restes = entree.sejours.map((s) => resteDu({ id: s.id, statut: "confirmee", montantTotal: s.montantTotal }, entree.paiements, entree.consommations, taux))
+  const enEuros = restes.reduce((t, x) => t + x.euros + x.ariary / pourUnEuro("MGA", taux), 0)
+  const calcule = arrondiDevise(enEuros * pourUnEuro(devise, taux), devise)
+  const reste = estSoldee(calcule, devise) ? 0 : calcule
+  const ecart = arrondiDevise(total - regle - reste, devise)
   return {
     client: entree.client,
     facturation: entree.facturation,
@@ -143,6 +162,7 @@ export function contenuFacture(entree: {
     reglements,
     total,
     regle,
-    reste: estSoldee(reste, devise) ? 0 : reste,
+    ...(!estSoldee(ecart, devise) && { ecartChange: ecart }),
+    reste,
   }
 }

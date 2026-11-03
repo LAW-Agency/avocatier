@@ -70,7 +70,7 @@ import { nomChambre, nomDe, soldeDe, useDonneesChargees, useLectureSeule } from 
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useFicheClientStyles } from "./useClientsStyles.styles"
-import { usePrix } from "../montants"
+import { montantRecu, usePrix } from "../montants"
 
 type Onglet = "sejours" | "restaurant" | "encaissements" | "factures" | "historique"
 
@@ -424,9 +424,8 @@ function EncaissementsClient({ paiements }: { paiements: Paiement[] }) {
                 <TableCell>
                   <span className={styles.montantColonne}>
                     <Text weight="semibold" className={cadre.nombre}>
-                      {formaterPrix(p.montant)}
+                      {montantRecu(p)}
                     </Text>
-                    {p.devise !== "EUR" && p.montantDevise !== undefined && <Caption1 className={styles.libelle}>reçu {formaterDansDevise(p.montantDevise, p.devise)}</Caption1>}
                   </span>
                 </TableCell>
                 <TableCell className={cadre.derniere}>

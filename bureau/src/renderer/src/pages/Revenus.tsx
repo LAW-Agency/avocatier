@@ -18,7 +18,7 @@ import {
 } from "@fluentui/react-components"
 import { ArrowDownloadRegular, ArrowUndoRegular, MoneyRegular, ReceiptMoneyRegular, TagRegular, WalletRegular, CheckmarkCircleRegular } from "@fluentui/react-icons"
 import { useEffect, useState } from "react"
-import { formaterHeure, formaterPlage } from "@partage/dates"
+import { formaterHeure, formaterPlage, pluriel } from "@partage/dates"
 import { libelleStatutHote } from "@partage/statuts"
 import { formaterDansDevise } from "@partage/devises"
 import type { BilanRestaurant, ModePaiement, Reservation } from "@partage/types"
@@ -33,7 +33,7 @@ import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT, NOMS_SOURCES } from "../libelles"
 import { debutDeMois, dernierJour, encaissementsDans, evolution, indicateurs, nomDuMois, parMois, periodes, PERIODES, repartition, type ChoixPeriode } from "../statistiques"
 import { useGestionStyles } from "./useGestionStyles.styles"
-import { usePrix } from "../montants"
+import { montantRecu, totauxRecus, usePrix } from "../montants"
 
 // Revenus (gérants) : chiffre d'affaires réparti par nuit, encaissements, reste à encaisser, par mois
 // et par mode de paiement. Montants en euros, comme les tarifs.
@@ -111,7 +111,7 @@ export default function Revenus() {
 
       <div className={styles.chiffres}>
         <Indicateur Icone={MoneyRegular} libelle="Chiffre d'affaires" valeur={formaterPrix(maintenant.chiffreAffaires)} evolution={evolution(maintenant.chiffreAffaires, avant.chiffreAffaires)} note="Nuits de la période" />
-        <Indicateur Icone={WalletRegular} libelle="Encaissé" valeur={formaterPrix(maintenant.encaisse)} evolution={evolution(maintenant.encaisse, avant.encaisse)} note={`${encaissements.length} encaissements`} />
+        <Indicateur Icone={WalletRegular} libelle="Encaissé" valeur={formaterPrix(maintenant.encaisse)} evolution={evolution(maintenant.encaisse, avant.encaisse)} note={encaissements.length ? `${pluriel(encaissements.length, "encaissement")} : ${totauxRecus(encaissements)} reçus` : "Aucun encaissement"} />
         <Indicateur Icone={ReceiptMoneyRegular} libelle="Reste à encaisser" valeur={formaterPrix(resteTotal)} note={`${impayes.length} séjours non soldés, toutes dates`} />
         <Indicateur Icone={TagRegular} libelle="Prix moyen par nuit" valeur={formaterPrix(maintenant.prixMoyen)} evolution={evolution(maintenant.prixMoyen, avant.prixMoyen)} note={`RevPAR ${formaterPrix(maintenant.revPar)}`} />
       </div>
@@ -279,7 +279,7 @@ export default function Revenus() {
                           {MODES_PAIEMENT[p.mode]} · {formaterHeure(p.le)}
                         </Caption1>
                       </div>
-                      <Text className={styles.montant}>{formaterPrix(p.montant)}</Text>
+                      <Text className={styles.montant}>{montantRecu(p)}</Text>
                     </li>
                   )
                 })}

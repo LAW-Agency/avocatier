@@ -2,7 +2,7 @@ import { Body1, Button, Caption1, Dropdown, Input, MessageBar, MessageBarBody, O
 import { DeleteRegular, MoneyRegular, ReceiptRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import { formaterHeure, nombreNuits, pluriel } from "@partage/dates"
-import { DEVISES, formaterDansDevise } from "@partage/devises"
+import { dateDesTaux, DEVISES, formaterDansDevise, tauxARevoir } from "@partage/devises"
 import { convertir, soldeEn } from "@partage/folio"
 import type { CodeDevise, ModePaiement, Paiement, Reservation } from "@partage/types"
 import { numeroRecu } from "../documents"
@@ -10,7 +10,7 @@ import { restaurantSur, soldeDe, useDonneesChargees, useLectureSeule } from "../
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useEncaissementsStyles } from "./useReservationStyles.styles"
-import { usePrix } from "../montants"
+import { montantRecu, usePrix } from "../montants"
 import TicketsRestaurant from "./TicketsRestaurant"
 
 // Montant proposé dans la devise choisie : le reste à payer, ou le trop-perçu à rendre (négatif)
@@ -137,7 +137,6 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
               <div>
                 <Body1 block>
                   {MODES_PAIEMENT[p.mode]}
-                  {p.devise !== "EUR" && p.montantDevise !== undefined && ` · ${formaterDansDevise(p.montantDevise, p.devise)}`}
                   {p.note && ` · ${p.note}`}
                 </Body1>
                 <Caption1 className={styles.libelle}>
@@ -145,7 +144,7 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
                   {membre(p.enregistrePar) && `, par ${membre(p.enregistrePar)}`} · reçu {numeroRecu(p)}
                 </Caption1>
               </div>
-              <Text className={styles.montant}>{formaterPrix(p.montant)}</Text>
+              <Text className={styles.montant}>{montantRecu(p)}</Text>
               <Tooltip content="Reçu (PDF)" relationship="label">
                 <Button
                   appearance="subtle"
@@ -209,6 +208,15 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
         <Caption1 className={styles.libelle}>
           Au taux de Tarifs : 1 € = {formaterDansDevise(convertir(1, "EUR", devise, d.devises.taux), devise)}. Le reçu indique le montant dans sa devise.
         </Caption1>
+      )}
+      {devise !== "EUR" && !lectureSeule && tauxARevoir(d.devises.misAJourLe) && (
+        <MessageBar intent="warning">
+          <MessageBarBody>
+            Taux de change saisis le {dateDesTaux(d.devises.misAJourLe)} :{" "}
+            {gerant ? "vérifiez-les dans Tarifs (« Récupérer les taux du jour »)" : "demandez à un gérant de les vérifier dans Tarifs"} avant d&apos;encaisser
+            en {DEVISES[devise].nom.toLowerCase()}, sinon le client paie au taux d&apos;il y a plusieurs jours.
+          </MessageBarBody>
+        </MessageBar>
       )}
       {erreur && (
         <MessageBar intent="error">

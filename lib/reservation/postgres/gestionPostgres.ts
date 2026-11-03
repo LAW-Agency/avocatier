@@ -720,15 +720,20 @@ export const gestionPostgres: GestionHotel = {
     if (erreur) return { ok: false, erreur }
     return transaction<ResultatAction>(async (tx) => {
       // Ligne verrouillée : deux remboursements simultanés ne dépassent pas ensemble ce qui a été encaissé
-      const [r] = await lignes<{ paye: number }>(
+      const [r] = await lignes<{ paye: number; recuDevise: number; recuDeviseEuros: number }>(
         tx,
-        `select coalesce((select sum(montant) from paiements p where p.reservation_id = r.id), 0)::numeric as paye
+        `select coalesce((select sum(montant) from paiements p where p.reservation_id = r.id), 0)::numeric as paye,
+           coalesce((select sum(montant_devise) from paiements p where p.reservation_id = r.id and p.devise = $2), 0)::numeric as "recuDevise",
+           coalesce((select sum(montant) from paiements p where p.reservation_id = r.id and p.devise = $2), 0)::numeric as "recuDeviseEuros"
          from reservations r where r.id = $1 for update`,
-        [reservationId],
+        [reservationId, devise],
       )
       if (!r) return { ok: false, erreur: "Réservation introuvable." }
-      // Un remboursement rend au plus ce que le client a versé sur ce séjour (contre-valeur en euros)
-      if (montant < 0 && Math.round((r.paye + montant) * 100) < 0) {
+      // Un remboursement rend au plus ce que le client a versé sur ce séjour (contre-valeur en euros). Rendu dans une
+      // devise reçue sur ce séjour : compté au taux où elle a été reçue, pas au taux du jour (les 33 000 Ar reçus se
+      // rendent même si le taux a baissé depuis)
+      const rendu = devise !== "EUR" && r.recuDevise > 0 && -montantDevise <= r.recuDevise ? (montantDevise * r.recuDeviseEuros) / r.recuDevise : montant
+      if (montant < 0 && Math.round((r.paye + rendu) * 100) < 0) {
         return { ok: false, erreur: `Remboursement supérieur aux encaissements de ce séjour (${formaterDansDevise(Math.max(0, r.paye), "EUR")} au total).` }
       }
       await tx.query(

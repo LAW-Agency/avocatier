@@ -27,7 +27,7 @@ import {
 import { AddRegular, BedRegular, DeleteRegular, FoodRegular, MoneyRegular, ReceiptRegular, SubtractRegular } from "@fluentui/react-icons"
 import { useMemo, useState, type FormEvent } from "react"
 import { formaterPlage } from "@partage/dates"
-import { DEVISES, formaterDansDevise } from "@partage/devises"
+import { dateDesTaux, DEVISES, formaterDansDevise, tauxARevoir } from "@partage/devises"
 import type { Article, CodeDevise, LigneTicket, ModePaiement, ReglagesDevises, ReglementTicket, SejourCaisse } from "@partage/types"
 import { aPayerEn, ariaryPourUn, calculerReglement, MODES_CAISSE, montantsSuggeres, totalLignes, type Caisse, type DonneesEcranCaisse, type Vente } from "../caisse"
 import { useFichiers } from "../fichiers"
@@ -290,6 +290,11 @@ function FenetreEncaissement({
                     <Caption1 className={formulaire.secondaire}>
                       Au taux de Tarifs : 1 {DEVISES[devise].symbole} = {ariary(Math.round(ariaryPourUn(devise, devises.taux)))}. La monnaie se rend en ariary.
                     </Caption1>
+                  )}
+                  {devise !== "MGA" && tauxARevoir(devises.misAJourLe) && (
+                    <MessageBar intent="warning">
+                      <MessageBarBody>Taux saisis le {dateDesTaux(devises.misAJourLe)} : faites-les vérifier par un gérant (écran Tarifs).</MessageBarBody>
+                    </MessageBar>
                   )}
                 </div>
               )}
