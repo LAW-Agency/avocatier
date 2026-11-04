@@ -1,14 +1,19 @@
 import {
+  ArrowSyncCheckmarkRegular,
   CalculatorRegular,
+  ClockAlarmRegular,
   DataBarVerticalRegular,
   DocumentDismissRegular,
   DocumentTextRegular,
   FoodRegular,
   HistoryRegular,
   LockClosedRegular,
+  MoneyRegular,
   ReceiptRegular,
+  ScalesRegular,
   ShieldCheckmarkRegular,
   SparkleRegular,
+  TagLockRegular,
   type FluentIcon,
 } from "@fluentui/react-icons"
 import type { RoleEquipe } from "../../partage/ipc"
@@ -24,6 +29,40 @@ export type Nouveaute = {
 }
 
 export const NOUVEAUTES: { version: string; liste: Nouveaute[] }[] = [
+  {
+    version: "1.3.0",
+    liste: [
+      {
+        titre: "Soldes justes, même quand le taux change",
+        texte: "Chaque encaissement garde le taux de son jour : un séjour soldé le reste quand le taux de l'ariary est mis à jour.",
+        Icone: ScalesRegular,
+        pour: ["hote", "reception"],
+      },
+      {
+        titre: "Montants reçus dans leur devise",
+        texte: "Encaissements affichés tels que reçus, montant proposé arrondi à 100 Ar, et remboursement au taux où l'argent a été reçu.",
+        Icone: MoneyRegular,
+        pour: ["hote", "reception"],
+      },
+      {
+        titre: "Plus de doublon après « Réessayer »",
+        texte: "Si la connexion coupe pendant l'enregistrement, réessayer ne crée ni un deuxième encaissement ni une deuxième réservation.",
+        Icone: ArrowSyncCheckmarkRegular,
+        pour: ["hote", "reception"],
+      },
+      {
+        titre: "Taux de change à vérifier",
+        texte: "Un avertissement s'affiche à l'encaissement et à la caisse quand les taux ont plus de trois jours.",
+        Icone: ClockAlarmRegular,
+      },
+      {
+        titre: "Tarifs protégés",
+        texte: "Confirmation demandée avant un prix qui bouge de plus de 30 %, un taux de plus de 10 % ou une saison supprimée.",
+        Icone: TagLockRegular,
+        pour: ["hote"],
+      },
+    ],
+  },
   {
     version: "1.2.2",
     liste: [
