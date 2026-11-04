@@ -2,6 +2,12 @@ import {
   Body1,
   Button,
   Caption1,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
   Dropdown,
   Field,
   Input,
@@ -85,6 +91,44 @@ const libelleJour = (mmjj: string) => {
   return `${jour === 1 ? "1er" : jour} ${MOIS[mois - 1]}`
 }
 
+// Écarts au-delà desquels un enregistrement demande confirmation : une faute de frappe (« 505 » pour « 5050 »,
+// « 8 » pour « 85 ») fait encaisser ou vendre au mauvais prix dès l'enregistrement
+const ECART_PRIX = 0.3
+const ECART_TAUX = 0.1
+const ECART_MAJORATION = 25 // points de pourcentage
+
+const ecart = (avant: number, apres: number) => (apres - avant) / avant
+const pourcent = (e: number) => `${e > 0 ? "+" : "−"}${Math.round(Math.abs(e) * 100)} %`
+
+// Fenêtre de confirmation : les changements inhabituels à relire avant d'enregistrer
+function ConfirmerChangements({ points, onConfirmer, onAnnuler }: { points: string[]; onConfirmer: () => void; onAnnuler: () => void }) {
+  return (
+    <Dialog open={points.length > 0} onOpenChange={(_e, data) => !data.open && onAnnuler()}>
+      <DialogSurface>
+        <DialogBody>
+          <DialogTitle>Vérifiez ces changements</DialogTitle>
+          <DialogContent>
+            <Body1 block>Ils sont inhabituels et s&apos;appliquent dès l&apos;enregistrement :</Body1>
+            <ul>
+              {points.map((point) => (
+                <li key={point}>
+                  <Body1>{point}</Body1>
+                </li>
+              ))}
+            </ul>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={onAnnuler}>Corriger</Button>
+            <Button appearance="primary" onClick={onConfirmer}>
+              C&apos;est bien ça, enregistrer
+            </Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
+  )
+}
+
 // Rang du jour dans une année de 365 jours (0 = 1er janvier)
 const rang = (mmjj: string) => nombreNuits("2025-01-01", `2025-${mmjj}`)
 
@@ -147,6 +191,7 @@ function FormulaireTarifs() {
   const [prochaineCle, setProchaineCle] = useState(d.saisons.length)
   const [enCours, setEnCours] = useState(false)
   const [etat, setEtat] = useState<{ erreur?: string; ok?: boolean }>({})
+  const [aConfirmer, setAConfirmer] = useState<string[]>([])
 
   const modifier = (cle: number, champs: Partial<LigneSaison>) => setLignes(lignes.map((l) => (l.cle === cle ? { ...l, ...champs } : l)))
   function ajouter() {
@@ -167,8 +212,37 @@ function FormulaireTarifs() {
     return base === null ? "—" : formaterPrix(Math.round(base * regle.coefficient))
   }
 
+  // Prix qui bougent beaucoup, saisons supprimées ou majorations très changées
+  function changementsInhabituels(): string[] {
+    const points = d.hebergements.flatMap((h) => {
+      const nouveau = lire(prix[h.id] ?? "")
+      return nouveau !== null && nouveau > 0 && Math.abs(ecart(h.prixNuit, nouveau)) > ECART_PRIX
+        ? [`${h.nom} : ${formaterPrix(h.prixNuit)} → ${formaterPrix(nouveau)} la nuit (${pourcent(ecart(h.prixNuit, nouveau))})`]
+        : []
+    })
+    for (const ancienne of d.saisons) {
+      const ligne = lignes.find((l) => l.nom.trim() === ancienne.nom)
+      const majoration = (coefficient: number) => Math.round((coefficient - 1) * 100)
+      if (!ligne) points.push(`Saison « ${ancienne.nom} » supprimée : ses nuits passent au prix de base`)
+      else {
+        const nouvelle = lire(ligne.majoration)
+        if (nouvelle !== null && Math.abs(nouvelle - majoration(ancienne.coefficient)) >= ECART_MAJORATION) {
+          points.push(`${ancienne.nom} : majoration ${majoration(ancienne.coefficient)} % → ${nouvelle} %`)
+        }
+      }
+    }
+    return points
+  }
+
   async function envoyer(e: FormEvent) {
     e.preventDefault()
+    const points = changementsInhabituels()
+    if (points.length) return setAConfirmer(points)
+    await enregistrer()
+  }
+
+  async function enregistrer() {
+    setAConfirmer([])
     setEnCours(true)
     const resultat = await executer("PUT", "/api/hotes/tarifs", {
       prix: Object.fromEntries(d.hebergements.map((h) => [h.id, lire(prix[h.id] ?? "")])),
@@ -320,6 +394,7 @@ function FormulaireTarifs() {
           Enregistrer les tarifs
         </Button>
       </div>
+      <ConfirmerChangements points={aConfirmer} onConfirmer={enregistrer} onAnnuler={() => setAConfirmer([])} />
     </form>
   )
 }
@@ -342,6 +417,7 @@ function FormulaireDevises() {
   // Taux du jour : remplissent les champs, enregistrés seulement avec « Enregistrer les devises »
   const [chargementTaux, setChargementTaux] = useState(false)
   const [tauxCharges, setTauxCharges] = useState<{ date: string } | { erreur: string } | null>(null)
+  const [aConfirmer, setAConfirmer] = useState<string[]>([])
 
   const estActive = (code: CodeDevise) => code === DEVISE_REFERENCE || actives.includes(code)
   function basculer(code: CodeDevise, active: boolean) {
@@ -366,8 +442,26 @@ function FormulaireDevises() {
     setTauxCharges({ date: resultat.donnees.date })
   }
 
+  // Taux qui bougent de plus de 10 % : l'ariary sert à chaque encaissement et à la caisse
+  function changementsInhabituels(): string[] {
+    return CODES_DEVISES.flatMap((code) => {
+      const nouveau = lire(taux[code])
+      const ancien = reglages.taux[code]
+      if (code === DEVISE_REFERENCE || nouveau === null || nouveau <= 0 || !ancien || Math.abs(ecart(ancien, nouveau)) <= ECART_TAUX) return []
+      const nombre = (t: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 4 }).format(t)
+      return [`${DEVISES[code].nom} : 1 € = ${nombre(ancien)} → ${nombre(nouveau)} ${DEVISES[code].symbole} (${pourcent(ecart(ancien, nouveau))})`]
+    })
+  }
+
   async function envoyer(e: FormEvent) {
     e.preventDefault()
+    const points = changementsInhabituels()
+    if (points.length) return setAConfirmer(points)
+    await enregistrer()
+  }
+
+  async function enregistrer() {
+    setAConfirmer([])
     setEnCours(true)
     setTauxCharges(null)
     const resultat = await executer("PUT", "/api/hotes/devises", {
@@ -481,6 +575,7 @@ function FormulaireDevises() {
           Récupérer les taux du jour
         </Button>
       </div>
+      <ConfirmerChangements points={aConfirmer} onConfirmer={enregistrer} onAnnuler={() => setAConfirmer([])} />
     </form>
   )
 }

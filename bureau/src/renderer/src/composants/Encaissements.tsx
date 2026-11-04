@@ -2,19 +2,23 @@ import { Body1, Button, Caption1, Dropdown, Input, MessageBar, MessageBarBody, O
 import { DeleteRegular, MoneyRegular, ReceiptRegular } from "@fluentui/react-icons"
 import { useState, type FormEvent } from "react"
 import { formaterHeure, nombreNuits, pluriel } from "@partage/dates"
-import { DEVISES, formaterDansDevise } from "@partage/devises"
-import { convertir, soldeEn } from "@partage/folio"
+import { dateDesTaux, DEVISES, formaterDansDevise, tauxARevoir } from "@partage/devises"
+import { arrondiBillet, convertir, soldeEn } from "@partage/folio"
 import type { CodeDevise, ModePaiement, Paiement, Reservation } from "@partage/types"
 import { numeroRecu } from "../documents"
-import { encaisseDe, restaurantSur, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
+import { restaurantSur, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
 import { useEncaissementsStyles } from "./useReservationStyles.styles"
-import { usePrix } from "../montants"
+import { montantRecu, usePrix } from "../montants"
 import TicketsRestaurant from "./TicketsRestaurant"
 
-// Montant proposé dans la devise choisie : le reste à payer, ou le trop-perçu à rendre (négatif)
-const proposition = (solde: number) => (solde === 0 ? "" : String(solde).replace(".", ","))
+// Montant proposé dans la devise choisie : le reste à payer, ou le trop-perçu à rendre (négatif) ; en ariary, arrondi
+// aux 100 Ar (pas de billet plus petit)
+function proposition(solde: number, devise: CodeDevise) {
+  const montant = devise === "MGA" ? arrondiBillet(solde) : solde
+  return montant === 0 ? "" : String(montant).replace(".", ",")
+}
 
 // Encaissements d'une réservation : hébergement, restaurant et bar mis sur la chambre, déjà payé, reste dû ; saisie
 // d'un paiement en ariary, en euros ou en dollars (négatif : remboursement), contre-valeur en euros au taux du jour.
@@ -27,28 +31,33 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
   const { imprimerRecu } = useFichiers()
   const paiements = paiementsDe(r)
   const solde = soldeDe(r, d)
-  const encaisse = encaisseDe(r, d)
   const restaurant = restaurantSur(r, d)
   const tickets = d.consommations.filter((c) => c.reservationId === r.id)
   const actif = r.statut === "confirmee" || r.statut === "option"
   const nuits = nombreNuits(r.arrivee, r.depart)
   const restaurantEuros = convertir(restaurant, "MGA", "EUR", d.devises.taux)
   const du = (actif ? r.montantTotal : 0) + restaurantEuros
+  // Ce que les règlements ont couvert, vu au taux du jour : les ariary pour leur montant exact, le reste à son taux
+  // d'encaissement (total − encaissé = reste, même après un changement de taux)
+  const encaisse = paiements.length ? du - solde : 0
   const choixDevises = [...new Set<CodeDevise>(["MGA", "EUR", ...d.devises.actives])]
   const [devise, setDevise] = useState<CodeDevise>("MGA")
   const soldeDans = (code: CodeDevise) => soldeEn(code, r, d.paiements, d.consommations, d.devises.taux)
-  const [montant, setMontant] = useState(() => proposition(soldeDans("MGA")))
+  const [montant, setMontant] = useState(() => proposition(soldeDans("MGA"), "MGA"))
   const [mode, setMode] = useState<ModePaiement>("especes")
   const [note, setNote] = useState("")
   const [enCours, setEnCours] = useState(false)
   // Ligne dont le reçu s'enregistre ou qui se supprime
   const [ligneEnCours, setLigneEnCours] = useState<{ id: string; action: "recu" | "suppression" } | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  // Identifiant de l'encaissement en cours de saisie, gardé jusqu'à ce qu'il soit enregistré : si la réponse se perd
+  // et qu'on réessaie, le serveur ne l'enregistre pas une seconde fois
+  const [envoi, setEnvoi] = useState(() => crypto.randomUUID())
   const membre = (id?: string) => d.equipe.find((m) => m.id === id)?.prenom
 
   function choisirDevise(code: CodeDevise) {
     setDevise(code)
-    setMontant(proposition(soldeDans(code)))
+    setMontant(proposition(soldeDans(code), code))
   }
 
   async function encaisser(e: FormEvent) {
@@ -56,11 +65,12 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
     setEnCours(true)
     setErreur(null)
     const valeur = Number(montant.replace(/\s/g, "").replace(",", "."))
-    const resultat = await executer("POST", "/api/hotes/paiements", { reservationId: r.id, montant: valeur, devise, mode, note })
+    const resultat = await executer("POST", "/api/hotes/paiements", { id: envoi, reservationId: r.id, montant: valeur, devise, mode, note })
     setEnCours(false)
     if (!resultat.ok) return setErreur(resultat.erreur)
+    setEnvoi(crypto.randomUUID())
     // Les données rechargées arrivent juste après : reste calculé sur ce qui vient d'être reçu
-    setMontant(proposition(soldeEn(devise, r, [...d.paiements, { reservationId: r.id, montant: convertir(valeur, devise, "EUR", d.devises.taux), devise, montantDevise: valeur }], d.consommations, d.devises.taux)))
+    setMontant(proposition(soldeEn(devise, r, [...d.paiements, { reservationId: r.id, montant: convertir(valeur, devise, "EUR", d.devises.taux), devise, montantDevise: valeur, tauxAriary: d.devises.taux.MGA }], d.consommations, d.devises.taux), devise))
     setNote("")
   }
 
@@ -135,7 +145,6 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
               <div>
                 <Body1 block>
                   {MODES_PAIEMENT[p.mode]}
-                  {p.devise !== "EUR" && p.montantDevise !== undefined && ` · ${formaterDansDevise(p.montantDevise, p.devise)}`}
                   {p.note && ` · ${p.note}`}
                 </Body1>
                 <Caption1 className={styles.libelle}>
@@ -143,7 +152,7 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
                   {membre(p.enregistrePar) && `, par ${membre(p.enregistrePar)}`} · reçu {numeroRecu(p)}
                 </Caption1>
               </div>
-              <Text className={styles.montant}>{formaterPrix(p.montant)}</Text>
+              <Text className={styles.montant}>{montantRecu(p)}</Text>
               <Tooltip content="Reçu (PDF)" relationship="label">
                 <Button
                   appearance="subtle"
@@ -207,6 +216,15 @@ export default function Encaissements({ reservation: r }: { reservation: Reserva
         <Caption1 className={styles.libelle}>
           Au taux de Tarifs : 1 € = {formaterDansDevise(convertir(1, "EUR", devise, d.devises.taux), devise)}. Le reçu indique le montant dans sa devise.
         </Caption1>
+      )}
+      {devise !== "EUR" && !lectureSeule && tauxARevoir(d.devises.misAJourLe) && (
+        <MessageBar intent="warning">
+          <MessageBarBody>
+            Taux de change saisis le {dateDesTaux(d.devises.misAJourLe)} :{" "}
+            {gerant ? "vérifiez-les dans Tarifs (« Récupérer les taux du jour »)" : "demandez à un gérant de les vérifier dans Tarifs"} avant d&apos;encaisser
+            en {DEVISES[devise].nom.toLowerCase()}, sinon le client paie au taux d&apos;il y a plusieurs jours.
+          </MessageBarBody>
+        </MessageBar>
       )}
       {erreur && (
         <MessageBar intent="error">

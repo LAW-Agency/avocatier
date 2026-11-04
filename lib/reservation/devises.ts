@@ -62,3 +62,12 @@ export function formaterDansDevise(montant: number, devise: CodeDevise): string 
   const nombre = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales }).format(montant)
   return `${nombre} ${DEVISES[devise].symbole}`
 }
+
+// Taux à revoir : saisis il y a plus de quelques jours. Un séjour vendu en euros et payé en ariary au taux d'hier
+// rapporte moins si l'ariary a baissé depuis : le logiciel prévient avant d'encaisser dans une autre devise
+export const TAUX_A_REVOIR_JOURS = 3
+export const tauxARevoir = (misAJourLe: string, maintenant = Date.now()) => maintenant - Date.parse(misAJourLe) > TAUX_A_REVOIR_JOURS * 86_400_000
+
+// « 3 novembre » : date de la dernière mise à jour des taux
+export const dateDesTaux = (misAJourLe: string) =>
+  new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Indian/Antananarivo" }).format(new Date(misAJourLe))

@@ -78,6 +78,9 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
   const [message, setMessage] = useState("")
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  // Identifiant de cette réservation, gardé d'un envoi à l'autre : si la réponse se perd et qu'on réessaie, le
+  // serveur renvoie celle déjà créée au lieu d'en créer une deuxième
+  const [envoi] = useState(() => crypto.randomUUID())
 
   const nuits = arrivee && depart && depart > arrivee ? nombreNuits(arrivee, depart) : 0
   const annee = Number(d.aujourdhui.slice(0, 4))
@@ -108,6 +111,7 @@ function Formulaire({ prerempli, onFin }: { prerempli: Preremplissage; onFin: ()
       setNouveauClient(false)
     }
     const resultat = await executer<{ reservation: { id: string } }>("POST", "/api/hotes/reservations", {
+      id: envoi,
       clientId: id,
       hebergementId,
       chambreId: chambreId === CHAMBRE_AUTO ? null : chambreId,

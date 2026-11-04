@@ -197,6 +197,7 @@ ${destinataire("Facturé à", client)}
 <table class="totaux">
   <tr class="principal"><td>Total</td><td class="droite">${echapper(m(c.total))}</td></tr>
   ${c.regle ? `<tr><td>Déjà réglé</td><td class="droite">${echapper(m(c.regle))}</td></tr>` : ""}
+  ${c.ecartChange ? `<tr><td>Écart de change (règlements reçus à un autre taux)</td><td class="droite">${c.ecartChange > 0 ? "− " : "+ "}${echapper(m(Math.abs(c.ecartChange)))}</td></tr>` : ""}
   ${c.regle ? `<tr><td><strong>${c.reste > 0 ? "Reste à payer" : c.reste < 0 ? "Trop-perçu" : "Solde"}</strong></td><td class="droite"><strong>${echapper(m(Math.abs(c.reste)))}</strong></td></tr>` : ""}
 </table>
 ${c.reste <= 0 && c.regle > 0 && !a ? `<div style="text-align:right"><span class="acquittee">Acquittée</span></div>` : ""}

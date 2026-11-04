@@ -71,7 +71,7 @@ import { situationDuJour } from "../situation"
 import { encaissementsDans, pourcent } from "../statistiques"
 import { useAnnoncer } from "../toasts"
 import { useAujourdhuiStyles } from "./useAujourdhuiStyles.styles"
-import { usePrix } from "../montants"
+import { montantRecu, usePrix } from "../montants"
 
 type Onglet = "arrivees" | "departs" | "surPlace"
 
@@ -403,7 +403,7 @@ export default function Aujourdhui() {
                           {r && ` · ${r.reference}`}
                         </Caption1>
                       </div>
-                      <Text className={styles.prix}>{formaterPrix(p.montant)}</Text>
+                      <Text className={styles.prix}>{montantRecu(p)}</Text>
                     </li>
                   )
                 })}

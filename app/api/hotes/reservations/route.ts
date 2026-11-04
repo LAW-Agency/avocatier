@@ -10,6 +10,7 @@ export const POST = pourLesHotes(async (requete, membre) => {
   const texte = (nom: string) => String(c?.[nom] ?? "").trim()
   const montant = c?.montantTotal
   const reservation: ReservationDirecte = {
+    id: texte("id") || undefined, // choisi par le logiciel : un second envoi ne crée pas une deuxième réservation
     clientId: texte("clientId"),
     hebergementId: texte("hebergementId"),
     chambreId: texte("chambreId") || null, // vide : première chambre libre
@@ -25,6 +26,7 @@ export const POST = pourLesHotes(async (requete, membre) => {
   }
   const resultat = await gestion.creerReservationDirecte(reservation, nomDuMembre(membre), membre.role === "hote")
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
+  if (resultat.deja) return json({ ok: true, reservation: resultat.reservation })
   journaliser(membre, "reservation", "Réservation saisie", () => decrireReservation(resultat.reservation.id))
   rafraichirSite()
   return json({ ok: true, reservation: resultat.reservation })

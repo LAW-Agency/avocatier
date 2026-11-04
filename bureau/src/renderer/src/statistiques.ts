@@ -1,4 +1,4 @@
-import { ajouterJours, nombreNuits } from "@partage/dates"
+import { ajouterJours, jourDe, nombreNuits } from "@partage/dates"
 import type { DateISO, Paiement, Reservation } from "@partage/types"
 import type { Donnees } from "./donnees"
 
@@ -46,7 +46,7 @@ export function indicateurs(d: Pick<Donnees, "reservations" | "chambres" | "paie
   // Chambres en vente aujourd'hui (une chambre désactivée ne compte plus)
   const nuitsDisponibles = d.chambres.filter((c) => c.active).length * nombreNuits(periode.debut, periode.fin)
   const commencent = ok.filter((r) => r.arrivee >= periode.debut && r.arrivee < periode.fin)
-  const creees = d.reservations.filter((r) => r.creeLe.slice(0, 10) >= periode.debut && r.creeLe.slice(0, 10) < periode.fin)
+  const creees = d.reservations.filter((r) => jourDe(r.creeLe) >= periode.debut && jourDe(r.creeLe) < periode.fin)
   const perdues = creees.filter((r) => r.statut === "annulee" || r.statut === "refusee" || r.statut === "expiree")
 
   return {
@@ -61,12 +61,12 @@ export function indicateurs(d: Pick<Donnees, "reservations" | "chambres" | "paie
     dureeMoyenne: commencent.length ? commencent.reduce((t, r) => t + nombreNuits(r.arrivee, r.depart), 0) / commencent.length : 0,
     demandes: creees.length,
     annulation: creees.length ? perdues.length / creees.length : 0,
-    delaiMoyen: commencent.length ? commencent.reduce((t, r) => t + Math.max(0, nombreNuits(r.creeLe.slice(0, 10), r.arrivee)), 0) / commencent.length : 0,
+    delaiMoyen: commencent.length ? commencent.reduce((t, r) => t + Math.max(0, nombreNuits(jourDe(r.creeLe), r.arrivee)), 0) / commencent.length : 0,
   }
 }
 
 export function encaissementsDans(paiements: Paiement[], { debut, fin }: Periode): Paiement[] {
-  return paiements.filter((p) => p.le.slice(0, 10) >= debut && p.le.slice(0, 10) < fin)
+  return paiements.filter((p) => jourDe(p.le) >= debut && jourDe(p.le) < fin)
 }
 
 // Évolution relative entre deux valeurs (null si la précédente est nulle : pas de pourcentage)

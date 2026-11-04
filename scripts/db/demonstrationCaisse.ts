@@ -332,12 +332,12 @@ export async function genererCaisse(db: Executant, aujourdhui: DateISO = aujourd
   const reglesAuDepart = [...notes].flatMap(([id, totalAr]) => {
     const s = sejours.find((x) => x.id === id)!
     if (!s.departLe) return []
-    return [{ reservation_id: id, montant: Math.round((totalAr / taux.MGA) * 100) / 100, devise: "MGA", montant_devise: totalAr, taux: taux.MGA, mode: parmi(["especes", "especes", "carte", "mobile_money"]), note: "Restaurant et bar", le: plus(s.departLe, -1), enregistre_par: parmi(equipe)?.id ?? null }]
+    return [{ reservation_id: id, montant: Math.round((totalAr / taux.MGA) * 100) / 100, devise: "MGA", montant_devise: totalAr, taux: taux.MGA, taux_ariary: taux.MGA, mode: parmi(["especes", "especes", "carte", "mobile_money"]), note: "Restaurant et bar", le: plus(s.departLe, -1), enregistre_par: parmi(equipe)?.id ?? null }]
   })
   if (reglesAuDepart.length) {
     await db.query(
-      `insert into paiements (reservation_id, montant, devise, montant_devise, taux, mode, note, le, enregistre_par)
-       select * from json_to_recordset($1) as x(reservation_id text, montant numeric, devise text, montant_devise numeric, taux numeric, mode text, note text, le timestamptz, enregistre_par text) order by le`,
+      `insert into paiements (reservation_id, montant, devise, montant_devise, taux, taux_ariary, mode, note, le, enregistre_par)
+       select * from json_to_recordset($1) as x(reservation_id text, montant numeric, devise text, montant_devise numeric, taux numeric, taux_ariary numeric, mode text, note text, le timestamptz, enregistre_par text) order by le`,
       [JSON.stringify(reglesAuDepart)],
     )
   }

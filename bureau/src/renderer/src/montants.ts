@@ -1,7 +1,7 @@
 import { useCallback } from "react"
 import { formaterPrix } from "@partage/dates"
-import { DEVISES } from "@partage/devises"
-import type { ReglagesDevises } from "@partage/types"
+import { DEVISES, formaterDansDevise } from "@partage/devises"
+import type { CodeDevise, Paiement, ReglagesDevises } from "@partage/types"
 import type { DeviseLogiciel } from "../../partage/ipc"
 import { useDonnees } from "./donnees"
 import { useReglages } from "./reglages"
@@ -34,6 +34,25 @@ export function formaterEn(euros: number, devise: DeviseLogiciel, taux: Reglages
   const { symbole, arrondi } = DEVISES_AFFICHAGE[devise]
   const montant = Math.round((euros * tauxPourUnEuro(devise, taux)) / arrondi) * arrondi
   return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(montant)} ${symbole}`
+}
+
+// Montant réellement reçu, dans sa devise : il ne bouge pas quand le taux change et correspond à ce qui est entré
+// en caisse (un encaissement n'est jamais reconverti au taux du jour)
+export const montantRecu = (p: Pick<Paiement, "montant" | "devise" | "montantDevise">) =>
+  p.devise !== "EUR" && p.montantDevise !== undefined ? formaterDansDevise(p.montantDevise, p.devise) : formaterDansDevise(p.montant, "EUR")
+
+// Totaux reçus par devise, ariary d'abord (« 1 396 500 Ar + 2 345 € ») : ce qui doit se trouver en caisse et en banque
+export function totauxRecus(paiements: Pick<Paiement, "montant" | "devise" | "montantDevise">[]): string {
+  const totaux = new Map<CodeDevise, number>()
+  for (const p of paiements) {
+    const [devise, montant] = p.devise !== "EUR" && p.montantDevise !== undefined ? [p.devise, p.montantDevise] : ["EUR" as const, p.montant]
+    totaux.set(devise, (totaux.get(devise) ?? 0) + montant)
+  }
+  return [...totaux]
+    .filter(([, montant]) => Math.round(montant * 100) !== 0)
+    .sort(([a], [b]) => Number(b === "MGA") - Number(a === "MGA") || Number(b === "EUR") - Number(a === "EUR"))
+    .map(([devise, montant]) => formaterDansDevise(Math.round(montant * 100) / 100, devise))
+    .join(" + ")
 }
 
 // Formateur des montants (en euros) dans la devise d'affichage du poste ; en euros tant que les taux ne sont

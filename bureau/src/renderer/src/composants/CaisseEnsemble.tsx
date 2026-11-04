@@ -16,7 +16,7 @@ import {
 } from "@fluentui/react-components"
 import { BedRegular, MoneyRegular, ReceiptRegular, WalletRegular } from "@fluentui/react-icons"
 import { useEffect, useState } from "react"
-import { ajouterJours, formaterDate, nombreNuits } from "@partage/dates"
+import { ajouterJours, formaterDate, jourDe, nombreNuits } from "@partage/dates"
 import { DEVISES, formaterDansDevise } from "@partage/devises"
 import type { BilanRestaurant, CodeDevise, DateISO } from "@partage/types"
 import { MODES_PAIEMENT } from "../libelles"
@@ -240,7 +240,7 @@ export default function CaisseEnsemble({ aujourdhui }: { aujourdhui: DateISO }) 
                           <TableRow key={s.id}>
                             <TableCell className={cadre.premiere}>
                               <Body1 block>
-                                {s.poste} · {formaterDate(s.ouverteLe.slice(0, 10), { year: undefined })}
+                                {s.poste} · {formaterDate(jourDe(s.ouverteLe), { year: undefined })}
                               </Body1>
                               <Caption1 className={styles.secondaire}>
                                 {s.caissier}
