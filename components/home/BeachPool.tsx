@@ -36,22 +36,16 @@ export default function BeachPool() {
         <div id="piscine-jardin" className="md:col-span-5 lg:col-span-4 flex flex-col gap-8 md:gap-10">
           <div data-reveal className="max-w-[60ch] space-y-4">
             <p className="font-heading text-lg md:text-xl text-balance text-primary-accent">
-              Ici, la plage est au bout du jardin !
+              La plage au bout du jardin, la piscine au cœur des tropiques !
             </p>
             <p className="text-body">
-              Imaginez… Quelques pas sur la pelouse, et déjà le sable chaud sous vos pieds. Notre plage privée
-              vous offre un cadre privilégié pour profiter pleinement de l’océan Indien : baignades dans une
-              eau paisible, moments de détente à l’ombre des cocotiers et couchers de soleil inoubliables face
-              à l’horizon.
+              Depuis votre bungalow, quelques pas suffisent pour rejoindre notre plage privée et profiter du lagon turquoise, des baignades et de magnifiques couchers de soleil.
             </p>
             <p className="text-body">
-              Envie de prolonger le plaisir ? Au cœur du jardin tropical, notre piscine vous invite à la
-              détente. Installez-vous confortablement sur un transat, savourez un rafraîchissement au bar et
-              laissez doucement le temps s’écouler.
+              Au cœur du jardin tropical, notre piscine et ses transats vous invitent également à savourer de délicieux moments de détente, à quelques pas du bar.
             </p>
             <p className="text-body">
-              Entre plage, piscine et douceur tropicale, tout est réuni pour vivre des vacances inoubliables au
-              bord de l’océan Indien. À Vohilava, le bonheur est à quelques pas…
+              Plage, piscine, cocotiers et océan Indien… Tout est réuni pour des vacances les pieds dans l’eau !
             </p>
           </div>
 
