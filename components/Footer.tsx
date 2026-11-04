@@ -66,25 +66,10 @@ export default function Footer() {
             <div className="max-w-md space-y-4 text-pretty text-[0.95rem] leading-relaxed text-primary-light/75">
               <h2 className={headingStyle}>Votre petit paradis face à l’océan Indien</h2>
               <p>
-                À Vohilava, sur la magnifique île Sainte-Marie à Madagascar, Chez L’Avocatier vous accueille dans un
-                cadre tropical privilégié, entre plage de sable fin, cocotiers et lagon turquoise.
+                À Sainte-Marie, profitez d’un séjour entre plage, lagon turquoise et jardin tropical. Joëlle et
+                Stéphane vous accueillent chaleureusement Chez L’Avocatier, entre confort, détente et authenticité.
               </p>
-              <p>
-                Joëlle et Stéphane vous ouvrent les portes de leur adresse pleine de charme, où authenticité,
-                convivialité et douceur de vivre se conjuguent pour vous offrir un séjour inoubliable.
-              </p>
-              <ul className="space-y-2">
-                {[
-                  "Des bungalows et chambres de charme au cœur d’un jardin tropical",
-                  "Une plage privée et une piscine pour savourer chaque instant",
-                  "Un accueil chaleureux et personnalisé, dans une atmosphère authentique",
-                ].map((atout) => (
-                  <li key={atout} className="flex gap-3">
-                    <span aria-hidden="true" className="mt-[0.6em] h-1.5 w-1.5 shrink-0 rounded-full bg-sand" />
-                    {atout}
-                  </li>
-                ))}
-              </ul>
+              <p className="text-sand">Bungalows, piscine et plage privée : bienvenue au paradis !</p>
             </div>
 
             {socials.length > 0 && (

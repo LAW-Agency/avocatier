@@ -8,10 +8,12 @@ export default function Testimonials() {
         <h2 id="avis-titre" className="font-heading text-section text-balance text-text-dark">
           Ils ont séjourné chez nous… et ils en parlent !
         </h2>
-        <p className="mx-auto mt-5 mb-12 max-w-2xl text-body text-pretty text-text-dark">
-          La plus belle récompense, c’est la satisfaction de nos visiteurs. Découvrez les témoignages de ceux qui
-          ont choisi Chez L’Avocatier et qui ont apprécié notre accueil, notre cadre privilégié et la douceur de
-          vivre au bord de l’océan Indien.
+        <p className="mx-auto mt-5 max-w-2xl font-heading text-lg md:text-xl text-balance text-primary-accent">
+          Leurs sourires et leurs témoignages sont notre plus belle récompense !
+        </p>
+        <p className="mx-auto mt-4 mb-12 max-w-2xl text-body text-pretty text-text-dark">
+          Découvrez les avis de nos voyageurs et partagez leur expérience : un accueil chaleureux, un cadre
+          privilégié et de doux moments au bord de l’océan Indien.
         </p>
 
         {testimonials.map((t) => (
@@ -33,8 +35,8 @@ export default function Testimonials() {
         </p>
 
         <p className="mx-auto mt-10 max-w-2xl text-body text-pretty text-text-dark">
-          Votre satisfaction est notre plus belle motivation. Merci à tous nos voyageurs pour leur confiance et
-          leurs précieux témoignages !
+          Merci à tous nos visiteurs pour leur confiance. Nous avons hâte de vous accueillir à votre tour
+          Chez L’Avocatier !
         </p>
       </div>
     </section>
