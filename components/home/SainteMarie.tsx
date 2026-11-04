@@ -34,32 +34,17 @@ export default function SainteMarie() {
         >
           <SectionTitle title="Sainte-Marie, un petit paradis à explorer" light />
           <p className="max-w-[60ch] font-heading text-lg md:text-xl text-balance text-sand">
-            Laissez-vous envoûter par la magie de Nosy Boraha !
+            Laissez-vous séduire par la magie de Nosy Boraha !
           </p>
           <div className="max-w-[60ch] space-y-4 text-body text-primary-light/80">
             <p>
-              Au large de la côte est de Madagascar, l’île Sainte-Marie vous invite à vivre une expérience hors
-              du temps. Sur près de 60 kilomètres, elle dévoile des paysages enchanteurs : plages bordées de
-              cocotiers, lagons turquoise, végétation luxuriante et petits villages de pêcheurs où la vie
-              s’écoule paisiblement.
+              Plages de sable fin, cocotiers, lagons turquoise et villages de pêcheurs… Sainte-Marie est une île pleine de charme où nature préservée et douceur de vivre se rencontrent.
             </p>
             <p>
-              De juillet à septembre, vivez un spectacle naturel exceptionnel avec la venue des baleines à bosse
-              et de leurs petits dans les eaux de l’île. Un moment magique et inoubliable !
+              Partez à la découverte de l’île aux Nattes, plongez dans des eaux cristallines, explorez le célèbre cimetière des pirates ou admirez les baleines à bosse de juillet à septembre.
             </p>
             <p>
-              Mais Sainte-Marie regorge aussi de trésors à découvrir toute l’année : escapade sur la magnifique
-              île aux Nattes, découverte du mystérieux cimetière des pirates, plongée dans des fonds marins
-              préservés, balades au cœur d’une nature généreuse et rencontres authentiques avec les habitants.
-            </p>
-            <p>
-              Que vous soyez amateur d’aventure, passionné de nature ou simplement en quête de dépaysement,
-              Sainte-Marie saura vous séduire.
-            </p>
-            <p>
-              Et pour profiter pleinement de cette île merveilleuse, Chez L’Avocatier vous accueille à Vohilava,
-              dans un cadre privilégié, à seulement 3 km de l’aéroport. Le point de départ idéal pour explorer
-              l’île… et le bonheur de retrouver votre petit coin de paradis après chaque excursion !
+              Chez L’Avocatier, à Vohilava, profitez d’un emplacement privilégié pour explorer toutes les merveilles de Sainte-Marie, avant de retrouver le calme et le confort de votre petit paradis au bord de l’océan.
             </p>
           </div>
 
@@ -85,8 +70,8 @@ export default function SainteMarie() {
           </address>
 
           <div className="flex flex-wrap gap-x-8 gap-y-4 pt-1">
-            <ButtonLink href="/experiences#sainte-marie" variant="link-light">Partez à la découverte des expériences de Sainte-Marie</ButtonLink>
-            <ButtonLink href="/infos-pratiques#comment-venir" variant="link-light">Préparez votre arrivée chez nous</ButtonLink>
+            <ButtonLink href="/experiences#sainte-marie" variant="link-light">Découvrez les expériences de Sainte-Marie</ButtonLink>
+            <ButtonLink href="/infos-pratiques#comment-venir" variant="link-light">Préparez votre arrivée</ButtonLink>
           </div>
         </div>
       </div>
