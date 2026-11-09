@@ -47,7 +47,7 @@
   /* Grands éléments de la réservation (photo, cartes, barre flottante) : plus doux que les boutons */
   --radius-panel: 1rem;
 
-  /* Titres et texte en Outfit : font-heading ne change que la graisse et l'interlettrage (voir @layer base) */
+  /* Titres et texte en Google Sans : font-heading ne change que la graisse et l'interlettrage (voir @layer base) */
   --font-heading: var(--font-sans-custom), sans-serif;
   --font-sans: var(--font-sans-custom), sans-serif;
 
@@ -207,6 +207,10 @@ main {
   html {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--color-primary-dark) 45%, transparent) transparent;
+  }
+  /* Haut d'une page avec hero (attribut posé par le Header) : rail vert nuit, curseur sable */
+  html[data-rail-sombre] {
+    scrollbar-color: color-mix(in srgb, var(--color-sand) 55%, transparent) var(--color-forest);
   }
 
   /* Safari (ne gère pas scrollbar-color) — ignoré par Chrome/Firefox qui utilisent les règles ci-dessus */

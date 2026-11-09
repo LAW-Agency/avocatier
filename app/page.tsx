@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Hero from "@/components/home/Hero";
 import Amenities from "@/components/home/Amenities";
 import SplitSection from "@/components/home/SplitSection";
+import BlocPhotoTexte from "@/components/home/BlocPhotoTexte";
 import BeachPool from "@/components/home/BeachPool";
 import SainteMarie from "@/components/home/SainteMarie";
+import Restaurant from "@/components/home/Restaurant";
 import Testimonials from "@/components/home/Testimonials";
-import BookingCTA from "@/components/BookingCTA";
+import ReserverFinal from "@/components/home/ReserverFinal";
 
 export const metadata: Metadata = {
   title: "Chez L'Avocatier · Hôtel face à l'océan à Sainte-Marie, Madagascar",
@@ -24,7 +26,8 @@ export default function Home() {
 
       {/* 2. L'expérience */}
       <Amenities/>
-      <SplitSection
+      {/* Photo plus haute aux coins doux, vignette du panneau en débord (repris de /essai-accueil) */}
+      <BlocPhotoTexte
         id="experience"
         title="Votre parenthèse enchantée au bord de l’océan Indien"
         lead="Tongasoa… Bienvenue à Vohilava !"
@@ -38,6 +41,10 @@ export default function Home() {
         image={{
           src: "/images/hotel/jardin-bungalows.jpeg",
           alt: "Le jardin tropical et les bungalows de Chez L'Avocatier en fin de journée",
+        }}
+        vignette={{
+          src: "/images/hotel/panneau.jpeg",
+          alt: "Le panneau jaune peint de Chez L'Avocatier au bord de la route",
         }}
       />
 
@@ -65,24 +72,8 @@ export default function Home() {
       <BeachPool/>
 
       {/* 6. Restaurant & bar */}
-      <SplitSection
-        id="restaurant"
-        title="Un voyage gourmand aux saveurs de Madagascar"
-        lead="La gourmandise face à l’océan Indien !"
-        text={[
-          "Commencez la journée par un délicieux petit-déjeuner continental, puis laissez-vous tenter par une cuisine maison généreuse, inspirée des saveurs malgaches et préparée avec des produits frais et locaux.",
-          "Poissons de la pêche du jour, fruits tropicaux et spécialités gourmandes se dégustent face à l’océan, dans un cadre privilégié.",
-          "En fin de journée, retrouvez le bar au bord de la piscine pour savourer un cocktail et profiter de la douceur des soirées tropicales.",
-          "Chez L’Avocatier, chaque repas est une invitation au voyage !",
-        ]}
-        cta={{ label: "Découvrez notre restaurant et notre bar", href: "/restaurant" }}
-        image={{
-          src: "/images/restaurant/petit-dejeuner.jpeg",
-          alt: "Plateau du petit-déjeuner : fruits, viennoiseries, confitures et jus de fruits",
-          frame: "aspect-[4/3] md:aspect-auto md:h-[32rem]",
-        }}
-        tone="mist"
-      />
+      {/* Une journée gourmande en trois temps : matin, à table, soir (repris de /essai-accueil) */}
+      <Restaurant />
 
       {/* 7 + 9. Sainte-Marie (référencement) et localisation */}
       <SainteMarie/>
@@ -91,16 +82,8 @@ export default function Home() {
       <Testimonials/>
 
       {/* 10. CTA final */}
-      <BookingCTA
-        title="Et si votre prochain voyage au paradis commençait ici ?"
-        lead="L’océan Indien vous attend… et nous aussi !"
-        text={[
-          "Envie de soleil, de plages de sable fin et d’eaux turquoise ? Offrez-vous une parenthèse de détente à Sainte-Marie, loin du quotidien.",
-          "Joëlle et Stéphane seront heureux de vous accueillir Chez L’Avocatier, à Vohilava. Envoyez-nous votre demande de réservation : nous vous répondrons personnellement sous 48 heures pour préparer votre séjour.",
-          "En amoureux, en famille ou pour simplement déconnecter, votre petit coin de paradis vous attend !",
-        ]}
-        label="Réservez votre séjour dès maintenant"
-      />
+      {/* L'invitation sur la photo, la réservation en 3 étapes dans une carte claire (repris de /essai-accueil) */}
+      <ReserverFinal />
     </div>
   );
 }
