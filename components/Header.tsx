@@ -5,9 +5,10 @@ import { ChevronDown, MapPin, User } from "lucide-react"
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { useChemin } from "@/components/useChemin"
 import { navLinks } from "@/data/navLinks"
+import HeaderEssai from "@/components/essai-accueil/HeaderEssai"
 
 // Pages avec un hero plein écran : le header y reste transparent tant qu'on n'a pas défilé
-const HERO_PAGES = ["/", "/compte", "/hotel", "/hebergements", "/experiences", "/restaurant", "/galerie"]
+const HERO_PAGES = ["/", "/essai-accueil", "/compte", "/hotel", "/hebergements", "/experiences", "/restaurant", "/galerie"]
 const SCROLL_THRESHOLD = 24 // px
 const DESKTOP_MIN_WIDTH = 1024 // breakpoint lg
 
@@ -23,8 +24,13 @@ function useScrolled() {
   )
 }
 
+// La page d'essai /essai-accueil a son propre header (capsule flottante, components/essai-accueil/HeaderEssai.tsx)
 export default function Header() {
   const pathname = useChemin()
+  return pathname === "/essai-accueil" ? <HeaderEssai /> : <HeaderSite pathname={pathname} />
+}
+
+function HeaderSite({ pathname }: { pathname: string }) {
   const hasHero = HERO_PAGES.includes(pathname)
   // Page de réservation ou de compte ouverte : le bouton correspondant le signale
   const surReservation = pathname.startsWith("/reserver")
@@ -36,6 +42,12 @@ export default function Header() {
 
   // Transparent en haut d'une page avec hero, blanc partout ailleurs et quand le menu est ouvert
   const solid = !hasHero || scrolled || mobileOpen
+
+  // Barre de défilement de Windows : elle prend sa place à droite de la page et ne peut pas se poser sur le hero.
+  // Tant que le header est transparent, son rail passe en vert nuit (globals.css) au lieu d'une bande claire.
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-rail-sombre", !solid)
+  }, [solid])
 
   const closeMenu = () => {
     setMobileOpen(false)

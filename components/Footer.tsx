@@ -4,16 +4,11 @@ import { Mail, Phone } from "lucide-react"
 import type { CSSProperties, ReactNode } from "react"
 import SelecteurDevise from "@/components/SelecteurDevise"
 import { contact, socials, type SocialNetwork } from "@/data/contact"
+import { navLinks } from "@/data/navLinks"
 
-// Pages principales (routes du cahier des charges)
-const footerLinks = [
-  { label: "L'hôtel", href: "/hotel" },
-  { label: "Hébergements", href: "/hebergements" },
-  { label: "Expériences", href: "/experiences" },
-  { label: "Restaurant & Bar", href: "/restaurant" },
-  { label: "Galerie", href: "/galerie" },
-  { label: "Infos pratiques", href: "/infos-pratiques" },
-]
+// Sous-menus du header (ancres des pages), que le menu cache dans ses listes
+// déroulantes : les pages principales restent dans le header seulement
+const footerLinks = navLinks.flatMap((link) => link.submenu ?? [])
 
 // Pages légales : hors arborescence du cahier des charges, à créer
 const legalLinks = [

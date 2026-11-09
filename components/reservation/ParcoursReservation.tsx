@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { BedDouble, Check, Eye, Minus, Plus, RotateCcw, Users } from "lucide-react"
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { deconnexion } from "@/app/compte/actions"
 import { envoyerDemande, type EtatDemande } from "@/app/reserver/actions"
 import ButtonLink from "@/components/ButtonLink"
@@ -44,6 +44,47 @@ const PHOTO_VOYAGEURS = "/images/pool/piscine-bungalows.jpeg"
 const PHOTO_HEBERGEMENTS = "/images/hotel/jardin-bungalows.jpeg"
 
 type Sens = "avant" | "arriere" | null
+
+// Étape en cours gardée dans le navigateur avec la sélection qui l'accompagne : un rechargement de la page
+// y revient, un autre lien vers /reserver (autre sélection) repart de l'étape la plus avancée accessible
+const CLE_ETAPE = "avocatier:reservation:etape"
+
+function lireEtapeMemorisee(): string | null {
+  try {
+    return window.localStorage.getItem(CLE_ETAPE)
+  } catch {
+    return null
+  }
+}
+
+function etapeDeLaMemoire(brut: string | null, parametres: string): number | null {
+  if (!brut) return null
+  try {
+    const { etape, selection } = JSON.parse(brut) as { etape?: unknown; selection?: unknown }
+    return selection === parametres && Number.isInteger(etape) && (etape as number) >= 0 && (etape as number) < ETAPES.length
+      ? (etape as number)
+      : null
+  } catch {
+    return null
+  }
+}
+
+function memoriserEtape(etape: number, selection: Selection) {
+  try {
+    window.localStorage.setItem(CLE_ETAPE, JSON.stringify({ etape, selection: versParametres(selection) }))
+  } catch {
+    // stockage indisponible (navigation privée…) : le rechargement repartira de l'étape la plus avancée
+  }
+}
+
+function oublierEtape() {
+  try {
+    window.localStorage.removeItem(CLE_ETAPE)
+  } catch {}
+}
+
+// Lu une fois au chargement : seules les actions du visiteur l'écrivent ensuite
+const ignorerAbonnement = () => () => {}
 
 const classesGlisse = (sens: Sens) =>
   sens === "avant"
@@ -90,9 +131,16 @@ export default function ParcoursReservation({ hebergements, chambres, saisons, p
   const hebergementOk = hebergement !== null && disponible(hebergement) && assezGrand(hebergement)
   const etapeMax = !datesOk ? 0 : !voyageursOk ? 1 : !hebergementOk ? 2 : 3
 
-  const [navigation, setNavigation] = useState<{ etape: number; sens: Sens }>({ etape: etapeMax, sens: null })
-  const etape = Math.min(navigation.etape, etapeMax)
-  const allerA = (cible: number) => setNavigation({ etape: cible, sens: cible > etape ? "avant" : "arriere" })
+  // Étape choisie par le visiteur (null tant qu'il n'a pas navigué) ; au rechargement, celle mémorisée
+  // pour cette même sélection, sinon la plus avancée accessible
+  const [navigation, setNavigation] = useState<{ etape: number | null; sens: Sens }>({ etape: null, sens: null })
+  const memorisee = useSyncExternalStore(ignorerAbonnement, lireEtapeMemorisee, () => null)
+  const etapeRetrouvee = etapeDeLaMemoire(memorisee, versParametres(selection))
+  const etape = Math.min(navigation.etape ?? etapeRetrouvee ?? etapeMax, etapeMax)
+  const allerA = (cible: number) => {
+    setNavigation({ etape: cible, sens: cible > etape ? "avant" : "arriere" })
+    memoriserEtape(cible, selection)
+  }
 
   // Prix de toutes les chambres demandées (le devis est celui d'une chambre)
   const devisDe = (h: Hebergement): Devis => {
@@ -114,13 +162,14 @@ export default function ParcoursReservation({ hebergements, chambres, saisons, p
     prixSejour,
   ]
 
-  // Changement d'étape : le titre reçoit le focus et revient à l'écran (pas au premier affichage)
-  const premierAffichage = useRef(true)
+  // Changement d'étape : le titre reçoit le focus et revient à l'écran (pas au premier affichage, ni quand
+  // l'étape mémorisée est retrouvée au rechargement)
+  const precedent = useRef({ etape, confirmee })
+  const parLeVisiteur = navigation.etape !== null || confirmee
   useEffect(() => {
-    if (premierAffichage.current) {
-      premierAffichage.current = false
-      return
-    }
+    const avant = precedent.current
+    precedent.current = { etape, confirmee }
+    if ((avant.etape === etape && avant.confirmee === confirmee) || !parLeVisiteur) return
     const titre = document.getElementById("titre-etape")
     if (!titre) return
     titre.focus({ preventScroll: true })
@@ -131,20 +180,30 @@ export default function ParcoursReservation({ hebergements, chambres, saisons, p
       const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches
       window.scrollTo({ top: window.scrollY + haut - basHeader - 32, behavior: reduit ? "instant" : "smooth" })
     }
-  }, [etape, confirmee])
+  }, [etape, confirmee, parLeVisiteur])
 
   // L'URL suit la sélection (lien partageable, retour après connexion)
   function modifier(changement: Partial<Selection>) {
     const suivante = { ...selection, ...changement }
     setSelection(suivante)
     window.history.replaceState(null, "", `?${versParametres(suivante)}`)
+    // L'étape affichée reste celle-ci même si la sélection en ouvre de plus avancées
+    setNavigation((n) => (n.etape === null ? { etape, sens: null } : n))
+    memoriserEtape(etape, suivante)
   }
+
+  // Demande envoyée : plus d'étape à retrouver
+  useEffect(() => {
+    if (confirmee) oublierEtape()
+  }, [confirmee])
 
   // Tout effacer et repartir des dates (proposé seulement quand il y a quelque chose à effacer)
   const aEffacer = Boolean(arrivee || selection.hebergement || adultes !== 2 || enfants || nbChambres > 1)
   function reinitialiser() {
-    modifier({ arrivee: null, depart: null, adultes: 2, enfants: 0, chambres: 1, hebergement: null })
+    const vide: Selection = { arrivee: null, depart: null, adultes: 2, enfants: 0, chambres: 1, hebergement: null }
+    modifier(vide)
     setNavigation({ etape: 0, sens: etape > 0 ? "arriere" : null })
+    memoriserEtape(0, vide)
   }
   const effacer = aEffacer ? reinitialiser : undefined
 

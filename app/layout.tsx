@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Google_Sans } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -9,8 +9,9 @@ import ConsentementCookies from "@/components/ConsentementCookies";
 import { FournisseurDevise } from "@/components/Devise";
 import { moteur } from "@/lib/reservation";
 
-// Vitrine : Outfit partout (titres et texte), police variable (graisses 100 à 900)
-const outfit = Outfit({
+// Vitrine : Google Sans partout (titres et texte), police variable (graisses 400 à 700), servie par le site
+// (décision de l'utilisateur du 2026-11-09, remplace Outfit)
+const googleSans = Google_Sans({
   variable: "--font-sans-custom",
   subsets: ["latin", "latin-ext"],
   display: "swap",
@@ -40,7 +41,7 @@ export default async function RootLayout({
   return (
     // Variables de police sur <html> : les variables du @theme Tailwind sont déclarées sur :root
     // data-scroll-behavior : Next garde les changements de page instantanés malgré le défilement doux
-    <html lang="fr" data-scroll-behavior="smooth" className={outfit.variable}>
+    <html lang="fr" data-scroll-behavior="smooth" className={googleSans.variable}>
 
       <head>
                 
