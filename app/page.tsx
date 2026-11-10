@@ -26,7 +26,7 @@ export default function Home() {
 
       {/* 2. L'expérience */}
       <Amenities/>
-      {/* Photo plus haute aux coins doux, vignette du panneau en débord (repris de /essai-accueil) */}
+      {/* Photo plus haute aux coins doux, vignette du panneau en débord */}
       <BlocPhotoTexte
         id="experience"
         title="Votre parenthèse enchantée au bord de l’océan Indien"
@@ -72,7 +72,7 @@ export default function Home() {
       <BeachPool/>
 
       {/* 6. Restaurant & bar */}
-      {/* Une journée gourmande en trois temps : matin, à table, soir (repris de /essai-accueil) */}
+      {/* Une journée gourmande en trois temps : matin, à table, soir */}
       <Restaurant />
 
       {/* 7 + 9. Sainte-Marie (référencement) et localisation */}
@@ -82,7 +82,7 @@ export default function Home() {
       <Testimonials/>
 
       {/* 10. CTA final */}
-      {/* L'invitation sur la photo, la réservation en 3 étapes dans une carte claire (repris de /essai-accueil) */}
+      {/* L'invitation sur la photo, la réservation en 3 étapes dans une carte claire */}
       <ReserverFinal />
     </div>
   );

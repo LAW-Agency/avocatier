@@ -5,10 +5,9 @@ import { ChevronDown, MapPin, User } from "lucide-react"
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { useChemin } from "@/components/useChemin"
 import { navLinks } from "@/data/navLinks"
-import HeaderEssai from "@/components/essai-accueil/HeaderEssai"
 
 // Pages avec un hero plein écran : le header y reste transparent tant qu'on n'a pas défilé
-const HERO_PAGES = ["/", "/essai-accueil", "/compte", "/hotel", "/hebergements", "/experiences", "/restaurant", "/galerie"]
+const HERO_PAGES = ["/", "/compte", "/hotel", "/hebergements", "/experiences", "/restaurant", "/galerie"]
 const SCROLL_THRESHOLD = 24 // px
 const DESKTOP_MIN_WIDTH = 1024 // breakpoint lg
 
@@ -24,13 +23,8 @@ function useScrolled() {
   )
 }
 
-// La page d'essai /essai-accueil a son propre header (capsule flottante, components/essai-accueil/HeaderEssai.tsx)
 export default function Header() {
   const pathname = useChemin()
-  return pathname === "/essai-accueil" ? <HeaderEssai /> : <HeaderSite pathname={pathname} />
-}
-
-function HeaderSite({ pathname }: { pathname: string }) {
   const hasHero = HERO_PAGES.includes(pathname)
   // Page de réservation ou de compte ouverte : le bouton correspondant le signale
   const surReservation = pathname.startsWith("/reserver")

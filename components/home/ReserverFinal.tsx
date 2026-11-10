@@ -9,7 +9,7 @@ const etapes = [
   { titre: "Joëlle et Stéphane vous répondent", texte: "Personnellement, sous 48 heures, pour préparer votre séjour." },
 ]
 
-// Section finale « Réserver » (accueil et essai) : la photo reste en fond, mais le texte n'est plus centré dessus.
+// Section finale « Réserver » (accueil et Expériences) : la photo reste en fond, mais le texte n'est plus centré dessus.
 // À gauche l'invitation (voile vert nuit renforcé côté texte), à droite une carte claire qui explique
 // la réservation en 3 étapes et porte le seul bouton plein.
 export default function ReserverFinal({ id }: { id?: string }) {

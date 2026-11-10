@@ -26,11 +26,8 @@ export default async function HebergementsPage() {
       <PageHero
         title="Hébergements"
         tagline="Votre cocon tropical à Sainte-Marie"
-        text={[
-          "Nichés dans un jardin tropical, nos bungalows et chambres vous accueillent dans une atmosphère chaleureuse et dépaysante, à quelques pas de la piscine et de la plage.",
-          "Chaque hébergement dispose de sa salle d’eau privative, du Wi-Fi et d’un coffre-fort pour profiter pleinement de votre séjour en toute sérénité.",
-          "Posez vos valises, déconnectez et savourez la douceur de vivre Chez L’Avocatier !",
-        ]}
+        // Un seul paragraphe : équipements et « Posez vos valises… » sont repris dans la section Bungalows juste dessous
+        text="Nichés dans un jardin tropical, à deux pas de la piscine et de la plage, nos bungalows et chambres vous accueillent dans une atmosphère chaleureuse et dépaysante, pour un séjour en toute sérénité."
         image={{
           src: "/images/rooms/bungalow-ocean-2.jpeg",
           alt: "Un bungalow aux murs vert profond : lit à baldaquin, moustiquaire et suspensions tressées",
@@ -46,12 +43,15 @@ export default async function HebergementsPage() {
       <section id="bungalows" className="py-section">
         <div className="max-w-7xl mx-auto px-4">
           <div data-reveal className="grid md:grid-cols-12 gap-6 lg:gap-14 items-end mb-10 md:mb-14">
-            <div className="md:col-span-5">
+            <div className="md:col-span-5 space-y-4">
               <SectionTitle title="Les bungalows, entre jardin et océan" />
+              <p className="max-w-[40ch] font-heading text-lg md:text-xl text-balance text-primary-accent">
+                Posez vos valises, déconnectez et savourez la douceur de vivre Chez L’Avocatier !
+              </p>
             </div>
             <div className="md:col-span-7 max-w-[60ch] space-y-4 text-body">
               <p>
-                Avec leur décoration colorée et leur charme tropical, nos bungalows vous offrent un véritable cocon de tranquillité. Chacun dispose de sa salle d’eau privative et s’ouvre sur le jardin, à quelques pas de la plage.
+                Avec leur décoration colorée et leur charme tropical, nos bungalows vous offrent un véritable cocon de tranquillité. Chaque hébergement dispose de sa salle d’eau privative, du Wi-Fi et d’un coffre-fort et s’ouvre sur le jardin, à quelques pas de la plage.
               </p>
               <p>
                 En amoureux ou en famille, trouvez votre petit nid pour des vacances inoubliables à Sainte-Marie !

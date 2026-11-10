@@ -1,45 +1,53 @@
 import type { CSSProperties } from "react"
-import ButtonLink from "@/components/ButtonLink"
 import SectionTitle from "@/components/home/SectionTitle"
+import Grain, { FOND_SABLE } from "@/components/home/Grain"
 import { activites } from "@/data/experiences"
 
-// Excursions et activités nautiques — sans photo (pas d'images du client pour ces sorties) :
-// une liste typographique, et un appel à écrire aux hôtes pour organiser le séjour
+// Excursions et activités en cartes sur fond sable (pas de photos du client pour ces sorties).
+// Sur le sable, texte courant en encre et période en bordeaux : le vert n'y atteint pas 4,5:1.
 export default function Activites() {
   return (
-    <section id="excursions" className="py-section">
-      <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-12 gap-10 lg:gap-14">
-        <div data-reveal className="lg:col-span-4 space-y-5 lg:sticky lg:top-28 lg:self-start">
-          <SectionTitle title="Excursions et activités" />
-          <p className="max-w-[60ch] font-heading text-lg md:text-xl text-balance text-primary-accent">
-            Vivez Sainte-Marie pleinement !
+    <section id="excursions" className={`${FOND_SABLE} py-section`}>
+      <Grain />
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="grid gap-6 md:grid-cols-12 lg:gap-14">
+          <div data-reveal className="space-y-4 md:col-span-7">
+            <SectionTitle title="Excursions et activités" />
+            <p className="font-heading text-lg text-balance text-primary-accent md:text-xl">Vivez Sainte-Marie pleinement !</p>
+          </div>
+          <p
+            data-reveal
+            style={{ "--reveal-delay": "150ms" } as CSSProperties}
+            className="text-body text-ink md:col-span-5 md:self-end lg:col-span-4 lg:col-start-9"
+          >
+            Baleines, plongée, balades en pirogue, pêche ou découverte de l’île… Sainte-Marie regorge d’expériences à
+            vivre !
           </p>
-          <p className="max-w-[60ch] text-body">
-            Baleines, plongée, balades en pirogue, pêche ou découverte de l’île… Sainte-Marie regorge d’expériences à vivre !
-          </p>
-          <p className="max-w-[60ch] text-body">
-            Joëlle et Stéphane vous conseillent et vous orientent vers des prestataires locaux de confiance pour organiser vos excursions et profiter pleinement de votre séjour.
-          </p>
-          <p className="max-w-[60ch] text-body">
-            À vous l’aventure, nous vous aidons à la préparer !
-          </p>
-          <ButtonLink href="/contact" variant="link">Préparez vos excursions</ButtonLink>
         </div>
 
-        <ul className="lg:col-span-8 lg:col-start-5 divide-y divide-primary-dark/15 border-y border-primary-dark/15">
+        <ul className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mt-16 lg:grid-cols-6 lg:gap-5">
           {activites.map(({ nom, periode, texte, icon: Icon }, i) => (
             <li
               key={nom}
               data-reveal
-              style={{ "--reveal-delay": `${i * 80}ms` } as CSSProperties}
-              className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 py-6 sm:grid-cols-[auto_14rem_1fr] sm:items-start sm:gap-x-8"
+              style={{ "--reveal-delay": `${i * 100}ms` } as CSSProperties}
+              // Deux cartes larges puis trois : la rangée du haut met en avant baleines et plongée
+              className={`flex flex-col rounded-panel bg-background/85 p-6 shadow-[0_8px_32px_rgb(13_43_33/0.06)] ${
+                i < 2 ? "lg:col-span-3" : "lg:col-span-2"
+              } ${i === activites.length - 1 ? "sm:col-span-2 lg:col-span-2" : ""}`}
             >
-              <Icon className="row-span-2 mt-0.5 w-7 h-7 stroke-[1.25] sm:row-span-1" aria-hidden="true" />
-              <div>
-                <h3 className="font-heading text-xl md:text-2xl leading-tight">{nom}</h3>
-                {periode && <p className="mt-1 text-sm text-primary-accent">{periode}</p>}
+              <div className="flex items-start justify-between gap-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary-dark/10 text-text-dark">
+                  <Icon aria-hidden="true" className="h-6 w-6 stroke-[1.25]" />
+                </span>
+                {periode && (
+                  <span className="rounded-full border border-primary-accent/30 px-3 py-1 text-xs font-medium tracking-wide text-primary-accent">
+                    {periode}
+                  </span>
+                )}
               </div>
-              <p className="text-[0.95rem] leading-relaxed sm:pt-1">{texte}</p>
+              <h3 className="mt-6 font-heading text-xl leading-tight text-text-dark md:text-2xl">{nom}</h3>
+              <p className="mt-2 text-[0.95rem] leading-relaxed text-ink">{texte}</p>
             </li>
           ))}
         </ul>
