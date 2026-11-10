@@ -18,7 +18,7 @@ interface BlocPhotoTexteProps {
   sable?: boolean
 }
 
-// Bloc photo + texte de la page d'essai : photo plus haute et coins doux, vignette en débord,
+// Bloc photo + texte de l'accueil : photo plus haute et coins doux, vignette en débord,
 // fond crème ou sable. Grille 7/5 comme SplitSection.
 export default function BlocPhotoTexte({
   id,

@@ -1,7 +1,8 @@
 import { Bike, Fish, Sailboat, Shell, Waves, type LucideIcon } from "lucide-react"
 
 // Photos libres de Wikimedia Commons (le client n'a pas d'images de l'île hors de Vohilava) :
-// les licences CC BY / CC BY-SA imposent de citer l'auteur et la licence (crédits en bas de la section)
+// les licences CC BY / CC BY-SA imposent de citer l'auteur et la licence. TODO : plus affichés sur /experiences
+// depuis le 2026-11-10 (encore sur l'accueil) — à remettre ailleurs (page de crédits, pied de page…)
 export interface PhotoLibre {
   src: string
   alt: string

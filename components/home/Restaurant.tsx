@@ -13,7 +13,7 @@ const moments = [
     image: { src: "/images/restaurant/petit-dejeuner.jpeg", alt: "Plateau du petit-déjeuner : fruits, viennoiseries, confitures et jus de fruits" },
   },
   {
-    moment: "À table",
+    moment: "Le midi",
     texte:
       "Poissons de la pêche du jour, fruits tropicaux et spécialités gourmandes se dégustent face à l’océan, dans un cadre privilégié.",
     image: { src: "/images/restaurant/poisson-grille.jpeg", alt: "Poisson grillé entier et poêlée de légumes" },
