@@ -59,16 +59,11 @@ export const lieux: { nom: string; texte: string; image: PhotoLieu; image2?: Pho
   {
     nom: "Ambodifotatra",
     texte: "Ambodifotatra, chef-lieu de l’île et son marché animé, le Cimetière des Pirates près de la baie des Forbans, ainsi que la première église catholique de Madagascar, construite en 1857.",
+    // TODO client : source et droits de cette photo à confirmer (fournie sans crédit le 2026-11-12, remplace celle de Wikimedia)
     image: {
       src: "/images/island/cimetiere-pirates.jpeg",
-      alt: "Tombes de pierre noircie dans l'herbe, entre ravenalas et palmiers, au cimetière des pirates",
-      position: "object-[40%_center]",
-      credit: {
-        auteur: "Antony (Gloucester, Royaume-Uni)",
-        licence: "CC BY-SA 2.0",
-        source: "https://commons.wikimedia.org/wiki/File:Pirate_Cemetery,_Ile_Sainte-Marie.jpg",
-        licenceUrl: "https://creativecommons.org/licenses/by-sa/2.0/deed.fr",
-      },
+      alt: "Stèles et tombes de pierre dans l'herbe, sous un palmier et des ravenalas, au cimetière des pirates",
+      position: "object-[center_60%]",
     },
     // TODO client : source et droits de cette photo à confirmer (fournie sans crédit le 2026-11-11)
     image2: {
