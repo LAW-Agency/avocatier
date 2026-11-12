@@ -12,6 +12,8 @@ interface PageHeroProps {
   }
   secondary: { label: string; href: string }   // second bouton, à côté de « Réserver votre séjour »
   rubriques?: { label: string; href: string }[] // sommaire de la page (ancres)
+  // Titre réservé aux lecteurs d'écran : l'accroche devient le grand titre et le texte passe dessous
+  hideTitle?: boolean
 }
 
 // Hero plein écran des pages intérieures : photo, titre en bas à gauche, texte et boutons à droite.
@@ -68,16 +70,31 @@ export default function PageHero({ title, tagline: accroche, text, image, second
                 <p key={p} className="text-base md:text-lg leading-relaxed text-primary-light/85">{p}</p>
               ))}
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap [&>a]:whitespace-nowrap">
-              <ButtonLink href="/reserver" className="w-full sm:w-auto">
-                Réserver votre séjour
-              </ButtonLink>
-              <ButtonLink href={secondary.href} variant="outline-light" className="w-full sm:w-auto">
-                {secondary.label}
-              </ButtonLink>
+          </div>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-14 animate-fade-up motion-reduce:animate-none">
+            {/* Titre et accroche dans le même h1 : l'accroche porte les mots-clés de la page (référencement) */}
+            <h1 className="lg:col-span-7 space-y-4">
+              <span className="block text-[clamp(3rem,2rem+4vw,5.5rem)] leading-[0.95] text-balance">
+                {title}
+              </span>
+              {/* Espace : sans lui, le texte du titre (lu par les moteurs) colle « L'hôtel » à l'accroche */}
+              {" "}
+              <span className="block text-2xl md:text-3xl leading-tight text-balance text-sand">
+                {tagline}
+              </span>
+            </h1>
+
+            <div className="lg:col-span-5 space-y-6">
+              <div className="max-w-md space-y-3">
+                {paragraphs.map((p) => (
+                  <p key={p} className="text-base md:text-lg leading-relaxed text-primary-light/85">{p}</p>
+                ))}
+              </div>
+              {boutons}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Sommaire de la page : apparaît juste après le texte */}
         {rubriques && rubriques.length > 0 && (

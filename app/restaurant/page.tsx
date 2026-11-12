@@ -23,6 +23,7 @@ export default function RestaurantPage() {
     <div>
       <PageHero
         title="Restaurant & Bar"
+        hideTitle
         tagline="Une cuisine savoureuse face à l’océan Indien"
         text={[
           "Des produits locaux, une cuisine maison généreuse et des saveurs qui sentent bon Madagascar… Du petit-déjeuner au dîner, profitez d’une belle expérience gourmande face à l’océan.",
