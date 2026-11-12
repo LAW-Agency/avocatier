@@ -24,7 +24,7 @@ export default async function HebergementsPage() {
   return (
     <div>
       <PageHero
-        tagline={["Votre cocon", "tropical"]}
+        tagline={["Votre bungalow", "au cœur du jardin"]}
         // Un seul paragraphe : équipements et « Posez vos valises… » sont repris dans la section Bungalows juste dessous
         text="Nichés dans un jardin tropical, à deux pas de la piscine et de la plage, nos bungalows et chambres vous accueillent dans une atmosphère chaleureuse et dépaysante, pour un séjour en toute sérénité."
         image={{

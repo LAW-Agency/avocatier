@@ -22,7 +22,7 @@ export default function RestaurantPage() {
   return (
     <div>
       <PageHero
-        tagline={["Cuisine savoureuse", "face à l’océan Indien"]}
+        tagline={["Le goût de l’île", "à chaque repas"]}
         text={[
           "Produits locaux, cuisine maison et saveurs de Madagascar, du petit-déjeuner au dîner face à l’océan.",
           "Et pour prolonger le plaisir, un verre au bar, au bord de la piscine.",
