@@ -19,17 +19,16 @@ export default function ExperiencesPage() {
   return (
     <div>
       <PageHero
-        title="Expériences"
-        tagline="Sainte-Marie, mille façons de s’émerveiller"
+        tagline={["Mille façons", "de s’émerveiller"]}
         text={[
-          "Baignades dans les eaux turquoise, rencontres avec les baleines, balades en pirogue, découvertes de paysages préservés… Sainte-Marie regorge de trésors à explorer.",
-          "Vivez l’île à votre rythme, entre aventure, nature et moments inoubliables !",
+          "Baignades dans les eaux turquoise, rencontres avec les baleines, balades en pirogue, découvertes de paysages préservés… L’île regorge de trésors à explorer.",
+          "Vivez-la à votre rythme, entre aventure, nature et moments inoubliables !",
         ]}
         image={{
-          // TODO client : image fournie le 2026-11-10 — confirmer sa provenance et qu'elle montre bien l'île
-          src: "/images/island/cascade.jpeg",
-          alt: "Cascade tropicale qui tombe d'une falaise au milieu d'une végétation luxuriante",
-          position: "object-[center_40%]",
+          // TODO client : image fournie le 2026-11-11 — confirmer sa provenance et ses droits
+          src: "/images/island/lagon-recif.jpeg",
+          alt: "Vue aérienne de la côte de Sainte-Marie : forêt, lagon turquoise et barrière de corail face à l'océan",
+          position: "object-[center_45%]",
         }}
         secondary={{ label: "Découvrir l’île", href: "#sainte-marie" }}
         rubriques={[

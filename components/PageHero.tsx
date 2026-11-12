@@ -2,8 +2,8 @@ import Image from "next/image"
 import ButtonLink from "@/components/ButtonLink"
 
 interface PageHeroProps {
-  title: string
-  tagline: string
+  title?: string     // sans titre, l'accroche devient le grand titre (Expériences, Hébergements)
+  tagline: string | [string, string]   // une ligne en blanc, ou deux parties : la première en blanc, la seconde en sable à la ligne
   text: string | string[]   // un ou plusieurs paragraphes
   image: {
     src: string
@@ -16,8 +16,10 @@ interface PageHeroProps {
 
 // Hero plein écran des pages intérieures : photo, titre en bas à gauche, texte et boutons à droite.
 // Header transparent par-dessus : la page doit figurer dans HERO_PAGES (components/Header.tsx).
-export default function PageHero({ title, tagline, text, image, secondary, rubriques }: PageHeroProps) {
+export default function PageHero({ title, tagline: accroche, text, image, secondary, rubriques }: PageHeroProps) {
   const paragraphs = Array.isArray(text) ? text : [text]
+  const [debut, suite] = Array.isArray(accroche) ? accroche : [accroche, ""]
+  const tagline = [debut, suite].filter(Boolean).join(" ")
   return (
     <section className="relative isolate flex min-h-[max(100dvh,38rem)] items-end overflow-hidden bg-forest">
       {/* Conteneur séparé : l'apparition de la photo ne remplace pas son zoom au défilement */}
@@ -40,17 +42,25 @@ export default function PageHero({ title, tagline, text, image, secondary, rubri
       {/* Contenu — s'efface en remontant quand on fait défiler la page */}
       <div className="w-full max-w-7xl mx-auto px-4 pt-28 pb-8 md:pb-12 text-primary-light animate-hero-exit">
         <div className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-14 animate-fade-up motion-reduce:animate-none">
-          {/* Titre et accroche dans le même h1 : l'accroche porte les mots-clés de la page (référencement) */}
-          <h1 className="lg:col-span-7 space-y-4">
-            <span className="block text-[clamp(3rem,2rem+4vw,5.5rem)] leading-[0.95] text-balance">
-              {title}
-            </span>
-            {/* Espace : sans lui, le texte du titre (lu par les moteurs) colle « L'hôtel » à l'accroche */}
-            {" "}
-            <span className="block text-2xl md:text-3xl leading-tight text-balance text-sand">
-              {tagline}
-            </span>
-          </h1>
+          {title ? (
+            // Titre et accroche dans le même h1 : l'accroche porte les mots-clés de la page (référencement)
+            <h1 className="lg:col-span-7 space-y-4">
+              <span className="block text-[clamp(3rem,2rem+4vw,5.5rem)] leading-[0.95] text-balance">
+                {title}
+              </span>
+              {/* Espace : sans lui, le texte du titre (lu par les moteurs) colle « L'hôtel » à l'accroche */}
+              {" "}
+              <span className="block text-2xl md:text-3xl leading-tight text-balance text-sand">
+                {tagline}
+              </span>
+            </h1>
+          ) : (
+            <h1 className="lg:col-span-7 text-[clamp(2.5rem,1.6rem+3.6vw,4.75rem)] leading-[1.02] tracking-[-0.02em]">
+              <span className="block text-balance">{debut}</span>
+              {suite && " "}
+              {suite && <span className="block text-balance text-sand">{suite}</span>}
+            </h1>
+          )}
 
           <div className="lg:col-span-5 space-y-6">
             <div className="max-w-md space-y-3">

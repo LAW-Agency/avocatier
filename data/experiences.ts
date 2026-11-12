@@ -21,8 +21,27 @@ export const panoramaIle: PhotoLibre = {
   },
 }
 
-// Lieux incontournables de l'île (cahier des charges : « Découvrir Sainte-Marie »)
-export const lieux: { nom: string; texte: string; image: PhotoLibre }[] = [
+// Photo sans crédit connu (fournie par l'utilisateur)
+export type PhotoLieu = Omit<PhotoLibre, "credit"> & { credit?: PhotoLibre["credit"] }
+
+// Deux photos au-dessus du panorama, dans la grande case de la mosaïque (page Expériences)
+// TODO client : provenance et droits à confirmer (fournies le 2026-11-11 ; le phare porte la signature « J. C. Clain »)
+export const photosIle: [PhotoLieu, PhotoLieu] = [
+  {
+    src: "/images/island/cascade-foret.jpeg",
+    alt: "Cascade qui dévale des rochers sombres au milieu de la forêt tropicale, sous un cocotier",
+    position: "object-[center_70%]",
+  },
+  {
+    src: "/images/island/phare.jpeg",
+    alt: "Ancien phare métallique rouillé qui se dresse au-dessus de la végétation, sous un ciel bleu",
+    position: "object-[center_25%]",
+  },
+]
+
+// Lieux incontournables de l'île (cahier des charges : « Découvrir Sainte-Marie »).
+// `image2` : seconde photo affichée à côté de la première dans la carte (page Expériences).
+export const lieux: { nom: string; texte: string; image: PhotoLieu; image2?: PhotoLieu }[] = [
   {
     nom: "L’île aux Nattes",
     texte: "Au sud de Sainte-Marie, à quelques minutes de pirogue : sable blanc, eau turquoise, pas une voiture.",
@@ -39,45 +58,44 @@ export const lieux: { nom: string; texte: string; image: PhotoLibre }[] = [
   },
   {
     nom: "Ambodifotatra",
-    texte: "Le chef-lieu de l’île, son marché animé, sa vieille église et, tout près, le cimetière des pirates face à la baie.",
+    texte: "Ambodifotatra, chef-lieu de l’île et son marché animé, le Cimetière des Pirates près de la baie des Forbans, ainsi que la première église catholique de Madagascar, construite en 1857.",
     image: {
       src: "/images/island/cimetiere-pirates.jpeg",
-      alt: "Vieilles tombes en pierre parmi les ravenalas au cimetière des pirates",
+      alt: "Tombes de pierre noircie dans l'herbe, entre ravenalas et palmiers, au cimetière des pirates",
+      position: "object-[40%_center]",
       credit: {
-        auteur: "Lemurbaby",
-        licence: "CC BY-SA 3.0",
-        source: "https://commons.wikimedia.org/wiki/File:Sainte_marie_Madagascar_pirate_cemetery_2.JPG",
-        licenceUrl: "https://creativecommons.org/licenses/by-sa/3.0/deed.fr",
+        auteur: "Antony (Gloucester, Royaume-Uni)",
+        licence: "CC BY-SA 2.0",
+        source: "https://commons.wikimedia.org/wiki/File:Pirate_Cemetery,_Ile_Sainte-Marie.jpg",
+        licenceUrl: "https://creativecommons.org/licenses/by-sa/2.0/deed.fr",
       },
+    },
+    // TODO client : source et droits de cette photo à confirmer (fournie sans crédit le 2026-11-11)
+    image2: {
+      src: "/images/island/eglise-ambodifotatra.jpg",
+      alt: "L'église catholique d'Ambodifotatra, murs crème et toit rouge, au milieu des palmiers",
+      position: "object-[78%_center]",
     },
   },
   {
     nom: "La forêt d’Ikalalao",
     texte: "Au centre de l’île, une forêt préservée à parcourir à pied, entre fougères arborescentes et orchidées.",
     image: {
-      src: "/images/island/foret.jpeg",
-      alt: "Sous-bois de forêt tropicale humide sur l'île Sainte-Marie",
-      credit: {
-        auteur: "Frank Vassen",
-        licence: "CC BY 2.0",
-        source: "https://commons.wikimedia.org/wiki/File:Rainforest_remnant_on_Ile_Sainte_Marie,_Madagascar_(4026758529).jpg",
-        licenceUrl: "https://creativecommons.org/licenses/by/2.0/deed.fr",
-      },
+      // TODO client : provenance et droits à confirmer (fournie le 2026-11-11 ; ancienne photo Wikimedia : foret.jpeg).
+      // Ce sont des propithèques à diadème, absents de Sainte-Marie (forêts de l'est de la Grande Terre).
+      src: "/images/island/foret-ikalalao.jpeg",
+      alt: "Deux lémuriens au pelage noir, blanc et orangé accrochés aux branches dans la forêt tropicale",
+      position: "object-[45%_center]",
     },
   },
   {
-    // Pas de photo libre d'Ambodiatafana : le lieu est présenté avec la côte nord, que montre la photo
     nom: "La pointe nord",
     texte: "Ici la côte se fait rocheuse. À Ambodiatafana, des bassins naturels creusés dans la roche volcanique permettent de se baigner à l’abri des vagues.",
     image: {
-      src: "/images/island/rochers-nord.jpeg",
-      alt: "Rochers sombres et eau turquoise à Coco Bay, au nord de Sainte-Marie",
-      credit: {
-        auteur: "Anai171",
-        licence: "CC BY-SA 4.0",
-        source: "https://commons.wikimedia.org/wiki/File:Vue_sur_la_mer_depuis_les_rochers_de_Coco_Bay,_au_nord_de_Sainte-Marie,_Madagascar.jpg",
-        licenceUrl: "https://creativecommons.org/licenses/by-sa/4.0/deed.fr",
-      },
+      // TODO client : provenance et droits à confirmer (fournie le 2026-11-11 ; ancienne photo Wikimedia : rochers-nord.jpeg)
+      src: "/images/island/cote-nord.jpeg",
+      alt: "Plage de sable bordée de rochers sombres et de cocotiers, pirogue à balancier au bord d'un lagon turquoise",
+      position: "object-[72%_center]",
     },
   },
 ]

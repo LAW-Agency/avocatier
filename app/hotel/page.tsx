@@ -21,8 +21,7 @@ export default function HotelPage() {
   return (
     <div>
       <PageHero
-        title="L’hôtel"
-        tagline="Une maison face à l’océan, sur l’île Sainte-Marie"
+        tagline={["Une maison", "face à l’océan"]}
         text="Quelques bungalows et chambres dans un jardin tropical, une plage privée, une piscine et l’accueil personnalisé de Joëlle et Stéphane : bienvenue dans une adresse à taille humaine."
         image={{
           src: "/images/hotel/jardin-ombres.jpeg",
