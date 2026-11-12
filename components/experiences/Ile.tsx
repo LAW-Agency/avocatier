@@ -2,7 +2,7 @@ import Image from "next/image"
 import type { CSSProperties } from "react"
 import SectionTitle from "@/components/home/SectionTitle"
 import { Anchor, Leaf } from "lucide-react"
-import { lieux, panoramaIle } from "@/data/experiences"
+import { lieux, panoramaIle, photosIle } from "@/data/experiences"
 
 // Les deux phrases du client, chacune avec un petit titre tiré de son contenu
 const piliers = [
@@ -19,7 +19,8 @@ const piliers = [
 ]
 
 // Découvrir Sainte-Marie (référencement), juste après le hero : intro centrée, deux encarts (histoire, nature),
-// puis les lieux à voir en mosaïque : le panorama occupe la grande case (2 × 2 sur grand écran),
+// puis les lieux à voir en mosaïque : la grande case (2 × 2 sur grand écran) réunit deux photos en haut
+// (cascade, phare) et le panorama en bas, sous la phrase d'accroche ;
 // les quatre lieux l'entourent, texte posé sur la photo.
 // Crédits Wikimedia Commons retirés de la section à la demande (2026-11-10) : ils restent dus (licences CC BY / BY-SA),
 // voir data/experiences.ts.
@@ -68,33 +69,66 @@ export default function Ile() {
             data-reveal
             className="relative isolate flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-panel p-6 text-primary-light sm:col-span-2 lg:row-span-2 lg:aspect-auto lg:min-h-[36rem]"
           >
-            <Image
-              src={panoramaIle.src}
-              alt={panoramaIle.alt}
-              fill
-              sizes="(min-width: 1280px) 620px, (min-width: 640px) 100vw, 100vw"
-              className={`-z-20 object-cover ${panoramaIle.position ?? ""}`}
-            />
-            <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-forest/85 via-forest/20 to-transparent" />
+            {/* Deux photos en haut (40 %), le panorama en bas, séparés d'un filet clair */}
+            <div className="absolute inset-0 -z-20 grid grid-cols-2 grid-rows-[2fr_3fr] gap-0.5 bg-primary-light/70">
+              {photosIle.map((photo) => (
+                <div key={photo.src} className="relative">
+                  <Image
+                    src={photo.src}
+                    alt={photo.alt}
+                    fill
+                    sizes="(min-width: 1280px) 310px, (min-width: 640px) 50vw, 50vw"
+                    className={`object-cover ${photo.position ?? ""}`}
+                  />
+                </div>
+              ))}
+              <div className="relative col-span-2">
+                <Image
+                  src={panoramaIle.src}
+                  alt={panoramaIle.alt}
+                  fill
+                  sizes="(min-width: 1280px) 620px, (min-width: 640px) 100vw, 100vw"
+                  className={`object-cover ${panoramaIle.position ?? ""}`}
+                />
+              </div>
+            </div>
+            <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-forest/85 via-forest/10 via-35% to-transparent to-50%" />
             <p className="font-heading text-2xl leading-tight text-balance md:text-3xl">
               Une île à explorer, des merveilles à découvrir et des souvenirs à emporter !
             </p>
           </li>
 
-          {lieux.map(({ nom, texte, image }, i) => (
+          {lieux.map(({ nom, texte, image, image2 }, i) => (
             <li
               key={nom}
               data-reveal
               style={{ "--reveal-delay": `${(i + 1) * 100}ms` } as CSSProperties}
               className="relative isolate flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-panel p-5 text-primary-light lg:aspect-auto"
             >
-              <Image
-                src={image.src}
-                alt={image.alt}
-                fill
-                sizes="(min-width: 1280px) 300px, (min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                className={`-z-20 object-cover ${image.position ?? ""}`}
-              />
+              {image2 ? (
+                // Deux photos côte à côte, séparées d'un filet clair
+                <div className="absolute inset-0 -z-20 grid grid-cols-2 gap-0.5 bg-primary-light/70">
+                  {[image, image2].map((photo) => (
+                    <div key={photo.src} className="relative">
+                      <Image
+                        src={photo.src}
+                        alt={photo.alt}
+                        fill
+                        sizes="(min-width: 1280px) 150px, (min-width: 1024px) 13vw, (min-width: 640px) 25vw, 50vw"
+                        className={`object-cover ${photo.position ?? ""}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Image
+                  src={image.src}
+                  alt={image.alt}
+                  fill
+                  sizes="(min-width: 1280px) 300px, (min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                  className={`-z-20 object-cover ${image.position ?? ""}`}
+                />
+              )}
               <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-forest/90 via-forest/35 to-transparent" />
               <h4 className="font-heading text-xl leading-tight text-balance">{nom}</h4>
               <p className="mt-1.5 text-sm leading-snug text-primary-light/90">{texte}</p>

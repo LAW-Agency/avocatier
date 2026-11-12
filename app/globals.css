@@ -112,6 +112,16 @@
   }
 }
 
+/* Texte posé directement sur une photo, sans voile : ombre serrée (contour des lettres) + halo large vert nuit
+   qui ne suit que les lettres. */
+@utility text-shadow-photo {
+  text-shadow:
+    0 1px 1px rgb(13 43 33 / 0.9),
+    0 1px 4px rgb(13 43 33 / 0.8),
+    0 2px 14px rgb(13 43 33 / 0.7),
+    0 0 36px rgb(13 43 33 / 0.5);
+}
+
 /* ANIMATIONS LIÉES AU DÉFILEMENT (CSS pur, animation-timeline) — bonus des navigateurs qui les gèrent,
    ignorées ailleurs ou si le mouvement réduit est demandé. */
 

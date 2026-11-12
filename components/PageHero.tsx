@@ -2,8 +2,8 @@ import Image from "next/image"
 import ButtonLink from "@/components/ButtonLink"
 
 interface PageHeroProps {
-  title: string
-  tagline: string
+  title?: string     // sans titre, l'accroche devient le grand titre (Expériences, Hébergements)
+  tagline: string | [string, string]   // une ligne en blanc, ou deux parties : la première en blanc, la seconde en sable à la ligne
   text: string | string[]   // un ou plusieurs paragraphes
   image: {
     src: string
@@ -12,14 +12,16 @@ interface PageHeroProps {
   }
   secondary: { label: string; href: string }   // second bouton, à côté de « Réserver votre séjour »
   rubriques?: { label: string; href: string }[] // sommaire de la page (ancres)
-  // Titre réservé aux lecteurs d'écran : l'accroche devient le grand titre et le texte passe dessous
+  // Avec un titre : titre réservé aux lecteurs d'écran, l'accroche devient le grand titre et le texte passe dessous
   hideTitle?: boolean
 }
 
 // Hero plein écran des pages intérieures : photo, titre en bas à gauche, texte et boutons à droite.
 // Header transparent par-dessus : la page doit figurer dans HERO_PAGES (components/Header.tsx).
-export default function PageHero({ title, tagline, text, image, secondary, rubriques, hideTitle }: PageHeroProps) {
+export default function PageHero({ title, tagline: accroche, text, image, secondary, rubriques, hideTitle }: PageHeroProps) {
   const paragraphs = Array.isArray(text) ? text : [text]
+  const [debut, suite] = Array.isArray(accroche) ? accroche : [accroche, ""]
+  const tagline = [debut, suite].filter(Boolean).join(" ")
   const boutons = (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap [&>a]:whitespace-nowrap">
       <ButtonLink href="/reserver" className="w-full sm:w-auto">
@@ -28,6 +30,13 @@ export default function PageHero({ title, tagline, text, image, secondary, rubri
       <ButtonLink href={secondary.href} variant="outline-light" className="w-full sm:w-auto">
         {secondary.label}
       </ButtonLink>
+    </div>
+  )
+  const texte = (
+    <div className="max-w-md space-y-3">
+      {paragraphs.map((p) => (
+        <p key={p} className="text-base md:text-lg leading-relaxed text-primary-light/85">{p}</p>
+      ))}
     </div>
   )
   return (
@@ -51,7 +60,7 @@ export default function PageHero({ title, tagline, text, image, secondary, rubri
 
       {/* Contenu — s'efface en remontant quand on fait défiler la page */}
       <div className="w-full max-w-7xl mx-auto px-4 pt-28 pb-8 md:pb-12 text-primary-light animate-hero-exit">
-        {hideTitle ? (
+        {title && hideTitle ? (
           <div className="space-y-6 md:space-y-8 animate-fade-up motion-reduce:animate-none">
             <h1 className="max-w-4xl text-[clamp(2.25rem,1.6rem+2.4vw,3.75rem)] leading-[1.05] text-balance">
               <span className="sr-only">{title} — </span>
@@ -69,24 +78,28 @@ export default function PageHero({ title, tagline, text, image, secondary, rubri
           </div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-14 animate-fade-up motion-reduce:animate-none">
-            {/* Titre et accroche dans le même h1 : l'accroche porte les mots-clés de la page (référencement) */}
-            <h1 className="lg:col-span-7 space-y-4">
-              <span className="block text-[clamp(3rem,2rem+4vw,5.5rem)] leading-[0.95] text-balance">
-                {title}
-              </span>
-              {/* Espace : sans lui, le texte du titre (lu par les moteurs) colle « L'hôtel » à l'accroche */}
-              {" "}
-              <span className="block text-2xl md:text-3xl leading-tight text-balance text-sand">
-                {tagline}
-              </span>
-            </h1>
+            {title ? (
+              // Titre et accroche dans le même h1 : l'accroche porte les mots-clés de la page (référencement)
+              <h1 className="lg:col-span-7 space-y-4">
+                <span className="block text-[clamp(3rem,2rem+4vw,5.5rem)] leading-[0.95] text-balance">
+                  {title}
+                </span>
+                {/* Espace : sans lui, le texte du titre (lu par les moteurs) colle « L'hôtel » à l'accroche */}
+                {" "}
+                <span className="block text-2xl md:text-3xl leading-tight text-balance text-sand">
+                  {tagline}
+                </span>
+              </h1>
+            ) : (
+              <h1 className="lg:col-span-7 text-[clamp(2.5rem,1.6rem+3.6vw,4.75rem)] leading-[1.02] tracking-[-0.02em]">
+                <span className="block text-balance">{debut}</span>
+                {suite && " "}
+                {suite && <span className="block text-balance text-sand">{suite}</span>}
+              </h1>
+            )}
 
             <div className="lg:col-span-5 space-y-6">
-              <div className="max-w-md space-y-3">
-                {paragraphs.map((p) => (
-                  <p key={p} className="text-base md:text-lg leading-relaxed text-primary-light/85">{p}</p>
-                ))}
-              </div>
+              {texte}
               {boutons}
             </div>
           </div>
