@@ -22,13 +22,10 @@ export default function RestaurantPage() {
   return (
     <div>
       <PageHero
-        title="Restaurant & Bar"
-        hideTitle
-        tagline="Une cuisine savoureuse face à l’océan Indien"
+        tagline={["Cuisine savoureuse", "face à l’océan Indien"]}
         text={[
-          "Des produits locaux, une cuisine maison généreuse et des saveurs qui sentent bon Madagascar… Du petit-déjeuner au dîner, profitez d’une belle expérience gourmande face à l’océan.",
-          "Et pour prolonger ces instants de plaisir, retrouvez notre bar au bord de la piscine pour savourer un verre dans une ambiance tropicale.",
-          "Chez L’Avocatier, les vacances se dégustent aussi à table !",
+          "Produits locaux, cuisine maison et saveurs de Madagascar, du petit-déjeuner au dîner face à l’océan.",
+          "Et pour prolonger le plaisir, un verre au bar, au bord de la piscine.",
         ]}
         image={{
           src: "/images/restaurant/table-ocean-coucher-soleil.jpeg",
