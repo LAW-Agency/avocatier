@@ -1,54 +1,51 @@
 import Image from "next/image"
 import type { CSSProperties } from "react"
 
-// Baleines à bosse (version retenue le 2026-11-12, « photo libre ») : la photo du saut en pleine largeur,
-// à son format d'origine et sans rien dessus pour qu'elle reste nette ; le texte suit sur vert nuit,
-// en trois colonnes (titre et accroche, saison, récit), empilées sur mobile.
+// Baleines à bosse (version retenue le 2026-11-16, « format d'origine ») : la photo du saut entière, à son
+// format d'origine (2500 × 1479, jamais recadrée) et petite à gauche, la saison en légende dessous ;
+// titre, accroche et récit à droite, sur fond brume. Empilé sur mobile.
 export default function Baleines() {
   return (
-    <section id="baleines" aria-labelledby="baleines-titre" className="bg-forest text-primary-light">
-      <div data-reveal="image" className="relative aspect-[4/3] sm:aspect-[2500/1479] max-h-[100svh] w-full overflow-hidden">
-        <Image
-          src="/images/island/baleine-saut.webp"
-          alt="Baleine à bosse en plein saut hors de l'eau, devant la côte boisée de Sainte-Marie"
-          fill
-          sizes="100vw"
-          className="object-cover object-[60%_30%]"
-        />
-      </div>
+    <section id="baleines" aria-labelledby="baleines-titre" className="bg-mist py-section">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 md:grid-cols-12 lg:gap-16">
+        <figure className="space-y-3 md:col-span-5">
+          <div className="relative aspect-[2500/1479] overflow-hidden rounded-card">
+            <Image
+              src="/images/island/baleine-saut.webp"
+              alt="Baleine à bosse en plein saut hors de l'eau, devant la côte boisée de Sainte-Marie"
+              fill
+              sizes="(min-width: 1024px) 520px, (min-width: 768px) 42vw, 100vw"
+              data-reveal="image"
+              className="object-cover"
+            />
+          </div>
+          <figcaption className="flex items-baseline justify-between gap-4 border-t border-primary-dark/15 pt-3 text-sm text-text-dark">
+            <span>Saison des baleines à Sainte-Marie</span>
+            <span className="font-heading text-base text-primary-accent">Juillet → septembre</span>
+          </figcaption>
+        </figure>
 
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-section md:grid-cols-12 lg:gap-16">
-        <div className="space-y-5 md:col-span-5">
-          <h2 id="baleines-titre" data-reveal className="font-heading text-section text-balance">
+        <div className="space-y-5 md:col-span-7">
+          <h2 id="baleines-titre" data-reveal className="font-heading text-section text-balance text-text-dark">
             Le spectacle magique des baleines à bosse
           </h2>
-          <p data-reveal style={{ "--reveal-delay": "100ms" } as CSSProperties} className="font-heading text-lg text-balance text-sand md:text-xl">
+          <p
+            data-reveal
+            style={{ "--reveal-delay": "100ms" } as CSSProperties}
+            className="font-heading text-lg text-balance text-primary-accent md:text-xl"
+          >
             Une émotion inoubliable au cœur de l’océan Indien !
           </p>
-        </div>
-
-        <div
-          data-reveal
-          style={{ "--reveal-delay": "200ms" } as CSSProperties}
-          className="md:col-span-3 md:border-l md:border-primary-light/20 md:pl-8"
-        >
-          <p className="font-heading text-[clamp(2.25rem,1.5rem+2vw,3rem)] leading-[1.05] text-sand">
-            Juillet →
-            <br />
-            septembre
-          </p>
-          <p className="mt-3 text-sm text-primary-light/80">Saison des baleines à Sainte-Marie</p>
-        </div>
-
-        <div data-reveal style={{ "--reveal-delay": "300ms" } as CSSProperties} className="space-y-4 text-body md:col-span-4">
-          <p>
-            Chaque année, de juillet à septembre, les baleines à bosse quittent les eaux froides de l’Antarctique pour
-            rejoindre les eaux chaudes de Sainte-Marie et donner naissance à leurs petits.
-          </p>
-          <p>
-            Partez à leur rencontre lors d’une excursion en mer avec des guides locaux ou admirez parfois leurs souffles
-            depuis la plage.
-          </p>
+          <div data-reveal style={{ "--reveal-delay": "200ms" } as CSSProperties} className="space-y-4">
+            <p className="max-w-[60ch] text-body text-text-dark">
+              Chaque année, de juillet à septembre, les baleines à bosse quittent les eaux froides de l’Antarctique
+              pour rejoindre les eaux chaudes de Sainte-Marie et donner naissance à leurs petits.
+            </p>
+            <p className="max-w-[60ch] text-body text-text-dark">
+              Partez à leur rencontre lors d’une excursion en mer avec des guides locaux ou admirez parfois leurs
+              souffles depuis la plage.
+            </p>
+          </div>
         </div>
       </div>
     </section>
