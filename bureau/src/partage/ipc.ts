@@ -33,8 +33,9 @@ export type ResultatFichier = { chemin: string } | { erreur: string } | null
 
 // Classeur Excel préparé par l'interface (données seules) ; mise en forme dans src/main/classeur.ts.
 // Dates « AAAA-MM-JJ », dates-heures ISO (affichées à l'heure de Sainte-Marie), montants en euros
-export type FormatColonne = "texte" | "entier" | "euros" | "date" | "dateHeure"
-export type ColonneClasseur = { titre: string; format: FormatColonne; total?: boolean; largeur?: number }
+// « montant » : nombre dans l'unité de la colonne (unite, ex. « Ar », « $US »), avec 0 ou 2 décimales
+export type FormatColonne = "texte" | "entier" | "euros" | "montant" | "date" | "dateHeure"
+export type ColonneClasseur = { titre: string; format: FormatColonne; total?: boolean; largeur?: number; unite?: string; decimales?: 0 | 2 }
 export type ValeurCellule = string | number | null
 export type FeuilleClasseur = { nom: string; titre: string; sousTitre: string; colonnes: ColonneClasseur[]; lignes: ValeurCellule[][] }
 export type Classeur = { feuilles: FeuilleClasseur[] }
@@ -98,6 +99,7 @@ export type Reglages = {
   imprimanteTicket: string // imprimante des tickets de caisse ; "" : boîte d'impression de Windows
   impressionAuto: boolean // imprimer le ticket dès l'encaissement
   versionPresentee: string // dernière version présentée par la fenêtre de bienvenue ; "" : jamais (premier lancement)
+  alertesTraitees: string[] // notifications marquées « traitées » sur ce poste (cleAlerte de renderer/src/alertes.ts)
 }
 
 // Poste de caisse de cet ordinateur (src/main/caisse.ts) : préfixe donné par le serveur à son enregistrement

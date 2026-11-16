@@ -23,7 +23,7 @@ export function useRappels(donnees: Donnees | null, naviguer: (vue: Vue) => void
   }, [])
 
   const rappeler = useEffectEvent((d: Donnees) => {
-    const { chambres, navettes } = rappelsDe(d)
+    const { chambres, navettes } = rappelsDe(d, new Set(reglages.alertesTraitees))
     const maintenant = Date.now()
     // Une seule annonce par sujet, dès qu'un de ses rappels est nouveau ou n'a pas été annoncé depuis 2 h
     const aAnnoncer = (cles: string[]) => {

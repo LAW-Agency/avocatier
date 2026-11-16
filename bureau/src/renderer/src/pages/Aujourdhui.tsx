@@ -59,7 +59,7 @@ import { useState, type DragEvent, type ReactNode } from "react"
 import { ajouterJours, formaterDate, formaterHeure, formaterPlage, nombreNuits, pluriel, tempsRestant } from "@partage/dates"
 import type { Reservation } from "@partage/types"
 import type { PlaceWidget, TailleWidget } from "../../../partage/ipc"
-import { alertesDe } from "../alertes"
+import { useAlertes } from "../alertes"
 import ActionsReservation, { BoutonReception } from "../composants/ActionsReservation"
 import { Carte, EnTete, Vide } from "../composants/commun"
 import FicheReservation from "../composants/FicheReservation"
@@ -141,7 +141,7 @@ export default function Aujourdhui() {
   const [survol, setSurvol] = useState<string | null>(null)
   const classesTaille: Record<TailleWidget, string> = { 1: styles.taille1, 2: styles.taille2, 3: styles.taille3, 4: styles.taille4 }
 
-  const { demandes: aTraiter, aEncaisser } = alertesDe(d)
+  const { demandes: aTraiter, aEncaisser } = useAlertes().alertes
   const doubles = doublesReservations(d)
   const confirmees = d.reservations.filter((r) => r.statut === "confirmee")
   const surPlace = confirmees.filter((r) => r.arrivee <= d.aujourdhui && r.depart > d.aujourdhui && !arrivees.includes(r))

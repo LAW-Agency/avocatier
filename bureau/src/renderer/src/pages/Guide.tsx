@@ -573,7 +573,8 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         </li>
         <li>
           <strong>Vente</strong> : touchez les articles (un clic = un de plus), indiquez la table si besoin, puis « Encaisser » (espèces, carte, mobile money ; en ariary, euros ou dollars, la
-          monnaie se rend en ariary) ou « Sur la chambre » : le montant s&apos;ajoute à la note du séjour et se règle au départ, avec la facture.
+          monnaie se rend en ariary) ou « Sur la chambre » : le montant s&apos;ajoute à la note du séjour et se règle au départ, avec la facture. Sous le ticket en cours,
+          « Réimprimer le dernier ticket » ressort le dernier ticket vendu sur ce poste, sans passer par Tickets du jour.
         </li>
         <li>
           <strong>Tickets du jour</strong> : totaux, réimpression et annulation (motif obligatoire ; le ticket reste, barré). La réception et les caissiers annulent les tickets du jour, les
@@ -603,12 +604,13 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     Icone: DataTrendingRegular,
     ecran: { page: "revenus" },
     gerants: true,
-    motsCles: "revenus chiffre d'affaires statistiques occupation prix moyen revpar provenance pays annulations reste à encaisser période exporter comptabilité excel",
+    motsCles: "revenus chiffre d'affaires statistiques occupation prix moyen revpar provenance pays annulations reste à encaisser période exporter comptabilité excel devise ariary dollar reçu par devise",
     contenu: (
       <ul>
         <li>
           <strong>Revenus</strong> : chiffre d&apos;affaires des séjours confirmés réparti nuit par nuit, encaissements par mode, par provenance, et séjours non soldés.
-          « Exporter les encaissements » enregistre ceux de la période choisie pour Excel (comptabilité).
+          « Exporter les encaissements » enregistre ceux de la période choisie pour Excel (comptabilité) : contre-valeur en euros, une colonne par devise avec le
+          montant réellement reçu (ariary, euros, dollars…), et un onglet « Par devise » qui totalise chaque devise et chaque mode, remboursements à part.
         </li>
         <li>
           <strong>Statistiques</strong> : taux d&apos;occupation, prix moyen, RevPAR, durée des séjours, annulations, provenance et pays, avec l&apos;évolution par rapport à la période
@@ -703,7 +705,7 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
     titre: "Notifications et suivi en direct",
     resume: "Comment le logiciel vous prévient des nouveautés.",
     Icone: AlertRegular,
-    motsCles: "notification hors connexion internet coupé connexion perdue suivi en direct toast alerte nouvelle demande annulation option expirée zone de notification icône horloge windows rappel rappels ménage nettoyer navette",
+    motsCles: "notification hors connexion internet coupé connexion perdue suivi en direct toast alerte nouvelle demande annulation option expirée zone de notification icône horloge windows rappel rappels ménage nettoyer navette traité traiter masquer ignorer réafficher",
     contenu: (
       <ul>
         <li>Le logiciel vérifie les nouveautés toutes les 15 secondes, même fenêtre fermée dans la zone de notification.</li>
@@ -715,6 +717,11 @@ export const SECTIONS_GUIDE: SectionGuide[] = [
         <li>
           <strong>Petits rappels</strong> : chambres à nettoyer (en premier celles qui reçoivent un client aujourd&apos;hui) et navettes de l&apos;aéroport d&apos;aujourd&apos;hui et
           demain. Annoncés à l&apos;ouverture, dès qu&apos;un nouveau apparaît, puis toutes les 2 h tant qu&apos;ils restent ; aussi dans la cloche. Désactivables dans Paramètres.
+        </li>
+        <li>
+          <strong>Marquer comme traité</strong> : le bouton ✓ d&apos;un départ à encaisser, d&apos;un oubli de la réception, d&apos;un trop-perçu ou d&apos;une navette retire la
+          ligne de la cloche sur ce poste (un client qui paiera par virement, un pourboire laissé…). Elle revient d&apos;elle-même si la situation change (autre montant, autres
+          dates). « Tout réafficher », en haut de la liste, les fait toutes revenir. Les écrans Revenus et Statistiques comptent toujours tout.
         </li>
         <li>Le titre de la fenêtre affiche le nombre de demandes à traiter, par exemple « (2) Chez L&apos;Avocatier ».</li>
         <li>

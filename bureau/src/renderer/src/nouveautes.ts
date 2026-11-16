@@ -1,14 +1,17 @@
 import {
   ArrowSyncCheckmarkRegular,
   CalculatorRegular,
+  CheckmarkCircleRegular,
   ClockAlarmRegular,
   DataBarVerticalRegular,
   DocumentDismissRegular,
+  DocumentTableRegular,
   DocumentTextRegular,
   FoodRegular,
   HistoryRegular,
   LockClosedRegular,
   MoneyRegular,
+  PrintRegular,
   ReceiptRegular,
   ScalesRegular,
   ShieldCheckmarkRegular,
@@ -29,6 +32,28 @@ export type Nouveaute = {
 }
 
 export const NOUVEAUTES: { version: string; liste: Nouveaute[] }[] = [
+  {
+    version: "1.3.1",
+    liste: [
+      {
+        titre: "Réimprimer le dernier ticket",
+        texte: "Dans l'onglet Vente, sous le ticket en cours : le dernier ticket vendu sur ce poste ressort en un clic.",
+        Icone: PrintRegular,
+      },
+      {
+        titre: "Notifications marquées comme traitées",
+        texte: "Le bouton ✓ retire une alerte de la cloche sur ce poste ; elle revient d'elle-même si la situation change.",
+        Icone: CheckmarkCircleRegular,
+        pour: ["hote", "reception"],
+      },
+      {
+        titre: "Encaissements par devise reçue",
+        texte: "L'export Excel des Revenus montre ce qui a été reçu en ariary, euros ou dollars, avec un onglet de totaux par devise et par mode.",
+        Icone: DocumentTableRegular,
+        pour: ["hote"],
+      },
+    ],
+  },
   {
     version: "1.3.0",
     liste: [

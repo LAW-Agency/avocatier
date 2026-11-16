@@ -35,6 +35,14 @@ const PAR_DEFAUT: Reglages = {
   imprimanteTicket: "",
   impressionAuto: false,
   versionPresentee: "",
+  alertesTraitees: [],
+}
+
+// Alertes traitées : chaînes courtes et uniques, les plus récentes gardées (une alerte réglée ne revient jamais)
+const ALERTES_TRAITEES_MAX = 300
+function lireAlertesTraitees(valeur: unknown): string[] {
+  if (!Array.isArray(valeur)) return []
+  return [...new Set(valeur.filter((cle): cle is string => typeof cle === "string" && cle.length <= 120))].slice(-ALERTES_TRAITEES_MAX)
 }
 
 // Affichage du planning : chaque option vérifiée, celles qui manquent ou sont invalides reprennent leur défaut
@@ -77,6 +85,7 @@ export function lireReglages(): Reglages {
       // Vue qui n'existe plus (4 semaines avant le 2026-10-26) : celle par défaut
       vuePlanning: (VUES_PLANNING as readonly unknown[]).includes(lus.vuePlanning) ? (lus.vuePlanning as Reglages["vuePlanning"]) : PAR_DEFAUT.vuePlanning,
       affichagePlanning: lireAffichage(lus.affichagePlanning),
+      alertesTraitees: lireAlertesTraitees(lus.alertesTraitees),
       // Poste installé avant la fenêtre de bienvenue (1.2.0) : mise à jour, pas premier lancement
       versionPresentee: typeof lus.versionPresentee === "string" ? lus.versionPresentee : existsSync(chemin()) ? "1.1.0" : "",
     }
@@ -99,6 +108,10 @@ export function modifierReglages(modification: Partial<Reglages>): Reglages {
     if (cle === "triPlanning" && !(TRIS_PLANNING as readonly string[]).includes(valeur as string)) continue
     if (cle === "vueChambres" && !(VUES_CHAMBRES as readonly string[]).includes(valeur as string)) continue
     if (cle === "devise" && !(DEVISES_LOGICIEL as readonly string[]).includes(valeur as string)) continue
+    if (cle === "alertesTraitees") {
+      suivants.alertesTraitees = lireAlertesTraitees(valeur)
+      continue
+    }
     if (cle === "affichagePlanning") {
       suivants.affichagePlanning = lireAffichage(valeur)
       continue

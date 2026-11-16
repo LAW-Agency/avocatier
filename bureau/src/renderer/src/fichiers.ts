@@ -21,9 +21,10 @@ export function useFichiers() {
     else annoncer({ titre: reussi, texte: resultat.chemin, intent: "success", duree: 8000 })
   }
 
-  async function exporter(quoi: string, feuille: FeuilleClasseur) {
+  // Une feuille, ou plusieurs onglets dans le même classeur
+  async function exporter(quoi: string, feuille: FeuilleClasseur | FeuilleClasseur[]) {
     setExportEnCours(true)
-    const resultat = await window.avocatier.enregistrerXlsx(nomExport(quoi, d.aujourdhui), { feuilles: [feuille] })
+    const resultat = await window.avocatier.enregistrerXlsx(nomExport(quoi, d.aujourdhui), { feuilles: Array.isArray(feuille) ? feuille : [feuille] })
     setExportEnCours(false)
     annoncerResultat(resultat, "Export Excel enregistré", "Export non enregistré")
   }

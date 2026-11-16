@@ -24,11 +24,11 @@ import {
   ToggleButton,
   Tooltip,
 } from "@fluentui/react-components"
-import { AddRegular, BedRegular, DeleteRegular, FoodRegular, MoneyRegular, ReceiptRegular, SubtractRegular } from "@fluentui/react-icons"
+import { AddRegular, BedRegular, DeleteRegular, FoodRegular, MoneyRegular, PrintRegular, ReceiptRegular, SubtractRegular } from "@fluentui/react-icons"
 import { useMemo, useState, type FormEvent } from "react"
 import { formaterPlage } from "@partage/dates"
 import { dateDesTaux, DEVISES, formaterDansDevise, tauxARevoir } from "@partage/devises"
-import type { Article, CodeDevise, LigneTicket, ModePaiement, ReglagesDevises, ReglementTicket, SejourCaisse } from "@partage/types"
+import type { Article, CodeDevise, LigneTicket, ModePaiement, ReglagesDevises, ReglementTicket, SejourCaisse, Ticket } from "@partage/types"
 import { aPayerEn, ariaryPourUn, calculerReglement, MODES_CAISSE, montantsSuggeres, totalLignes, type Caisse, type DonneesEcranCaisse, type Vente } from "../caisse"
 import { useFichiers } from "../fichiers"
 import { MODES_PAIEMENT } from "../libelles"
@@ -53,6 +53,7 @@ export default function CaisseVente({ caisse, donnees }: { caisse: Caisse; donne
   const [categorie, setCategorie] = useState(TOUT)
   const [recherche, setRecherche] = useState("")
   const [fenetre, setFenetre] = useState<"encaisser" | "chambre" | null>(null)
+  const [reimpression, setReimpression] = useState(false)
 
   // Ticket en cours toujours aux nom et prix de la carte chargée : un gérant qui change un prix pendant la vente
   // (vente refusée par le serveur, carte rechargée) met le total à jour
@@ -67,6 +68,20 @@ export default function CaisseVente({ caisse, donnees }: { caisse: Caisse; donne
     (a) => (filtre ? a.nom.toLocaleLowerCase("fr").includes(filtre) : categorie === TOUT || a.categorie === categorie),
   )
   const total = totalLignes(lignes)
+
+  // Dernier ticket vendu dans la caisse ouverte de ce poste (hors tickets annulés) : réimprimable sans passer par
+  // l'onglet Tickets du jour (client qui redemande son ticket, imprimante à court de papier)
+  const dernier = donnees.tickets
+    .filter((t) => t.sessionId === caisse.session?.id && t.statut !== "annule")
+    .reduce<Ticket | null>((plusRecent, t) => (!plusRecent || t.le > plusRecent.le ? t : plusRecent), null)
+  const chambreDe = (t: Ticket) => (t.reservationId ? donnees.sejours.find((s) => s.reservationId === t.reservationId)?.chambre : undefined)
+
+  async function reimprimerDernier() {
+    if (!dernier) return
+    setReimpression(true)
+    await imprimerTicket(dernier, chambreDe(dernier))
+    setReimpression(false)
+  }
 
   function ajouter(a: Article) {
     setLignes((avant) => {
@@ -181,6 +196,19 @@ export default function CaisseVente({ caisse, donnees }: { caisse: Caisse; donne
             Vider
           </Button>
         </div>
+        {dernier && (
+          <Button
+            className={styles.reimprimer}
+            appearance="subtle"
+            size="small"
+            icon={reimpression ? <Spinner size="tiny" /> : <PrintRegular />}
+            disabled={reimpression}
+            onClick={() => void reimprimerDernier()}
+            data-visite="caisse-reimprimer"
+          >
+            Réimprimer le dernier ticket ({dernier.numero} · {ariary(dernier.total)})
+          </Button>
+        )}
       </aside>
 
       {fenetre === "encaisser" && (
