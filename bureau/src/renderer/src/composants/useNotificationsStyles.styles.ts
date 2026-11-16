@@ -45,6 +45,15 @@ export const useNotificationsStyles = makeStyles({
     ":hover:active": { backgroundColor: tokens.colorSubtleBackgroundPressed },
     ...createFocusOutlineStyle(),
   },
+  // Ligne d'une alerte qui se marque traitée : la ligne cliquable, puis le bouton ✓
+  ligneAvecAction: {
+    display: "flex",
+    alignItems: "center",
+    columnGap: tokens.spacingHorizontalXXS,
+    "& > button:first-child": { flex: 1, minWidth: 0 },
+  },
+  traiter: { flexShrink: 0, color: tokens.colorNeutralForeground3 },
+  traitees: { display: "flex", alignItems: "center", justifyContent: "space-between", columnGap: tokens.spacingHorizontalS },
   icone: {
     flexShrink: 0,
     display: "inline-flex",

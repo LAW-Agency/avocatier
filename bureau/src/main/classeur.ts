@@ -12,8 +12,17 @@ const FORMATS: Record<FormatColonne, string | undefined> = {
   texte: undefined,
   entier: "#,##0",
   euros: '#,##0 "€";-#,##0 "€"',
+  montant: "#,##0.00", // remplacé par formatDe quand la colonne a une unité
   date: "dd/mm/yyyy",
   dateHeure: "dd/mm/yyyy hh:mm",
+}
+
+// Format d'une colonne : celui du type, ou pour un montant son unité et ses décimales (« 12 500 Ar », « 45,50 $US »)
+function formatDe(c: ColonneClasseur): string | undefined {
+  if (c.format !== "montant") return FORMATS[c.format]
+  const nombre = c.decimales === 0 ? "#,##0" : "#,##0.00"
+  if (!c.unite) return nombre
+  return `${nombre} "${c.unite}";-${nombre} "${c.unite}"`
 }
 
 // Sainte-Marie : UTC+3 toute l'année. Excel n'a pas de fuseau : on écrit l'heure locale de l'hôtel
@@ -50,7 +59,7 @@ function ajouterFeuille(classeur: ExcelJS.Workbook, f: FeuilleClasseur) {
   })
   feuille.properties.defaultRowHeight = 18
   feuille.columns = f.colonnes.map((c, i) => {
-    const numFmt = FORMATS[c.format]
+    const numFmt = formatDe(c)
     return { width: largeur(c, i, f.lignes), style: numFmt ? { numFmt } : {} }
   })
 
@@ -103,7 +112,7 @@ function ajouterFeuille(classeur: ExcelJS.Workbook, f: FeuilleClasseur) {
       else if (c.total) {
         const lettre = feuille.getColumn(j + 1).letter
         cellule.value = { formula: `SUBTOTAL(109,${lettre}${premiere}:${lettre}${derniere})` }
-        cellule.numFmt = FORMATS[c.format] ?? "General"
+        cellule.numFmt = formatDe(c) ?? "General"
       }
       cellule.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: COULEURS.nuit } }
       cellule.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COULEURS.total } }
@@ -135,7 +144,13 @@ export function estClasseur(valeur: unknown): valeur is Classeur {
         typeof f.sousTitre === "string" &&
         Array.isArray(f.colonnes) &&
         f.colonnes.length > 0 &&
-        f.colonnes.every((col) => typeof col?.titre === "string" && col.format in FORMATS) &&
+        f.colonnes.every(
+          (col) =>
+            typeof col?.titre === "string" &&
+            col.format in FORMATS &&
+            (col.unite === undefined || (typeof col.unite === "string" && /^[^"\\;]{0,8}$/.test(col.unite))) &&
+            (col.decimales === undefined || col.decimales === 0 || col.decimales === 2),
+        ) &&
         Array.isArray(f.lignes) &&
         f.lignes.every((l) => Array.isArray(l) && l.every((v) => v === null || typeof v === "string" || typeof v === "number")),
     )

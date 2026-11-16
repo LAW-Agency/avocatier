@@ -64,6 +64,7 @@ export const useRestaurantStyles = makeStyles({
   montantTotal: { fontSize: tokens.fontSizeHero700, lineHeight: tokens.lineHeightHero700, fontWeight: tokens.fontWeightSemibold, fontVariantNumeric: "tabular-nums" },
   boutons: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: tokens.spacingHorizontalS },
   encaisser: { gridColumn: "1 / -1", minHeight: "48px", fontSize: tokens.fontSizeBase400 },
+  reimprimer: { alignSelf: "center", color: tokens.colorNeutralForeground2 },
 
   // --- Fenêtre d'encaissement ---
   modes: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: tokens.spacingHorizontalS },

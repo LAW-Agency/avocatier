@@ -20,6 +20,7 @@ import {
   ArrowUndoRegular,
   BroomRegular,
   CheckmarkCircleRegular,
+  CheckmarkRegular,
   DismissRegular,
   DoorArrowLeftRegular,
   DoorArrowRightRegular,
@@ -32,8 +33,8 @@ import {
 import type { ReactNode } from "react"
 import { formaterDate, formaterHeure, pluriel, tempsRestant } from "@partage/dates"
 import type { Reservation } from "@partage/types"
-import { alertesDe, type ChambreAPreparer } from "../alertes"
-import { nomChambre, nomDe, soldeDe, useDonneesChargees } from "../donnees"
+import { useAlertes, type ChambreAPreparer, type TypeAlerte } from "../alertes"
+import { nomChambre, nomDe, soldeDe, useDonneesChargees, useLectureSeule } from "../donnees"
 import { usePrix } from "../montants"
 import { Carte, Vide } from "./commun"
 import FicheReservation from "./FicheReservation"
@@ -44,8 +45,7 @@ type Ton = "danger" | "attention" | "info"
 // Cloche de la barre de titre : nombre de points à régler ; ouvre ou ferme le panneau des notifications
 export function BoutonNotifications({ ouvert, onBasculer }: { ouvert: boolean; onBasculer: () => void }) {
   const styles = useNotificationsStyles()
-  const { d } = useDonneesChargees()
-  const alertes = alertesDe(d)
+  const { alertes } = useAlertes()
   const urgentes = alertes.doubles + alertes.aEncaisser.length + alertes.departsOublies.length + alertes.rappels.chambres.filter((x) => x.arrivee).length
   return (
     <Tooltip content={alertes.total ? `Notifications : ${pluriel(alertes.total, "point")} à régler` : "Notifications"} relationship="label">
@@ -63,8 +63,8 @@ export function BoutonNotifications({ ouvert, onBasculer }: { ouvert: boolean; o
 // notifications de Windows), avec la même couche arrondie que le contenu. « Plein écran » ouvre l'écran Notifications
 export function PanneauNotifications({ ouvert, onFermer }: { ouvert: boolean; onFermer: () => void }) {
   const styles = useNotificationsStyles()
-  const { d, naviguer } = useDonneesChargees()
-  const { total } = alertesDe(d)
+  const { naviguer } = useDonneesChargees()
+  const { total } = useAlertes().alertes
   return (
     <InlineDrawer position="end" open={ouvert} className={styles.panneau}>
       <DrawerHeader>
@@ -99,17 +99,20 @@ export function PanneauNotifications({ ouvert, onFermer }: { ouvert: boolean; on
 }
 
 // Points à régler, par rubrique : impayés au départ, oublis de la réception, trop-perçus, demandes. Calculés à partir
-// des données chargées : une ligne disparaît d'elle-même une fois la situation réglée. Chaque ligne ouvre la fiche.
+// des données chargées : une ligne disparaît d'elle-même une fois la situation réglée. Chaque ligne ouvre la fiche ;
+// impayés, oublis, trop-perçus et navettes se marquent aussi « traités » sur ce poste (bouton ✓ de la ligne).
 // `pleinePage` : rubriques en cartes (écran Notifications) ; sinon, listes serrées du panneau
 export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolean }) {
   const styles = useNotificationsStyles()
   const formaterPrix = usePrix()
   const { d, clientDe, naviguer } = useDonneesChargees()
-  const alertes = alertesDe(d)
+  const { alertes, traiter, retablir } = useAlertes()
+  const lectureSeule = useLectureSeule()
 
   const jour = (date: string) => formaterDate(date, { year: undefined })
-  const ligne = (r: Reservation, Icone: FluentIcon, ton: Ton, detail: ReactNode, montant?: number) => (
-    <li key={r.id}>
+  // `type` : l'alerte peut être marquée traitée (les demandes et les chambres se règlent dans leur écran)
+  const ligne = (r: Reservation, Icone: FluentIcon, ton: Ton, detail: ReactNode, montant?: number, type?: TypeAlerte) => (
+    <li key={r.id} className={styles.ligneAvecAction}>
       <FicheReservation
         reservation={r}
         declencheur={
@@ -129,6 +132,11 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
           </button>
         }
       />
+      {type && (
+        <Tooltip content="Marquer comme traité : l'alerte ne revient que si la situation change" relationship="label">
+          <Button className={styles.traiter} appearance="subtle" size="small" icon={<CheckmarkRegular />} disabled={lectureSeule} onClick={() => void traiter(type, r)} />
+        </Tooltip>
+      )}
     </li>
   )
 
@@ -163,6 +171,7 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
           "danger",
           r.departLe ? `Parti le ${formaterHeure(r.departLe)}` : r.depart === d.aujourdhui ? `Départ aujourd'hui · ${nomChambre(d, r.chambreId)}` : `Départ prévu le ${jour(r.depart)}`,
           soldeDe(r, d),
+          "encaisser",
         ),
       ),
     },
@@ -180,20 +189,20 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
       titre: "Réception à régulariser",
       aide: "Arrivée ou départ jamais enregistré",
       lignes: [
-        ...alertes.departsOublies.map((r) => ligne(r, DoorArrowLeftRegular, "attention", `Départ du ${jour(r.depart)} non enregistré`)),
-        ...alertes.arriveesOubliees.map((r) => ligne(r, DoorArrowRightRegular, "attention", `Arrivée du ${jour(r.arrivee)} non enregistrée`)),
+        ...alertes.departsOublies.map((r) => ligne(r, DoorArrowLeftRegular, "attention", `Départ du ${jour(r.depart)} non enregistré`, undefined, "depart")),
+        ...alertes.arriveesOubliees.map((r) => ligne(r, DoorArrowRightRegular, "attention", `Arrivée du ${jour(r.arrivee)} non enregistrée`, undefined, "arrivee")),
       ],
     },
     {
       titre: "Trop-perçus à rembourser",
       aide: "Encaissé plus que le montant dû",
-      lignes: alertes.tropPercus.map((r) => ligne(r, ArrowUndoRegular, "attention", `${r.reference} · ${r.statut === "confirmee" ? "séjour" : "réservation annulée"}`, -soldeDe(r, d))),
+      lignes: alertes.tropPercus.map((r) => ligne(r, ArrowUndoRegular, "attention", `${r.reference} · ${r.statut === "confirmee" ? "séjour" : "réservation annulée"}`, -soldeDe(r, d), "trop")),
     },
     {
       titre: "Navettes à prévoir",
       aide: "Arrivées d'aujourd'hui et de demain avec navette depuis l'aéroport",
       lignes: alertes.rappels.navettes.map((r) =>
-        ligne(r, VehicleBusRegular, "info", `${r.arrivee === d.aujourdhui ? "Arrivée aujourd'hui" : "Arrivée demain"} · ${pluriel(r.adultes + r.enfants, "voyageur")}`),
+        ligne(r, VehicleBusRegular, "info", `${r.arrivee === d.aujourdhui ? "Arrivée aujourd'hui" : "Arrivée demain"} · ${pluriel(r.adultes + r.enfants, "voyageur")}`, undefined, "navette"),
       ),
     },
     {
@@ -226,6 +235,15 @@ export function ListeNotifications({ pleinePage = false }: { pleinePage?: boolea
             </Button>
           </MessageBarActions>
         </MessageBar>
+      )}
+
+      {alertes.traitees > 0 && (
+        <div className={styles.traitees}>
+          <Caption1 className={styles.detail}>{pluriel(alertes.traitees, "alerte")} marquée{alertes.traitees > 1 ? "s" : ""} comme traitée{alertes.traitees > 1 ? "s" : ""} sur ce poste</Caption1>
+          <Button appearance="transparent" size="small" onClick={() => void retablir()}>
+            Tout réafficher
+          </Button>
+        </div>
       )}
 
       {alertes.total === 0 ? (
