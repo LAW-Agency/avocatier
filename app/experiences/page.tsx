@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 // Cahier des charges : « vendre ce que l'on ressent, pas uniquement ce que possède l'hôtel ».
 // L'île, les baleines, les excursions et activités nautiques.
-// Rythme des fonds : photo → clair → photo (baleines) → sable → clair → photo
+// Rythme des fonds : photo → clair → brume (baleines) → sable → clair → photo
 export default function ExperiencesPage() {
   return (
     <div>
