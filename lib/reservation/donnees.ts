@@ -1,4 +1,3 @@
-import { hacherMotDePasse } from "@/lib/auth/motDePasse"
 import { ajouterJours, aujourdhuiISO } from "./dates"
 import { reglagesDevisesInitiaux } from "./devises"
 import { calculerDevis, deplierSaisons } from "./regles"
@@ -113,17 +112,24 @@ export const chambresInitiales: Record<string, string[]> = {
   h5: ["Ocre 1"],
 }
 
-// Comptes de démonstration (chargés par db:amorcer) : mots de passe connus, à supprimer avant l’ouverture au public
-export const COMPTE_DEMO = { email: "demo@avocatier.test", motDePasse: "vohilava-demo" }
+// Comptes de démonstration (chargés par db:amorcer), à supprimer avant l’ouverture au public. Le dépôt est public :
+// aucun mot de passe ici, les scripts le lisent dans la variable `variable` de .env (scripts/db/motsDePasseDemo.ts)
+// et npm run db:mots-de-passe-demo le change en base.
+export type CompteDemo = { email: string; variable: string }
+export const COMPTE_DEMO: CompteDemo = { email: "demo@avocatier.test", variable: "MOT_DE_PASSE_DEMO_CLIENT" }
 // Compte hôte : se connecte au logiciel des hôtes (bureau/), jamais au site
-export const COMPTE_HOTE = { email: "hotes@avocatier.test", motDePasse: "avocatier-hotes" }
+export const COMPTE_HOTE: CompteDemo = { email: "hotes@avocatier.test", variable: "MOT_DE_PASSE_DEMO_HOTE" }
 // Compte de la réception (rôle « reception ») : créé depuis le logiciel, écran Utilisateurs
-export const COMPTE_RECEPTION = { email: "reception@avocatier.test", motDePasse: "avocatier-reception" }
+export const COMPTE_RECEPTION: CompteDemo = { email: "reception@avocatier.test", variable: "MOT_DE_PASSE_DEMO_RECEPTION" }
 // Comptes Caisse (rôle « caissier ») des postes Restaurant et Bar : créés par npm run db:demo-caisse
-export const COMPTE_CAISSE_RESTAURANT = { email: "restaurant@avocatier.test", motDePasse: "avocatier-restaurant", prenom: "Fanja", nom: "Rakotomalala" }
-export const COMPTE_CAISSE_BAR = { email: "bar@avocatier.test", motDePasse: "avocatier-bar", prenom: "Tojo", nom: "Rakotondrabe" }
+export const COMPTE_CAISSE_RESTAURANT = { email: "restaurant@avocatier.test", variable: "MOT_DE_PASSE_DEMO_RESTAURANT", prenom: "Fanja", nom: "Rakotomalala" }
+export const COMPTE_CAISSE_BAR = { email: "bar@avocatier.test", variable: "MOT_DE_PASSE_DEMO_BAR", prenom: "Tojo", nom: "Rakotondrabe" }
+export const COMPTES_DEMO: CompteDemo[] = [COMPTE_HOTE, COMPTE_RECEPTION, COMPTE_CAISSE_RESTAURANT, COMPTE_CAISSE_BAR, COMPTE_DEMO]
 
-export function creerCompteHote(): Client {
+// Empreintes des mots de passe des comptes de démonstration, calculées par le script appelant
+export type EmpreintesDemo = { hote: string; demo: string }
+
+export function creerCompteHote(motDePasseHash: string): Client {
   return {
     id: "hote",
     role: "hote",
@@ -132,7 +138,7 @@ export function creerCompteHote(): Client {
     nom: "",
     telephone: "",
     pays: "Madagascar",
-    motDePasseHash: hacherMotDePasse(COMPTE_HOTE.motDePasse),
+    motDePasseHash,
     creeLe: new Date().toISOString(),
     actif: true,
     origine: "site",
@@ -150,7 +156,7 @@ export type Demonstration = {
   compteur: number // dernier numéro de référence attribué
 }
 
-export function creerDemonstration(): Demonstration {
+export function creerDemonstration(empreintes: EmpreintesDemo): Demonstration {
   const aujourdhui = aujourdhuiISO()
   const jour = (decalage: number) => ajouterJours(aujourdhui, decalage)
   const maintenant = new Date().toISOString()
@@ -165,7 +171,7 @@ export function creerDemonstration(): Demonstration {
     nom: "Démo",
     telephone: "+33 6 00 00 00 00",
     pays: "France",
-    motDePasseHash: hacherMotDePasse(COMPTE_DEMO.motDePasse),
+    motDePasseHash: empreintes.demo,
     creeLe: maintenant,
     actif: true,
     origine: "site",
@@ -228,7 +234,7 @@ export function creerDemonstration(): Demonstration {
   return {
     hebergements,
     reglesSaisons: structuredClone(reglesSaisonsInitiales),
-    clients: [creerCompteHote(), demo, lucas, aina],
+    clients: [creerCompteHote(empreintes.hote), demo, lucas, aina],
     reservations: [
       reservation("h4", jour(-90), jour(-85), "confirmee", 24 * 130),
       reservation("h2", jour(40), jour(47), "confirmee", 24 * 12, { enfants: 1, navette: true }),
