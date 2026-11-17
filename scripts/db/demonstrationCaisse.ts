@@ -8,6 +8,7 @@ import { ajouterJours, aujourdhuiISO } from "@/lib/reservation/dates"
 import { formaterDansDevise } from "@/lib/reservation/devises"
 import { COMPTE_CAISSE_BAR, COMPTE_CAISSE_RESTAURANT, COMPTE_RECEPTION } from "@/lib/reservation/donnees"
 import type { CodeDevise, DateISO, LigneTicket, ModePaiement, ReglementTicket, StatutTicket, Ticket } from "@/lib/reservation/types"
+import { motDePasseDemo } from "./motsDePasseDemo"
 
 // Caisse Restaurant et Bar de démonstration : carte, deux postes (Restaurant, Bar) tenus par leurs caissiers, et
 // deux mois de services jusqu'à maintenant (jamais dans le futur) : caisses ouvertes et clôturées chaque jour,
@@ -114,7 +115,7 @@ async function caissier(db: Executant, compte: typeof COMPTE_CAISSE_BAR): Promis
   }
   const { rows: cree } = await db.query<Membre>(
     "insert into clients (role, email, prenom, nom, mot_de_passe_hash, pays) values ('caissier', $1, $2, $3, $4, 'Madagascar') returning id, prenom, nom",
-    [compte.email, compte.prenom, compte.nom, hacherMotDePasse(compte.motDePasse)],
+    [compte.email, compte.prenom, compte.nom, hacherMotDePasse(motDePasseDemo(compte))],
   )
   return cree[0]
 }

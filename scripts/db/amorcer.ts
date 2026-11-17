@@ -1,14 +1,17 @@
 import { loadEnvConfig } from "@next/env"
 import { Client } from "pg"
+import { hacherMotDePasse } from "@/lib/auth/motDePasse"
 import { reglagesDevisesInitiaux } from "@/lib/reservation/devises"
-import { chambresInitiales, creerDemonstration, hebergements, reglesSaisonsInitiales } from "@/lib/reservation/donnees"
+import { chambresInitiales, COMPTE_DEMO, COMPTE_HOTE, creerDemonstration, hebergements, reglesSaisonsInitiales } from "@/lib/reservation/donnees"
+import { motDePasseDemo } from "./motsDePasseDemo"
 
 // Remplit la base après `npm run db:migrer`. Sans risque à relancer :
 // - hébergements : ajoutés ou mis à jour depuis lib/reservation/donnees.ts, sans toucher au prix saisi par les hôtes ;
 // - chambres : celles de `chambresInitiales`, seulement pour une catégorie qui n'en a encore aucune ;
 // - saisons et devises : seulement si rien n'est encore enregistré ;
 // - comptes de démonstration (COMPTE_DEMO, COMPTE_HOTE) et leurs réservations : seulement si la base n'a aucun compte.
-// Ces comptes ont des mots de passe connus : les supprimer avant l'ouverture au public.
+//   Mots de passe lus dans .env (MOT_DE_PASSE_DEMO_*), sinon tirés au hasard et affichés une fois ;
+//   les supprimer avant l'ouverture au public.
 // Usage : npm run db:amorcer
 
 loadEnvConfig(process.cwd())
@@ -65,7 +68,10 @@ async function amorcer() {
 
     const { rowCount: comptes } = await client.query("select 1 from clients limit 1")
     if (!comptes) {
-      const demo = creerDemonstration()
+      const demo = creerDemonstration({
+        hote: hacherMotDePasse(motDePasseDemo(COMPTE_HOTE)),
+        demo: hacherMotDePasse(motDePasseDemo(COMPTE_DEMO)),
+      })
       // Identifiants de la démonstration (« c1 », « hote »…) remplacés par ceux de la base
       const ids = new Map<string, string>()
       for (const c of demo.clients) {
