@@ -58,7 +58,16 @@ import {
   type LigneReservation,
 } from "./moteurPostgres"
 
-// Implémentation PostgreSQL du contrat ../gestion (schéma : migrations/003_logiciel_hotes.sql)
+// Implémentation PostgreSQL du contrat ../gestion (schéma : migrations/003_logiciel_hotes.sql et suivantes)
+//
+// C'est le « back-office » appelé par les routes app/api/hotes/ pour le logiciel des hôtes. Le rôle de chaque
+// méthode est décrit dans le contrat ../gestion.ts ; ici, on ne commente que la façon de faire.
+// Sections, dans l'ordre : équipe, clients, réservations saisies par l'équipe, arrivées et départs, chambres,
+// encaissements, consommations et factures, calendriers iCal, réglages de facturation, journal.
+// Règles transverses :
+// - les créations envoyées par le logiciel portent un id choisi par lui (ID_ENVOI) : un renvoi est reconnu ;
+// - un séjour sur une facture en vigueur (factureEnVigueur) ne se modifie presque plus (voir docs/ARCHITECTURE.md) ;
+// - les montants de l'hôtel sont en euros, les consommations du restaurant et du bar en ariary (../folio.ts).
 
 const PAIEMENT = `id, reservation_id as "reservationId", montant, devise, montant_devise as "montantDevise", taux, taux_ariary as "tauxAriary",
   mode, note, le, enregistre_par as "enregistrePar", numero`
@@ -152,6 +161,8 @@ const FACTURATION_INITIALE: ReglagesFacturation = {
 }
 
 export const gestionPostgres: GestionHotel = {
+  // ── Équipe de l'hôtel (comptes hote, reception, caissier) ──
+
   async listerEquipe() {
     const liste = await lignes<LigneClient>(
       db(),
@@ -204,6 +215,8 @@ export const gestionPostgres: GestionHotel = {
       return { ok: true }
     })
   },
+
+  // ── Clients (fiches créées au comptoir, fusion des doublons, effacement RGPD) ──
 
   async creerClientLocal(client) {
     const erreur = controlerClientLocal(client)
@@ -338,6 +351,8 @@ export const gestionPostgres: GestionHotel = {
       return { ok: true }
     })
   },
+
+  // ── Réservations saisies par l'équipe (confirmées d'office) et leurs modifications ──
 
   async creerReservationDirecte(r, auteur, remise) {
     if (r.id !== undefined && !ID_ENVOI.test(r.id)) return { ok: false, erreur: "Identifiant de réservation invalide." }
@@ -485,6 +500,8 @@ export const gestionPostgres: GestionHotel = {
     }
   },
 
+  // ── Arrivée et départ des clients ──
+
   async enregistrerMouvement(reservationId, mouvement, { annuler = false, auteur, note = "" }) {
     return transaction<{ ok: true; soldeDu: number } | { ok: false; erreur: string }>(async (tx) => {
       const [ligne] = await lignes<{ statut: string; arrivee: string; arriveeLe: Date | null; departLe: Date | null; chambreId: string; montantTotal: number; restaurant: number }>(
@@ -551,6 +568,8 @@ export const gestionPostgres: GestionHotel = {
       return { ok: true, soldeDu: Math.max(0, r.solde) }
     })
   },
+
+  // ── Chambres numérotées (migration 006) ──
 
   async creerChambre({ hebergementId, numero }) {
     const lu = normaliserNumero(numero)
@@ -623,6 +642,8 @@ export const gestionPostgres: GestionHotel = {
       return { ok: true }
     })
   },
+
+  // ── Encaissements, consommations et factures ──
 
   async listerPaiements() {
     return (await lignes<LignePaiement>(db(), `select ${PAIEMENT} from paiements order by le`)).map(versPaiement)
@@ -804,6 +825,8 @@ export const gestionPostgres: GestionHotel = {
     })
   },
 
+  // ── Calendriers Booking.com / Airbnb (import en blocages, export iCal) ──
+
   async listerCalendriers() {
     return (await lignes<LigneCalendrier>(db(), `select ${CALENDRIER} from calendriers_externes order by cree_le`)).map(versCalendrier)
   },
@@ -886,6 +909,8 @@ export const gestionPostgres: GestionHotel = {
     return { nom: `Chez L'Avocatier · ${calendrier.hebergement} · ${calendrier.numero}`, evenements }
   },
 
+  // ── Coordonnées imprimées sur les factures et ancienne numérotation ──
+
   async reglagesFacturation() {
     const [ligne] = await lignes<ReglagesFacturation>(
       db(),
@@ -927,6 +952,8 @@ export const gestionPostgres: GestionHotel = {
       return { ok: true as const, numero, le: le.toISOString() }
     })
   },
+
+  // ── Journal d'activité ──
 
   async noterActivite({ membreId, auteur, categorie, action, detail }) {
     await db().query("insert into journal_activite (membre_id, auteur, categorie, action, detail) values ($1, $2, $3, $4, $5)", [

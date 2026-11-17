@@ -7,6 +7,15 @@ import type { Article, BilanRestaurant, BilanSession, CodeDevise, PosteCaisse, S
 import { codeErreur, db, lignes, transaction, type Executant } from "./db"
 
 // Implémentation PostgreSQL du contrat ../caisse (schéma : migrations/007_restaurant_bar.sql)
+//
+// Vocabulaire de la caisse du restaurant et du bar (montants en ariary entiers) :
+// - article : une ligne de la carte (prix fixé ici, jamais par le poste qui vend) ;
+// - poste : un ordinateur de caisse, avec un préfixe propre à ses numéros de ticket (« R-000123 ») ;
+// - session : une ouverture de caisse d'un poste, avec son fond, jusqu'à sa clôture (bilan figé en jsonb) ;
+// - ticket : une vente, « paye » (réglée sur place), « chambre » (ajoutée à la note du séjour, voir ../folio.ts)
+//   ou « annule » (avec motif), avec ses lignes (lignes_ticket) et ses règlements en devises (reglements_tickets).
+// Toutes les dates sont prises à l'heure du serveur, et le « jour » d'une vente est celui de Sainte-Marie (FUSEAU).
+// Ventes, ouvertures et clôtures sont idempotentes : un renvoi du même id renvoie l'existant avec `deja: true`.
 
 const FUSEAU = "Indian/Antananarivo"
 
@@ -93,6 +102,8 @@ const DEJA_FACTURE = `(r.facture_numero is not null or exists (select 1 from fac
 const ID_POSTE = /^[A-Za-z0-9-]{8,64}$/
 
 export const caissePostgres: CaisseRestaurant = {
+  // Tout ce dont l'écran Restaurant et Bar a besoin en une fois : carte, postes, sessions (les ouvertes toujours,
+  // les autres sur la période), tickets de la période et séjours en cours sur lesquels on peut « mettre en chambre »
   async donnees({ du, au }) {
     const aujourdhui = aujourdhuiISO()
     const [articles, postes, sessions, tickets, sejours] = await Promise.all([
@@ -128,6 +139,8 @@ export const caissePostgres: CaisseRestaurant = {
     }
   },
 
+  // Premier enregistrement d'un ordinateur comme poste de caisse (id tiré par le logiciel, gardé dans caisse.json) ;
+  // un nouvel appel avec le même id ne fait que renommer le poste. Le préfixe est attribué par la base.
   async enregistrerPoste(id, nom) {
     if (!ID_POSTE.test(id)) return { ok: false, erreur: "Identifiant de poste invalide." }
     const libelle = nom.trim().slice(0, 60)
@@ -140,6 +153,8 @@ export const caissePostgres: CaisseRestaurant = {
     return { ok: true, poste }
   },
 
+  // Onglet « Vue d'ensemble » des gérants : totaux de la période puis ventilations (catégorie, jour, poste, caissier,
+  // mode de règlement, 10 meilleurs articles, sessions). Les tickets annulés ne comptent que dans « annules ».
   async bilanPeriode({ du, au }) {
     const jour = `(t.le at time zone '${FUSEAU}')::date between $1 and $2`
     const valides = `t.statut <> 'annule' and ${jour}`
@@ -254,6 +269,7 @@ export const caissePostgres: CaisseRestaurant = {
     })
   },
 
+  // Suppression réservée aux articles jamais vendus : les tickets passés doivent garder leur article
   async supprimerArticle(id) {
     const [vendu] = await lignes(db(), "select 1 from lignes_ticket where article_id = $1 limit 1", [id])
     if (vendu) return { ok: false, erreur: "Cet article a déjà été vendu : désactivez-le plutôt (les tickets passés le gardent)." }
@@ -261,6 +277,9 @@ export const caissePostgres: CaisseRestaurant = {
     return article ? { ok: true, article } : { ok: false, erreur: "Cet article n'existe plus." }
   },
 
+  // Vente d'un poste. Contrôles dans l'ordre : forme du ticket (controles.ts), renvoi déjà reçu, numéro du bon
+  // poste, session ouverte de ce poste, séjour en cours et non facturé (vente mise sur la chambre), prix de la carte.
+  // Puis ticket, lignes et règlements dans la même transaction.
   async enregistrerTicket(t, caissierId) {
     const erreur = controlerTicket(t)
     if (erreur) return { ok: false, erreur }
@@ -359,6 +378,8 @@ export const caissePostgres: CaisseRestaurant = {
     }
   },
 
+  // Ouverture de la caisse d'un poste avec son fond en ariary. Une seule session ouverte par poste : garantie par un
+  // index unique partiel de la migration 007 (erreur 23505 traduite plus bas).
   async ouvrirSession({ id, posteId, fondCaisse }, membreId) {
     if (!id || id.length > 64) return { ok: false, erreur: "Identifiant de session invalide." }
     if (!Number.isInteger(fondCaisse) || fondCaisse < 0 || fondCaisse > FOND_MAX) {
@@ -385,6 +406,9 @@ export const caissePostgres: CaisseRestaurant = {
     }
   },
 
+  // Clôture : les espèces comptées (par devise) sont comparées aux espèces attendues de bilanSession
+  // (fond + espèces reçues − monnaie rendue). Un écart impose un commentaire. Le bilan est alors figé en jsonb :
+  // il ne bougera plus, même si un gérant annule ensuite un ticket de cette session.
   async cloturerSession(id, { especesComptees, commentaire }, membreId) {
     const comptees: Partial<Record<CodeDevise, number>> = {}
     for (const [devise, montant] of Object.entries(especesComptees)) {
@@ -415,6 +439,8 @@ export const caissePostgres: CaisseRestaurant = {
     })
   },
 
+  // Annulation avec motif obligatoire. Jamais pour un ticket sur une facture ; hors gérants, ni un ticket d'un jour
+  // passé ni un ticket payé d'une caisse déjà clôturée.
   async annulerTicket(id, motif, membre) {
     const raison = motif.trim().slice(0, 300)
     if (!raison) return { ok: false, erreur: "Indiquez le motif de l'annulation." }
