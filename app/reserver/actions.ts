@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { after } from "next/server"
+import { planifierAgenda } from "@/lib/agenda"
 import { clientConnecte } from "@/lib/auth/dal"
 import { notifierNouvelleDemande } from "@/lib/email/notifications"
 import { moteur } from "@/lib/reservation"
@@ -44,6 +45,7 @@ export async function envoyerDemande(_etat: EtatDemande, formData: FormData): Pr
   // Accusé de réception au client et alerte aux hôtes (un seul e-mail pour toutes les chambres), après la réponse
   const reservationId = resultat.reservations[0].id
   after(() => notifierNouvelleDemande(reservationId))
+  planifierAgenda()
 
   // Les dates prises disparaissent du calendrier, la demande apparaît dans « Mon compte »
   revalidatePath("/reserver")

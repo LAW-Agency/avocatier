@@ -1,5 +1,6 @@
 import { after } from "next/server"
 import { decrireReservation, journaliser, json, lireCorps, nomDuMembre, pourLesHotes, rafraichirSite } from "@/lib/api/hotes"
+import { planifierAgenda } from "@/lib/agenda"
 import { notifierDecisionDesHotes, notifierModificationParLesHotes } from "@/lib/email/notifications"
 import { gestion, moteur } from "@/lib/reservation"
 import { formaterPrix } from "@/lib/reservation/dates"
@@ -43,6 +44,7 @@ export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext
       const reste = !annuler && soldeDu > 0 ? ` · reste ${formaterPrix(soldeDu)} à payer` : ""
       return `${await decrireReservation(id)}${reste}${mot ? ` · « ${mot} »` : ""}`
     })
+    planifierAgenda()
     return json({ ok: true })
   }
 
