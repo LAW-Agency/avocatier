@@ -58,6 +58,7 @@ Sans serveur SMTP en développement, les e-mails ne partent pas : leurs aperçus
 | `npm run db:demo -- --confirmer` | **efface** réservations, encaissements et clients puis recrée ~150 séjours fictifs |
 | `npm run db:demo-caisse -- --confirmer` | remplace la carte et les tickets du restaurant et du bar par une démo |
 | `npm run db:mots-de-passe-demo -- --confirmer` | change le mot de passe des comptes de démonstration |
+| `npm run agenda -- creer \| partager <e-mail> \| partages \| synchroniser` | agenda Google des réservations du propriétaire (voir `docs/ARCHITECTURE.md`) |
 
 Il n'y a pas encore de tests automatisés : vérifier à la main dans le navigateur et dans le logiciel.
 
@@ -74,8 +75,10 @@ lib/
     postgres/         implémentation PostgreSQL et migrations SQL
   auth/               sessions, mots de passe, limites de connexion
   email/              modèles et envoi des e-mails
+  agenda/             copie des réservations dans l'agenda Google du propriétaire
   api/hotes.ts        garde des routes de l'API des hôtes (rôles, journal)
 scripts/db/           migrations, amorçage et jeux de démonstration
+scripts/agenda/       création, partage et remplissage de l'agenda Google
 public/images/        photos du client
 bureau/               logiciel Electron des hôtes
 docs/                 documentation

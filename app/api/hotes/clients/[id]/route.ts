@@ -1,3 +1,4 @@
+import { planifierAgenda } from "@/lib/agenda"
 import { journaliser, json, lireCorps, nomDuMembre, pourLesGerants, pourLesHotes } from "@/lib/api/hotes"
 import { comptes, gestion } from "@/lib/reservation"
 
@@ -25,6 +26,7 @@ export const PATCH = pourLesHotes(async (requete, membre, contexte: RouteContext
       const champs = (["prenom", "nom", "email", "telephone", "pays"] as const).filter((cle) => avant[cle] !== apres[cle])
       return `${nomDuMembre(apres)}${champs.length ? ` · ${champs.join(", ")}` : ""}`
     })
+    planifierAgenda() // nom du client dans les événements
     return json({ ok: true })
   }
 
@@ -44,5 +46,6 @@ export const DELETE = pourLesGerants(async (_requete, membre, contexte: RouteCon
   const resultat = await gestion.effacerClient(id)
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
   journaliser(membre, "client", "Données d'un client effacées", "À la demande du client")
+  planifierAgenda()
   return json({ ok: true })
 })

@@ -163,7 +163,9 @@ gardes.
 Toute route d'écriture de `app/api/hotes/` :
 
 1. **journalise** : `journaliser(membre, catégorie, action, détail)` (écran Journal du logiciel) ;
-2. **rafraîchit le site** avec `rafraichirSite()` si les disponibilités ou les prix changent ;
+2. **rafraîchit le site** avec `rafraichirSite()` si les disponibilités ou les prix changent (l'agenda Google du
+   propriétaire suit ; une écriture sur une réservation qui n'appelle pas `rafraichirSite()` appelle
+   `planifierAgenda()`) ;
 3. **envoie ses e-mails dans `after()`**, seulement après une transaction validée (jamais depuis le moteur).
 
 Et toute écriture qui **crée** quelque chose reçoit un `id` choisi par le logiciel : si la réponse se perd et
@@ -177,6 +179,28 @@ que le logiciel renvoie, le serveur reconnaît l'`id` et ne crée pas de doublon
   synchronisation. Synchronisation par le logiciel (toutes les 10 min), par la tâche planifiée Vercel
   (`vercel.json`, 3 h chaque jour, protégée par `CRON_SECRET`) et juste avant chaque demande du site.
 - **Export** : un lien secret `/calendrier/<jeton>.ics`, dates seules, aucune donnée client.
+
+### Agenda Google du propriétaire
+
+`lib/agenda/` copie les réservations dans un agenda Google que le propriétaire voit sur son téléphone, en
+lecture seule. Il n'a rien à configurer : l'agenda appartient à un **compte de service** Google Cloud de
+l'agence (API Google Calendar), qui le partage avec son adresse Gmail. C'est l'agence qui le crée et l'entretient.
+
+- **Contenu** : une réservation active (option ou confirmée) = un événement « journée entière »
+  [arrivée, départ[. Titre « Océan 1 · Claire Martin », « Option · » devant une demande en attente. Couleurs :
+  jaune pour une option, vert pour une réservation confirmée, gris après le départ. Description : chambre,
+  voyageurs, navette, statut, référence, origine. Jamais d'e-mail, de téléphone, de message ni de montant.
+- **Synchronisation complète par différence** (`synchroniserAgenda`), sans table en base. Elle lit les
+  réservations dont le départ date de moins de 30 jours et les événements marqués de l'agenda. Elle réécrit
+  seulement ceux dont l'empreinte a changé et supprime les autres. L'identifiant d'événement est tiré de celui
+  de la réservation, donc le passage est relançable sans doublon. Un seul passage à la fois par processus.
+- **Quand** : `planifierAgenda()` la lance dans `after()` après chaque écriture qui touche une réservation
+  (`rafraichirSite()` l'appelle ; arrivée/départ, fiches clients, demande et annulation du site l'appellent aussi),
+  puis chaque nuit dans la tâche planifiée `/api/calendriers/synchroniser` (rattrapage des options expirées et
+  des échecs). Une erreur de Google n'empêche jamais l'écriture : elle part dans les journaux.
+- **Mise en place** (variables `GOOGLE_*` de `.env.example`, dans `.env` et sur Vercel) :
+  `npm run agenda -- creer`, puis `npm run agenda -- partager <gmail du propriétaire>`, puis
+  `npm run agenda -- synchroniser` pour le premier remplissage. Sans `GOOGLE_AGENDA_ID`, rien ne part.
 
 ## 12. Base de données
 

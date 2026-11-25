@@ -1,3 +1,4 @@
+import { planifierAgenda } from "@/lib/agenda"
 import { journaliser, json, lireCorps, nomDuMembre, pourLesGerants } from "@/lib/api/hotes"
 import { gestion } from "@/lib/reservation"
 
@@ -9,5 +10,6 @@ export const POST = pourLesGerants(async (requete, membre, contexte: RouteContex
   const resultat = await gestion.fusionnerClients(id, doublonId)
   if (!resultat.ok) return json({ erreur: resultat.erreur }, 409)
   journaliser(membre, "client", "Fiches clients fusionnées", nomDuMembre(resultat.client))
+  planifierAgenda()
   return json({ ok: true, client: resultat.client })
 })

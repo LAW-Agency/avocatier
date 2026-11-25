@@ -55,7 +55,8 @@ Checklist :
       `pourLaCaisse`. Jamais de route sans garde.
 - [ ] Les données reçues sont vérifiées côté serveur (le logiciel peut se tromper ou être ancien).
 - [ ] Une écriture appelle `journaliser(...)`.
-- [ ] Si elle change les disponibilités ou les prix : `rafraichirSite()`.
+- [ ] Si elle change les disponibilités ou les prix : `rafraichirSite()`. Si elle touche une réservation ou
+      un client sans appeler `rafraichirSite()` : `planifierAgenda()` (agenda Google du propriétaire).
 - [ ] Les e-mails partent dans `after()`, après la transaction.
 - [ ] Une écriture qui **crée** quelque chose accepte un `id` fourni par le logiciel et renvoie `deja: true`
       si cet `id` existe déjà (pas de doublon quand une réponse se perd).

@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache"
 import { after, NextResponse, type NextRequest } from "next/server"
+import { planifierAgenda } from "@/lib/agenda"
 import { jetonRevoque } from "@/lib/auth/connexions"
 import { verifierJeton } from "@/lib/auth/session"
 import { comptes, gestion, moteur } from "@/lib/reservation"
@@ -109,7 +110,9 @@ export async function nomChambre(id: string): Promise<string> {
 }
 
 // Une décision des hôtes change les disponibilités ou les prix : calendrier de réservation, fiches,
-// compte des clients et devises de la vitrine sont à régénérer
+// compte des clients et devises de la vitrine sont à régénérer ; l'agenda Google du propriétaire suit (réservations,
+// numéros de chambre)
 export function rafraichirSite() {
   revalidatePath("/", "layout")
+  planifierAgenda()
 }

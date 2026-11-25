@@ -13,6 +13,7 @@ import {
   noterInscription,
   revoquerJeton,
 } from "@/lib/auth/connexions"
+import { planifierAgenda } from "@/lib/agenda"
 import { cheminInterne, clientConnecte } from "@/lib/auth/dal"
 import { hacherMotDePasse, verifierMotDePasse } from "@/lib/auth/motDePasse"
 import { DUREE_LIEN_MS, empreinteJeton, nouveauJeton } from "@/lib/auth/recuperation"
@@ -106,7 +107,10 @@ export async function annulerReservation(formData: FormData) {
 
   const reservationId = String(formData.get("reservationId") ?? "")
   // Les hôtes sont prévenus que les dates se libèrent
-  if (await moteur.annulerDemande(client.id, reservationId)) after(() => notifierAnnulationParLeClient(reservationId))
+  if (await moteur.annulerDemande(client.id, reservationId)) {
+    after(() => notifierAnnulationParLeClient(reservationId))
+    planifierAgenda()
+  }
   revalidatePath("/compte")
 }
 
